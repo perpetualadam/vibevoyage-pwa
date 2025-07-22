@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .debug-section {
+            background: #1a1a1a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #00FF88; color: #000; }
+        .error { background: #FF6B6B; color: #fff; }
+        .warning { background: #FFA500; color: #000; }
+        .info { background: #333; color: #fff; }
+        button {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        #map-test {
+            width: 100%;
+            height: 300px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <h1>🧭 VibeVoyage Debug Page</h1>
+    
+    <div class="debug-section">
+        <h2>📋 System Check</h2>
+        <div id="system-status"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🗺️ Map Test</h2>
+        <button onclick="testMap()">Test Map Loading</button>
+        <div id="map-test"></div>
+        <div id="map-status"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>📍 Location Test</h2>
+        <button onclick="testLocation()">Test GPS Location</button>
+        <div id="location-status"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🔊 Voice Test</h2>
+        <button onclick="testVoice()">Test Voice Synthesis</button>
+        <div id="voice-status"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>📱 PWA Test</h2>
+        <button onclick="testPWA()">Test PWA Features</button>
+        <div id="pwa-status"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🚀 Launch App</h2>
+        <button onclick="window.location.href='./index.html'">Go to VibeVoyage App</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // System check on load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSystem();
+        });
+        
+        function checkSystem() {
+            const status = document.getElementById('system-status');
+            let html = '';
+            
+            // Check Leaflet
+            if (typeof L !== 'undefined') {
+                html += '<div class="status success">✅ Leaflet library loaded</div>';
+            } else {
+                html += '<div class="status error">❌ Leaflet library failed to load</div>';
+            }
+            
+            // Check Geolocation
+            if ('geolocation' in navigator) {
+                html += '<div class="status success">✅ Geolocation API available</div>';
+            } else {
+                html += '<div class="status error">❌ Geolocation API not available</div>';
+            }
+            
+            // Check Service Worker
+            if ('serviceWorker' in navigator) {
+                html += '<div class="status success">✅ Service Worker supported</div>';
+            } else {
+                html += '<div class="status warning">⚠️ Service Worker not supported</div>';
+            }
+            
+            // Check Speech Synthesis
+            if ('speechSynthesis' in window) {
+                html += '<div class="status success">✅ Speech Synthesis available</div>';
+            } else {
+                html += '<div class="status warning">⚠️ Speech Synthesis not available</div>';
+            }
+            
+            // Check HTTPS
+            if (location.protocol === 'https:' || location.hostname === 'localhost') {
+                html += '<div class="status success">✅ Secure context (HTTPS)</div>';
+            } else {
+                html += '<div class="status warning">⚠️ Not secure context (HTTP)</div>';
+            }
+            
+            status.innerHTML = html;
+        }
+        
+        function testMap() {
+            const mapContainer = document.getElementById('map-test');
+            const status = document.getElementById('map-status');
+            
+            status.innerHTML = '<div class="status info">🗺️ Testing map...</div>';
+            
+            try {
+                // Clear container
+                mapContainer.innerHTML = '';
+                
+                // Initialize map
+                const map = L.map('map-test').setView([40.7128, -74.0060], 13);
+                
+                // Add tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                // Add marker
+                L.marker([40.7128, -74.0060])
+                    .addTo(map)
+                    .bindPopup('🗽 New York City')
+                    .openPopup();
+                
+                status.innerHTML = '<div class="status success">✅ Map loaded successfully!</div>';
+                
+                // Force resize
+                setTimeout(() => map.invalidateSize(), 100);
+                
+            } catch (error) {
+                status.innerHTML = `<div class="status error">❌ Map failed: ${error.message}</div>`;
+                console.error('Map test error:', error);
+            }
+        }
+        
+        function testLocation() {
+            const status = document.getElementById('location-status');
+            
+            if (!navigator.geolocation) {
+                status.innerHTML = '<div class="status error">❌ Geolocation not supported</div>';
+                return;
+            }
+            
+            status.innerHTML = '<div class="status info">📍 Getting location...</div>';
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    status.innerHTML = `
+                        <div class="status success">✅ Location found!</div>
+                        <div class="status info">📍 Lat: ${latitude.toFixed(6)}</div>
+                        <div class="status info">📍 Lng: ${longitude.toFixed(6)}</div>
+                        <div class="status info">🎯 Accuracy: ${position.coords.accuracy}m</div>
+                    `;
+                },
+                (error) => {
+                    let message = 'Unknown error';
+                    switch(error.code) {
+                        case 1: message = 'Permission denied'; break;
+                        case 2: message = 'Position unavailable'; break;
+                        case 3: message = 'Timeout'; break;
+                    }
+                    status.innerHTML = `<div class="status error">❌ Location error: ${message}</div>`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+        
+        function testVoice() {
+            const status = document.getElementById('voice-status');
+            
+            if (!('speechSynthesis' in window)) {
+                status.innerHTML = '<div class="status error">❌ Speech synthesis not supported</div>';
+                return;
+            }
+            
+            status.innerHTML = '<div class="status info">🔊 Testing voice...</div>';
+            
+            try {
+                const utterance = new SpeechSynthesisUtterance('Hello! VibeVoyage voice guidance is working!');
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                
+                utterance.onend = () => {
+                    status.innerHTML = '<div class="status success">✅ Voice synthesis working!</div>';
+                };
+                
+                utterance.onerror = (error) => {
+                    status.innerHTML = `<div class="status error">❌ Voice error: ${error.error}</div>`;
+                };
+                
+                speechSynthesis.speak(utterance);
+                
+            } catch (error) {
+                status.innerHTML = `<div class="status error">❌ Voice failed: ${error.message}</div>`;
+            }
+        }
+        
+        function testPWA() {
+            const status = document.getElementById('pwa-status');
+            let html = '';
+            
+            // Check manifest
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+                html += '<div class="status success">✅ Manifest link found</div>';
+            } else {
+                html += '<div class="status warning">⚠️ No manifest link</div>';
+            }
+            
+            // Check service worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    if (registrations.length > 0) {
+                        html += '<div class="status success">✅ Service worker registered</div>';
+                    } else {
+                        html += '<div class="status warning">⚠️ No service worker registered</div>';
+                    }
+                    status.innerHTML = html;
+                });
+            }
+            
+            // Check install prompt
+            if (window.deferredPrompt) {
+                html += '<div class="status success">✅ Install prompt available</div>';
+            } else {
+                html += '<div class="status info">ℹ️ Install prompt not triggered yet</div>';
+            }
+            
+            status.innerHTML = html;
+        }
+        
+        console.log('🔧 VibeVoyage Debug Page Loaded');
+    </script>
+</body>
+</html>
