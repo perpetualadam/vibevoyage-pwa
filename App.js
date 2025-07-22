@@ -16,6 +16,7 @@ class VibeVoyageApp {
         this.routeLine = null;
         this.routeOutline = null;
         this.followingCar = true;
+        this.poiMarkers = [];
         
         this.init();
     }
@@ -256,12 +257,12 @@ class VibeVoyageApp {
         }
 
         try {
-            // Use OSRM (Open Source Routing Machine) for real road routing
+            // Use OSRM (Open Source Routing Machine) for real road routing with detailed annotations
             const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
             const end = `${this.destination.lng},${this.destination.lat}`;
 
             const response = await fetch(
-                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`
+                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&voice_instructions=true&banner_instructions=true`
             );
 
             if (!response.ok) {
@@ -370,8 +371,8 @@ class VibeVoyageApp {
         const currentStep = this.routeSteps[this.currentStepIndex];
         if (!currentStep) return;
 
-        // Convert maneuver to readable instruction
-        const instruction = this.getInstructionText(currentStep.maneuver);
+        // Convert maneuver to readable instruction with accurate road names
+        const instruction = this.getInstructionText(currentStep.maneuver, currentStep);
         const distance = this.formatDistance(currentStep.distance);
 
         document.getElementById('navDirection').textContent = instruction;
@@ -384,33 +385,199 @@ class VibeVoyageApp {
         }
     }
 
-    getInstructionText(maneuver) {
+    getInstructionText(maneuver, step) {
         const type = maneuver.type;
         const modifier = maneuver.modifier;
+        const roadName = step.name || maneuver.name || '';
+        const destination = step.destinations || '';
+        const ref = step.ref || '';
 
-        // Convert OSRM maneuver types to readable instructions
+        // Get lane information if available
+        const laneInfo = this.getLaneGuidance(step);
+
+        // Build instruction with accurate road names
+        let instruction = '';
+
         switch (type) {
             case 'depart':
-                return `Head ${this.getDirection(maneuver.bearing_after)}`;
+                if (roadName) {
+                    instruction = `Head ${this.getDirection(maneuver.bearing_after)} on ${roadName}`;
+                } else {
+                    instruction = `Head ${this.getDirection(maneuver.bearing_after)}`;
+                }
+                break;
+
             case 'turn':
-                return `Turn ${modifier}`;
+                if (roadName) {
+                    instruction = `Turn ${modifier} onto ${roadName}`;
+                } else {
+                    instruction = `Turn ${modifier}`;
+                }
+                break;
+
             case 'new name':
-                return `Continue on ${maneuver.name || 'the road'}`;
+                if (roadName) {
+                    instruction = `Continue on ${roadName}`;
+                } else {
+                    instruction = 'Continue straight';
+                }
+                break;
+
             case 'merge':
-                return `Merge ${modifier}`;
+                if (roadName) {
+                    instruction = `Merge ${modifier} onto ${roadName}`;
+                } else {
+                    instruction = `Merge ${modifier}`;
+                }
+                break;
+
             case 'on ramp':
-                return 'Take the on-ramp';
+                if (destination) {
+                    instruction = `Take the ramp toward ${destination}`;
+                } else if (roadName) {
+                    instruction = `Take the ramp to ${roadName}`;
+                } else {
+                    instruction = 'Take the on-ramp';
+                }
+                break;
+
             case 'off ramp':
-                return 'Take the off-ramp';
+                if (roadName) {
+                    instruction = `Take the ${roadName} exit`;
+                } else {
+                    instruction = 'Take the off-ramp';
+                }
+                break;
+
             case 'fork':
-                return `Keep ${modifier} at the fork`;
+                if (roadName) {
+                    instruction = `Keep ${modifier} toward ${roadName}`;
+                } else {
+                    instruction = `Keep ${modifier} at the fork`;
+                }
+                break;
+
             case 'roundabout':
-                return `Take the ${maneuver.exit || '1st'} exit at the roundabout`;
+                const exit = maneuver.exit || 1;
+                if (roadName) {
+                    instruction = `Take the ${this.getOrdinal(exit)} exit onto ${roadName}`;
+                } else {
+                    instruction = `Take the ${this.getOrdinal(exit)} exit`;
+                }
+                break;
+
             case 'arrive':
-                return 'You have arrived at your destination';
+                instruction = 'You have arrived at your destination';
+                break;
+
             default:
-                return `Continue ${modifier || 'straight'}`;
+                if (roadName) {
+                    instruction = `Continue ${modifier || 'straight'} on ${roadName}`;
+                } else {
+                    instruction = `Continue ${modifier || 'straight'}`;
+                }
         }
+
+        // Add lane guidance if available
+        if (laneInfo) {
+            instruction += ` ${laneInfo}`;
+        }
+
+        // Add reference number if available (like highway numbers)
+        if (ref && !instruction.includes(ref)) {
+            instruction = instruction.replace(roadName, `${roadName} (${ref})`);
+        }
+
+        return instruction;
+    }
+
+    getLaneGuidance(step) {
+        // Check for lane information in the step
+        if (step.intersections && step.intersections.length > 0) {
+            const intersection = step.intersections[0];
+            if (intersection.lanes && intersection.lanes.length > 0) {
+                // Show visual lane guidance
+                this.showLaneGuidance(intersection.lanes);
+
+                const validLanes = intersection.lanes
+                    .map((lane, index) => ({ ...lane, index }))
+                    .filter(lane => lane.valid);
+
+                if (validLanes.length > 0) {
+                    const laneNumbers = validLanes.map(lane => lane.index + 1);
+                    if (laneNumbers.length === 1) {
+                        return `(Use lane ${laneNumbers[0]})`;
+                    } else if (laneNumbers.length <= 3) {
+                        return `(Use lanes ${laneNumbers.join(' or ')})`;
+                    } else {
+                        return `(Use ${validLanes.length} lanes)`;
+                    }
+                }
+            } else {
+                // Hide lane guidance if no lanes
+                this.hideLaneGuidance();
+            }
+        } else {
+            this.hideLaneGuidance();
+        }
+        return '';
+    }
+
+    showLaneGuidance(lanes) {
+        const laneContainer = document.getElementById('navLanes');
+        if (!laneContainer) return;
+
+        laneContainer.style.display = 'flex';
+        laneContainer.innerHTML = '';
+
+        lanes.forEach((lane, index) => {
+            const laneDiv = document.createElement('div');
+            laneDiv.className = 'lane';
+
+            if (lane.valid) {
+                laneDiv.classList.add('valid');
+            }
+
+            // Add lane direction indicators
+            if (lane.indications && lane.indications.length > 0) {
+                const indication = lane.indications[0];
+                switch (indication) {
+                    case 'left':
+                        laneDiv.textContent = '←';
+                        break;
+                    case 'right':
+                        laneDiv.textContent = '→';
+                        break;
+                    case 'straight':
+                        laneDiv.textContent = '↑';
+                        break;
+                    case 'slight_left':
+                        laneDiv.textContent = '↖';
+                        break;
+                    case 'slight_right':
+                        laneDiv.textContent = '↗';
+                        break;
+                    default:
+                        laneDiv.textContent = '↑';
+                }
+            } else {
+                laneDiv.textContent = '↑';
+            }
+
+            laneContainer.appendChild(laneDiv);
+        });
+    }
+
+    hideLaneGuidance() {
+        const laneContainer = document.getElementById('navLanes');
+        if (laneContainer) {
+            laneContainer.style.display = 'none';
+        }
+    }
+
+    getOrdinal(num) {
+        const ordinals = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+        return ordinals[num] || `${num}th`;
     }
 
     getDirection(bearing) {
@@ -569,33 +736,121 @@ class VibeVoyageApp {
         return eta.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     
-    findNearby(type) {
+    async findNearby(type) {
         const types = {
-            gas: { name: 'Gas Stations', icon: '⛽' },
-            food: { name: 'Restaurants', icon: '🍽️' },
-            parking: { name: 'Parking', icon: '🅿️' },
-            hospital: { name: 'Hospitals', icon: '🏥' }
+            gas: { name: 'Gas Stations', icon: '⛽', query: 'fuel' },
+            food: { name: 'Restaurants', icon: '🍽️', query: 'restaurant' },
+            parking: { name: 'Parking', icon: '🅿️', query: 'parking' },
+            hospital: { name: 'Hospitals', icon: '🏥', query: 'hospital' }
         };
-        
+
         const selected = types[type];
-        this.showNotification(`Searching for nearby ${selected.name}... ${selected.icon}`, 'info');
-        
-        // Simulate finding nearby places
-        setTimeout(() => {
-            this.showNotification(`Found 5 ${selected.name} nearby!`, 'success');
-            
-            // Add some random markers near current location
-            if (this.map && this.currentLocation) {
-                for (let i = 0; i < 3; i++) {
-                    const lat = this.currentLocation.lat + (Math.random() - 0.5) * 0.01;
-                    const lng = this.currentLocation.lng + (Math.random() - 0.5) * 0.01;
-                    
-                    L.marker([lat, lng])
-                        .addTo(this.map)
-                        .bindPopup(`${selected.icon} ${selected.name.slice(0, -1)} ${i + 1}`);
-                }
+        if (!selected || !this.currentLocation) {
+            this.showNotification('Location not available for POI search', 'error');
+            return;
+        }
+
+        this.showNotification(`🔍 Searching for nearby ${selected.name}...`, 'info');
+
+        try {
+            // Use Overpass API to find real POI locations
+            const query = `
+                [out:json][timeout:25];
+                (
+                  node["amenity"="${selected.query}"](around:2000,${this.currentLocation.lat},${this.currentLocation.lng});
+                  way["amenity"="${selected.query}"](around:2000,${this.currentLocation.lat},${this.currentLocation.lng});
+                  relation["amenity"="${selected.query}"](around:2000,${this.currentLocation.lat},${this.currentLocation.lng});
+                );
+                out center meta;
+            `;
+
+            const response = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: query
+            });
+
+            if (!response.ok) {
+                throw new Error('POI search service unavailable');
             }
-        }, 1500);
+
+            const data = await response.json();
+            const pois = data.elements.slice(0, 10); // Limit to 10 results
+
+            if (pois.length === 0) {
+                this.showNotification(`No ${selected.name.toLowerCase()} found nearby`, 'warning');
+                return;
+            }
+
+            // Clear existing POI markers
+            if (this.poiMarkers) {
+                this.poiMarkers.forEach(marker => this.map.removeLayer(marker));
+            }
+            this.poiMarkers = [];
+
+            // Add POI markers to map
+            pois.forEach((poi, index) => {
+                const lat = poi.lat || (poi.center && poi.center.lat);
+                const lng = poi.lon || (poi.center && poi.center.lon);
+
+                if (lat && lng) {
+                    const name = poi.tags.name || `${selected.name.slice(0, -1)} ${index + 1}`;
+                    const address = poi.tags['addr:street'] ?
+                        `${poi.tags['addr:housenumber'] || ''} ${poi.tags['addr:street']}`.trim() :
+                        'Address not available';
+
+                    const marker = L.marker([lat, lng])
+                        .addTo(this.map)
+                        .bindPopup(`
+                            <div style="text-align: center;">
+                                <div style="font-size: 18px; margin-bottom: 5px;">${selected.icon}</div>
+                                <div style="font-weight: bold; margin-bottom: 3px;">${name}</div>
+                                <div style="font-size: 12px; color: #666;">${address}</div>
+                                <button onclick="app.navigateToLocation(${lat}, ${lng}, '${name}')"
+                                        style="margin-top: 8px; background: #00FF88; color: #000; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                                    Navigate Here
+                                </button>
+                            </div>
+                        `);
+
+                    this.poiMarkers.push(marker);
+                }
+            });
+
+            this.showNotification(`✅ Found ${pois.length} ${selected.name.toLowerCase()} nearby!`, 'success');
+
+        } catch (error) {
+            console.error('POI search error:', error);
+            this.showNotification(`❌ Failed to search for ${selected.name.toLowerCase()}`, 'error');
+
+            // Fallback to simulated POI locations
+            this.simulatePOILocations(selected);
+        }
+    }
+
+    simulatePOILocations(selected) {
+        // Fallback simulation with more realistic placement
+        if (this.map && this.currentLocation) {
+            for (let i = 0; i < 3; i++) {
+                const lat = this.currentLocation.lat + (Math.random() - 0.5) * 0.01;
+                const lng = this.currentLocation.lng + (Math.random() - 0.5) * 0.01;
+
+                L.marker([lat, lng])
+                    .addTo(this.map)
+                    .bindPopup(`
+                        <div style="text-align: center;">
+                            <div style="font-size: 18px; margin-bottom: 5px;">${selected.icon}</div>
+                            <div style="font-weight: bold;">${selected.name.slice(0, -1)} ${i + 1}</div>
+                            <div style="font-size: 12px; color: #666;">Simulated location</div>
+                        </div>
+                    `);
+            }
+        }
+    }
+
+    navigateToLocation(lat, lng, name) {
+        this.setDestination({ lat, lng });
+        document.getElementById('toInput').value = name;
+        this.showNotification(`🎯 Destination set: ${name}`, 'success');
     }
     
     setupEventListeners() {
@@ -813,27 +1068,69 @@ function toggleSettings() {
             <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚨 Safety Alerts</h4>
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="trafficLightCameras">
                     <span>🚦 Traffic Light Cameras</span>
                 </label>
+                <div style="margin-left: 30px; margin-top: 5px;">
+                    <label style="font-size: 12px; color: #ccc;">
+                        Alert Distance:
+                        <select id="trafficLightDistance" style="margin-left: 5px; background: #333; color: #fff; border: 1px solid #555; padding: 2px;">
+                            <option value="100">100m</option>
+                            <option value="200" selected>200m</option>
+                            <option value="300">300m</option>
+                            <option value="500">500m</option>
+                        </select>
+                    </label>
+                </div>
             </div>
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="speedCameras">
                     <span>📷 Speed Cameras</span>
                 </label>
+                <div style="margin-left: 30px; margin-top: 5px;">
+                    <label style="font-size: 12px; color: #ccc;">
+                        Alert Distance:
+                        <select id="speedCameraDistance" style="margin-left: 5px; background: #333; color: #fff; border: 1px solid #555; padding: 2px;">
+                            <option value="200">200m</option>
+                            <option value="300" selected>300m</option>
+                            <option value="500">500m</option>
+                            <option value="1000">1km</option>
+                        </select>
+                    </label>
+                </div>
             </div>
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="policeAlerts">
                     <span>🚔 Police Alerts</span>
                 </label>
+                <div style="margin-left: 30px; margin-top: 5px;">
+                    <label style="font-size: 12px; color: #ccc;">
+                        Alert Distance:
+                        <select id="policeDistance" style="margin-left: 5px; background: #333; color: #fff; border: 1px solid #555; padding: 2px;">
+                            <option value="500" selected>500m</option>
+                            <option value="1000">1km</option>
+                            <option value="2000">2km</option>
+                        </select>
+                    </label>
+                </div>
             </div>
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="roadHazards">
                     <span>🚧 Road Hazards</span>
                 </label>
+                <div style="margin-left: 30px; margin-top: 5px;">
+                    <label style="font-size: 12px; color: #ccc;">
+                        Alert Distance:
+                        <select id="hazardDistance" style="margin-left: 5px; background: #333; color: #fff; border: 1px solid #555; padding: 2px;">
+                            <option value="100">100m</option>
+                            <option value="200" selected>200m</option>
+                            <option value="500">500m</option>
+                        </select>
+                    </label>
+                </div>
             </div>
 
             <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">📱 Display</h4>
@@ -923,6 +1220,46 @@ function toggleNavigationView() {
             }
             app.showNotification('Following car', 'info');
         }
+    }
+}
+
+function swapLocations() {
+    const fromInput = document.getElementById('fromInput');
+    const toInput = document.getElementById('toInput');
+
+    if (!fromInput || !toInput) return;
+
+    // Get current values
+    const fromValue = fromInput.value;
+    const toValue = toInput.value;
+
+    // Swap the values
+    fromInput.value = toValue;
+    toInput.value = fromValue;
+
+    // Swap the actual locations in the app
+    if (app && app.currentLocation && app.destination) {
+        const tempLocation = { ...app.currentLocation };
+        app.currentLocation = { ...app.destination };
+        app.destination = tempLocation;
+
+        // Update markers on map
+        if (app.map) {
+            // Update car marker position
+            app.updateCarPosition(app.currentLocation.lat, app.currentLocation.lng);
+
+            // Update destination marker
+            if (app.destinationMarker) {
+                app.map.removeLayer(app.destinationMarker);
+            }
+            app.destinationMarker = L.marker([app.destination.lat, app.destination.lng])
+                .addTo(app.map)
+                .bindPopup('🎯 Destination');
+        }
+
+        app.showNotification('🔄 Locations swapped!', 'success');
+    } else {
+        app.showNotification('ℹ️ Input fields swapped', 'info');
     }
 }
 
