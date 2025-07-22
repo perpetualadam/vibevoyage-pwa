@@ -268,7 +268,7 @@
     window.addEventListener('offline', updateOnlineStatus);
     updateOnlineStatus();
     
-    // Hide loading screen when app loads
+    // Hide loading screen and redirect to app
     window.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         const loadingScreen = document.getElementById('loading-screen');
@@ -276,7 +276,8 @@
           loadingScreen.style.opacity = '0';
           loadingScreen.style.transition = 'opacity 0.5s ease-out';
           setTimeout(() => {
-            loadingScreen.style.display = 'none';
+            // Redirect to the functional app
+            window.location.href = '/app.html';
           }, 500);
         }
       }, 2000);

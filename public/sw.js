@@ -10,8 +10,8 @@ const MAP_CACHE = 'vibevoyage-maps-v1.0.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
+  '/app.html',
+  '/app.js',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -20,6 +20,8 @@ const STATIC_ASSETS = [
   '/sounds/speed_alert.mp3',
   '/sounds/railway_bell.mp3',
   '/sounds/toll_chime.mp3',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
 
 // Map tile servers to cache
