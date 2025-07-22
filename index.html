@@ -235,44 +235,122 @@
             right: 0;
             background: linear-gradient(135deg, #00FF88 0%, #00CC66 100%);
             color: #000;
-            padding: 15px 20px;
+            padding: 0;
             transform: translateY(-100%);
             transition: transform 0.3s ease;
             z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
-        
+
         .nav-panel.active {
             transform: translateY(0);
         }
-        
+
         .nav-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 15px 20px;
         }
-        
+
         .nav-instruction {
+            display: flex;
+            align-items: center;
+            gap: 15px;
             flex: 1;
         }
-        
+
+        .nav-icon {
+            font-size: 32px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
         .nav-distance {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
+            line-height: 1;
+            margin-bottom: 4px;
         }
-        
+
         .nav-direction {
-            font-size: 14px;
+            font-size: 16px;
             opacity: 0.8;
+            line-height: 1.2;
         }
-        
-        .nav-stop {
+
+        .nav-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
             background: rgba(0, 0, 0, 0.2);
             border: none;
             color: #000;
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 50%;
             cursor: pointer;
-            font-weight: bold;
+            font-size: 16px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 0, 0, 0.3);
+            transform: scale(1.1);
+        }
+
+        .nav-progress {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 10px 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #000;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .nav-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Car marker animation */
+        .car-marker {
+            transition: all 0.5s ease;
+        }
+
+        /* Route line animation */
+        .route-line {
+            animation: routePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes routePulse {
+            0%, 100% { opacity: 0.9; }
+            50% { opacity: 0.7; }
         }
         
         /* Responsive Design */
@@ -370,10 +448,25 @@
         <div id="navPanel" class="nav-panel">
             <div class="nav-content">
                 <div class="nav-instruction">
-                    <div class="nav-distance" id="navDistance">0.3 mi</div>
-                    <div class="nav-direction" id="navDirection">Turn right onto Main Street</div>
+                    <div class="nav-icon" id="navIcon">➡️</div>
+                    <div class="nav-text">
+                        <div class="nav-distance" id="navDistance">0.3 mi</div>
+                        <div class="nav-direction" id="navDirection">Turn right onto Main Street</div>
+                    </div>
                 </div>
-                <button class="nav-stop" onclick="stopNavigation()">Stop</button>
+                <div class="nav-actions">
+                    <button class="nav-btn" onclick="toggleNavigationView()" title="Toggle View">🗺️</button>
+                    <button class="nav-btn nav-stop" onclick="stopNavigation()" title="Stop Navigation">⏹️</button>
+                </div>
+            </div>
+            <div class="nav-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="nav-stats">
+                    <span id="navETA">ETA: --:--</span>
+                    <span id="navRemaining">-- km remaining</span>
+                </div>
             </div>
         </div>
         

@@ -7,6 +7,15 @@ class VibeVoyageApp {
         this.isNavigating = false;
         this.watchId = null;
         this.route = null;
+        this.routeData = null;
+        this.routeSteps = [];
+        this.currentStepIndex = 0;
+        this.carMarker = null;
+        this.currentLocationMarker = null;
+        this.destinationMarker = null;
+        this.routeLine = null;
+        this.routeOutline = null;
+        this.followingCar = true;
         
         this.init();
     }
@@ -126,15 +135,12 @@ class VibeVoyageApp {
                 lng: position.coords.longitude
             };
             
-            // Update map view
+            // Update map view and add car marker
             if (this.map) {
                 this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15);
-                
-                // Add current location marker
-                L.marker([this.currentLocation.lat, this.currentLocation.lng])
-                    .addTo(this.map)
-                    .bindPopup('📍 Your Location')
-                    .openPopup();
+
+                // Add car marker for current location
+                this.addCarMarker(this.currentLocation.lat, this.currentLocation.lng);
             }
             
             // Update UI
@@ -243,35 +249,105 @@ class VibeVoyageApp {
     }
     
     async calculateRoute() {
-        // Simulate route calculation with OpenStreetMap data
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // Create a simple route line
-                if (this.map && this.currentLocation && this.destination) {
-                    const routeCoords = [
-                        [this.currentLocation.lat, this.currentLocation.lng],
-                        [this.destination.lat, this.destination.lng]
-                    ];
-                    
-                    // Remove existing route
-                    if (this.routeLine) {
-                        this.map.removeLayer(this.routeLine);
-                    }
-                    
-                    // Add route line
-                    this.routeLine = L.polyline(routeCoords, {
-                        color: '#00FF88',
-                        weight: 5,
-                        opacity: 0.8
-                    }).addTo(this.map);
-                    
-                    // Fit map to route
-                    this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
+        console.log('🛣️ Calculating route with real roads...');
+
+        if (!this.currentLocation || !this.destination) {
+            throw new Error('Missing start or end location');
+        }
+
+        try {
+            // Use OSRM (Open Source Routing Machine) for real road routing
+            const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
+            const end = `${this.destination.lng},${this.destination.lat}`;
+
+            const response = await fetch(
+                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`
+            );
+
+            if (!response.ok) {
+                throw new Error('Routing service unavailable');
+            }
+
+            const data = await response.json();
+
+            if (data.routes && data.routes.length > 0) {
+                const route = data.routes[0];
+                this.routeData = route;
+
+                // Extract route coordinates
+                const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+                // Remove existing route
+                if (this.routeLine) {
+                    this.map.removeLayer(this.routeLine);
                 }
-                
-                resolve();
-            }, 2000);
-        });
+
+                // Add route line following actual roads
+                this.routeLine = L.polyline(routeCoords, {
+                    color: '#00FF88',
+                    weight: 6,
+                    opacity: 0.9,
+                    className: 'route-line'
+                }).addTo(this.map);
+
+                // Add route outline for better visibility
+                this.routeOutline = L.polyline(routeCoords, {
+                    color: '#000000',
+                    weight: 8,
+                    opacity: 0.5
+                }).addTo(this.map);
+                this.routeOutline.bringToBack();
+
+                // Store route steps for turn-by-turn navigation
+                this.routeSteps = route.legs[0].steps;
+                this.currentStepIndex = 0;
+
+                // Fit map to route with padding
+                this.map.fitBounds(this.routeLine.getBounds(), {
+                    padding: [50, 50],
+                    maxZoom: 16
+                });
+
+                // Calculate and display route info
+                const distance = (route.distance / 1000).toFixed(1); // km
+                const duration = Math.round(route.duration / 60); // minutes
+
+                this.showNotification(`Route calculated: ${distance}km, ${duration} min`, 'success');
+
+                console.log('✅ Route calculated:', {
+                    distance: distance + 'km',
+                    duration: duration + 'min',
+                    steps: this.routeSteps.length
+                });
+
+            } else {
+                throw new Error('No route found');
+            }
+
+        } catch (error) {
+            console.error('❌ Route calculation failed:', error);
+
+            // Fallback to straight line if routing fails
+            this.showNotification('Using direct route (routing service unavailable)', 'warning');
+
+            const routeCoords = [
+                [this.currentLocation.lat, this.currentLocation.lng],
+                [this.destination.lat, this.destination.lng]
+            ];
+
+            if (this.routeLine) {
+                this.map.removeLayer(this.routeLine);
+            }
+
+            this.routeLine = L.polyline(routeCoords, {
+                color: '#FFA500',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(this.map);
+
+            this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
+        }
     }
     
     showNavigationPanel() {
@@ -283,20 +359,78 @@ class VibeVoyageApp {
     }
     
     updateNavigationInstructions() {
-        // Simulate navigation instructions
-        const instructions = [
-            'Head north on Main Street',
-            'Turn right onto Oak Avenue',
-            'Continue straight for 0.5 miles',
-            'Turn left onto Highway 101',
-            'Your destination is on the right'
-        ];
-        
-        const randomInstruction = instructions[Math.floor(Math.random() * instructions.length)];
-        const randomDistance = (Math.random() * 2).toFixed(1);
-        
-        document.getElementById('navDirection').textContent = randomInstruction;
-        document.getElementById('navDistance').textContent = `${randomDistance} mi`;
+        if (!this.routeSteps || this.routeSteps.length === 0) {
+            // Fallback to generic instructions
+            document.getElementById('navDirection').textContent = 'Follow the route';
+            document.getElementById('navDistance').textContent = '0.1 mi';
+            return;
+        }
+
+        // Get current step
+        const currentStep = this.routeSteps[this.currentStepIndex];
+        if (!currentStep) return;
+
+        // Convert maneuver to readable instruction
+        const instruction = this.getInstructionText(currentStep.maneuver);
+        const distance = this.formatDistance(currentStep.distance);
+
+        document.getElementById('navDirection').textContent = instruction;
+        document.getElementById('navDistance').textContent = distance;
+
+        // Move to next step if we're close to current step
+        if (currentStep.distance < 50 && this.currentStepIndex < this.routeSteps.length - 1) {
+            this.currentStepIndex++;
+            this.speakInstruction(instruction);
+        }
+    }
+
+    getInstructionText(maneuver) {
+        const type = maneuver.type;
+        const modifier = maneuver.modifier;
+
+        // Convert OSRM maneuver types to readable instructions
+        switch (type) {
+            case 'depart':
+                return `Head ${this.getDirection(maneuver.bearing_after)}`;
+            case 'turn':
+                return `Turn ${modifier}`;
+            case 'new name':
+                return `Continue on ${maneuver.name || 'the road'}`;
+            case 'merge':
+                return `Merge ${modifier}`;
+            case 'on ramp':
+                return 'Take the on-ramp';
+            case 'off ramp':
+                return 'Take the off-ramp';
+            case 'fork':
+                return `Keep ${modifier} at the fork`;
+            case 'roundabout':
+                return `Take the ${maneuver.exit || '1st'} exit at the roundabout`;
+            case 'arrive':
+                return 'You have arrived at your destination';
+            default:
+                return `Continue ${modifier || 'straight'}`;
+        }
+    }
+
+    getDirection(bearing) {
+        if (bearing >= 337.5 || bearing < 22.5) return 'north';
+        if (bearing >= 22.5 && bearing < 67.5) return 'northeast';
+        if (bearing >= 67.5 && bearing < 112.5) return 'east';
+        if (bearing >= 112.5 && bearing < 157.5) return 'southeast';
+        if (bearing >= 157.5 && bearing < 202.5) return 'south';
+        if (bearing >= 202.5 && bearing < 247.5) return 'southwest';
+        if (bearing >= 247.5 && bearing < 292.5) return 'west';
+        if (bearing >= 292.5 && bearing < 337.5) return 'northwest';
+        return 'straight';
+    }
+
+    formatDistance(meters) {
+        if (meters < 1000) {
+            return `${Math.round(meters)} m`;
+        } else {
+            return `${(meters / 1000).toFixed(1)} km`;
+        }
     }
     
     stopNavigation() {
@@ -322,17 +456,39 @@ class VibeVoyageApp {
     
     startLocationTracking() {
         if (!navigator.geolocation) return;
-        
+
+        console.log('🎯 Starting location tracking...');
+
         this.watchId = navigator.geolocation.watchPosition(
             (position) => {
-                this.currentLocation = {
+                const newLocation = {
                     lat: position.coords.latitude,
                     lng: position.coords.longitude
                 };
-                
-                // Update navigation instructions periodically
-                if (this.isNavigating && Math.random() > 0.7) {
+
+                // Calculate heading if we have a previous location
+                let heading = 0;
+                if (this.currentLocation) {
+                    heading = this.calculateBearing(
+                        this.currentLocation.lat, this.currentLocation.lng,
+                        newLocation.lat, newLocation.lng
+                    );
+                }
+
+                this.currentLocation = newLocation;
+
+                // Update car position with heading
+                this.updateCarPosition(newLocation.lat, newLocation.lng, heading);
+
+                // Update navigation instructions and progress
+                if (this.isNavigating) {
                     this.updateNavigationInstructions();
+                    this.updateNavigationProgress();
+
+                    // Center map on car if in navigation mode
+                    if (this.map) {
+                        this.map.setView([newLocation.lat, newLocation.lng], this.map.getZoom());
+                    }
                 }
             },
             (error) => {
@@ -344,6 +500,73 @@ class VibeVoyageApp {
                 maximumAge: 1000
             }
         );
+    }
+
+    calculateBearing(lat1, lng1, lat2, lng2) {
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const lat1Rad = lat1 * Math.PI / 180;
+        const lat2Rad = lat2 * Math.PI / 180;
+
+        const y = Math.sin(dLng) * Math.cos(lat2Rad);
+        const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+
+        const bearing = Math.atan2(y, x) * 180 / Math.PI;
+        return (bearing + 360) % 360;
+    }
+
+    updateNavigationProgress() {
+        if (!this.routeData || !this.currentLocation) return;
+
+        // Calculate progress based on current position
+        const totalDistance = this.routeData.distance;
+        const remainingDistance = this.calculateRemainingDistance();
+        const progress = Math.max(0, Math.min(100, ((totalDistance - remainingDistance) / totalDistance) * 100));
+
+        // Update progress bar
+        const progressFill = document.getElementById('progressFill');
+        if (progressFill) {
+            progressFill.style.width = `${progress}%`;
+        }
+
+        // Update ETA and remaining distance
+        const eta = this.calculateETA(remainingDistance);
+        const etaElement = document.getElementById('navETA');
+        const remainingElement = document.getElementById('navRemaining');
+
+        if (etaElement) {
+            etaElement.textContent = `ETA: ${eta}`;
+        }
+
+        if (remainingElement) {
+            remainingElement.textContent = `${this.formatDistance(remainingDistance)} remaining`;
+        }
+    }
+
+    calculateRemainingDistance() {
+        // Simplified calculation - in a real app, this would be more sophisticated
+        if (!this.destination || !this.currentLocation) return 0;
+
+        const R = 6371000; // Earth's radius in meters
+        const lat1 = this.currentLocation.lat * Math.PI / 180;
+        const lat2 = this.destination.lat * Math.PI / 180;
+        const deltaLat = (this.destination.lat - this.currentLocation.lat) * Math.PI / 180;
+        const deltaLng = (this.destination.lng - this.currentLocation.lng) * Math.PI / 180;
+
+        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
+    }
+
+    calculateETA(remainingDistance) {
+        // Assume average speed of 50 km/h for ETA calculation
+        const averageSpeed = 50 * 1000 / 3600; // m/s
+        const remainingTime = remainingDistance / averageSpeed;
+        const eta = new Date(Date.now() + remainingTime * 1000);
+
+        return eta.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     
     findNearby(type) {
@@ -461,6 +684,60 @@ class VibeVoyageApp {
         }
     }
     
+    addCarMarker(lat, lng, heading = 0) {
+        // Remove existing car marker
+        if (this.carMarker) {
+            this.map.removeLayer(this.carMarker);
+        }
+
+        // Create car icon
+        const carIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 30px;
+                    height: 30px;
+                    background: #00FF88;
+                    border: 3px solid #000;
+                    border-radius: 50% 50% 50% 0;
+                    transform: rotate(${heading - 45}deg);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                ">🚗</div>
+            `,
+            className: 'car-marker',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        // Add car marker
+        this.carMarker = L.marker([lat, lng], { icon: carIcon })
+            .addTo(this.map)
+            .bindPopup('🚗 Your Vehicle');
+
+        return this.carMarker;
+    }
+
+    updateCarPosition(lat, lng, heading = 0) {
+        if (this.carMarker) {
+            // Smooth animation to new position
+            this.carMarker.setLatLng([lat, lng]);
+
+            // Update car rotation based on heading
+            const carElement = this.carMarker.getElement();
+            if (carElement) {
+                const carDiv = carElement.querySelector('div');
+                if (carDiv) {
+                    carDiv.style.transform = `rotate(${heading - 45}deg)`;
+                }
+            }
+        } else {
+            this.addCarMarker(lat, lng, heading);
+        }
+    }
+
     initServiceWorker() {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')
@@ -625,6 +902,27 @@ function findNearby(type) {
         app.findNearby(type);
     } else {
         console.error('❌ App not ready yet');
+    }
+}
+
+function toggleNavigationView() {
+    if (app && app.map && app.isNavigating) {
+        // Toggle between following car and overview
+        if (app.followingCar !== false) {
+            // Switch to overview mode
+            app.followingCar = false;
+            if (app.routeLine) {
+                app.map.fitBounds(app.routeLine.getBounds(), { padding: [50, 50] });
+            }
+            app.showNotification('Overview mode', 'info');
+        } else {
+            // Switch to follow car mode
+            app.followingCar = true;
+            if (app.currentLocation) {
+                app.map.setView([app.currentLocation.lat, app.currentLocation.lng], 17);
+            }
+            app.showNotification('Following car', 'info');
+        }
     }
 }
 
