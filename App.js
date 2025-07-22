@@ -139,6 +139,7 @@ class VibeVoyageApp {
             
             // Update UI
             document.getElementById('fromInput').value = 'Current Location';
+            document.getElementById('fromInput').placeholder = 'From: Current Location';
             statusElement.textContent = 'Location found';
             statusElement.className = 'status-online';
             
@@ -176,6 +177,7 @@ class VibeVoyageApp {
                     .openPopup();
             }
             document.getElementById('fromInput').value = 'Demo Location (NYC)';
+            document.getElementById('fromInput').placeholder = 'From: Demo Location (NYC)';
         }
     }
     
@@ -422,6 +424,42 @@ class VibeVoyageApp {
             speechSynthesis.speak(utterance);
         }
     }
+
+    async geocodeLocation(query) {
+        console.log('🔍 Geocoding:', query);
+
+        try {
+            // Use Nominatim (OpenStreetMap) geocoding service
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`
+            );
+
+            if (!response.ok) {
+                throw new Error('Geocoding service unavailable');
+            }
+
+            const results = await response.json();
+
+            if (results.length === 0) {
+                throw new Error('Location not found');
+            }
+
+            const result = results[0];
+            const location = {
+                lat: parseFloat(result.lat),
+                lng: parseFloat(result.lon),
+                name: result.display_name,
+                address: result.address
+            };
+
+            console.log('✅ Geocoded location:', location);
+            return location;
+
+        } catch (error) {
+            console.error('❌ Geocoding error:', error);
+            throw error;
+        }
+    }
     
     initServiceWorker() {
         if ('serviceWorker' in navigator) {
@@ -465,7 +503,9 @@ function toggleSettings() {
             width: 90%;
             color: #fff;
         ">
-            <h3 style="margin: 0 0 20px 0; color: #00FF88;">⚙️ Settings</h3>
+            <h3 style="margin: 0 0 20px 0; color: #00FF88;">⚙️ Navigation Settings</h3>
+
+            <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🔊 Audio & Voice</h4>
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="checkbox" checked style="transform: scale(1.2);">
@@ -478,16 +518,58 @@ function toggleSettings() {
                     <span>Compass Directions</span>
                 </label>
             </div>
+
+            <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚗 Route Preferences</h4>
             <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="checkbox" style="transform: scale(1.2);">
                     <span>Avoid Tolls</span>
                 </label>
             </div>
-            <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="checkbox" style="transform: scale(1.2);">
                     <span>Avoid Highways</span>
+                </label>
+            </div>
+
+            <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚨 Safety Alerts</h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>🚦 Traffic Light Cameras</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>📷 Speed Cameras</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>🚔 Police Alerts</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>🚧 Road Hazards</span>
+                </label>
+            </div>
+
+            <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">📱 Display</h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" style="transform: scale(1.2);">
+                    <span>🌙 Night Mode</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>📍 Show POI Icons</span>
                 </label>
             </div>
             <button onclick="this.parentElement.parentElement.remove()" style="
@@ -546,24 +628,91 @@ function findNearby(type) {
     }
 }
 
-function handleSearchKeypress(event) {
+function handleFromSearchKeypress(event) {
     if (event.key === 'Enter') {
         const value = event.target.value.trim();
-        if (value && app && app.showNotification && app.setDestination) {
-            // Simple geocoding simulation
-            app.showNotification(`Searching for "${value}"...`, 'info');
-
-            // Simulate setting destination
-            setTimeout(() => {
-                const randomLat = 40.7128 + (Math.random() - 0.5) * 0.1;
-                const randomLng = -74.0060 + (Math.random() - 0.5) * 0.1;
-                app.setDestination({ lat: randomLat, lng: randomLng });
-                app.showNotification(`Destination set: ${value}`, 'success');
-            }, 1000);
+        if (value && app && app.geocodeLocation) {
+            searchFromLocation(value);
         } else if (value) {
             console.error('❌ App not ready yet');
         }
     }
+}
+
+function handleToSearchKeypress(event) {
+    if (event.key === 'Enter') {
+        const value = event.target.value.trim();
+        if (value && app && app.geocodeLocation) {
+            searchToLocation(value);
+        } else if (value) {
+            console.error('❌ App not ready yet');
+        }
+    }
+}
+
+async function searchFromLocation(query) {
+    if (!app || !app.geocodeLocation) return;
+
+    try {
+        app.showNotification(`🔍 Searching for "${query}"...`, 'info');
+
+        const location = await app.geocodeLocation(query);
+
+        // Update current location
+        app.currentLocation = { lat: location.lat, lng: location.lng };
+
+        // Update map view and marker
+        if (app.map) {
+            app.map.setView([location.lat, location.lng], 15);
+
+            // Remove existing current location marker
+            if (app.currentLocationMarker) {
+                app.map.removeLayer(app.currentLocationMarker);
+            }
+
+            // Add new current location marker
+            app.currentLocationMarker = L.marker([location.lat, location.lng])
+                .addTo(app.map)
+                .bindPopup(`📍 From: ${location.name.split(',')[0]}`)
+                .openPopup();
+        }
+
+        // Update input
+        document.getElementById('fromInput').value = location.name.split(',')[0];
+
+        app.showNotification(`✅ From location set: ${location.name.split(',')[0]}`, 'success');
+
+    } catch (error) {
+        app.showNotification(`❌ Location not found: ${query}`, 'error');
+        console.error('From location search error:', error);
+    }
+}
+
+async function searchToLocation(query) {
+    if (!app || !app.geocodeLocation) return;
+
+    try {
+        app.showNotification(`🔍 Searching for "${query}"...`, 'info');
+
+        const location = await app.geocodeLocation(query);
+
+        // Set as destination
+        app.setDestination({ lat: location.lat, lng: location.lng });
+
+        // Update input with cleaner name
+        document.getElementById('toInput').value = location.name.split(',')[0];
+
+        app.showNotification(`✅ Destination set: ${location.name.split(',')[0]}`, 'success');
+
+    } catch (error) {
+        app.showNotification(`❌ Location not found: ${query}`, 'error');
+        console.error('To location search error:', error);
+    }
+}
+
+// Legacy function for backward compatibility
+function handleSearchKeypress(event) {
+    handleToSearchKeypress(event);
 }
 
 // Initialize app when DOM is loaded
