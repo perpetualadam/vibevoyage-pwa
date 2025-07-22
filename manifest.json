@@ -1,0 +1,235 @@
+{
+  "name": "VibeVoyage - Smart Navigation",
+  "short_name": "VibeVoyage",
+  "description": "Budget-friendly, Waze-inspired navigation app with enhanced safety, gamification, and eco-friendly features",
+  "version": "1.0.0",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#00FF88",
+  "background_color": "#000000",
+  "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  
+  "screenshots": [
+    {
+      "src": "/screenshots/navigation-screen.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Navigation screen with real-time traffic"
+    },
+    {
+      "src": "/screenshots/ar-navigation.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "AR navigation overlay"
+    },
+    {
+      "src": "/screenshots/gamification.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Gamification and achievements"
+    }
+  ],
+  
+  "categories": [
+    "navigation",
+    "travel",
+    "maps",
+    "transportation",
+    "utilities"
+  ],
+  
+  "shortcuts": [
+    {
+      "name": "Start Navigation",
+      "short_name": "Navigate",
+      "description": "Start turn-by-turn navigation",
+      "url": "/navigate",
+      "icons": [
+        {
+          "src": "/icons/shortcut-navigate.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Report Hazard",
+      "short_name": "Report",
+      "description": "Report traffic hazard or police",
+      "url": "/report",
+      "icons": [
+        {
+          "src": "/icons/shortcut-report.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "AR Navigation",
+      "short_name": "AR Mode",
+      "description": "Start augmented reality navigation",
+      "url": "/ar-navigation",
+      "icons": [
+        {
+          "src": "/icons/shortcut-ar.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Eco Routes",
+      "short_name": "Eco Mode",
+      "description": "Find eco-friendly routes",
+      "url": "/eco-routes",
+      "icons": [
+        {
+          "src": "/icons/shortcut-eco.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.vibevoyage.app",
+      "id": "com.vibevoyage.app"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/vibevoyage/id123456789",
+      "id": "123456789"
+    }
+  ],
+  
+  "prefer_related_applications": false,
+  
+  "protocol_handlers": [
+    {
+      "protocol": "web+vibevoyage",
+      "url": "/navigate?destination=%s"
+    }
+  ],
+  
+  "share_target": {
+    "action": "/share-location",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  
+  "file_handlers": [
+    {
+      "action": "/import-route",
+      "accept": {
+        "application/gpx+xml": [".gpx"],
+        "application/json": [".json"]
+      }
+    }
+  ],
+  
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  
+  "handle_links": "preferred",
+  
+  "scope_extensions": [
+    {
+      "origin": "https://maps.vibevoyage.app"
+    },
+    {
+      "origin": "https://api.vibevoyage.app"
+    }
+  ],
+  
+  "permissions": [
+    "geolocation",
+    "notifications",
+    "background-sync",
+    "camera",
+    "microphone"
+  ],
+  
+  "features": [
+    "offline-navigation",
+    "voice-commands",
+    "ar-overlay",
+    "real-time-traffic",
+    "community-reports",
+    "eco-routing",
+    "gamification",
+    "multi-language"
+  ],
+  
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7"
+}

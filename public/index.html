@@ -268,19 +268,12 @@
     window.addEventListener('offline', updateOnlineStatus);
     updateOnlineStatus();
     
-    // Hide loading screen and redirect to app
+    // Immediately redirect to functional app
     window.addEventListener('DOMContentLoaded', () => {
+      // Try to redirect to app.html immediately
       setTimeout(() => {
-        const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) {
-          loadingScreen.style.opacity = '0';
-          loadingScreen.style.transition = 'opacity 0.5s ease-out';
-          setTimeout(() => {
-            // Redirect to the functional app
-            window.location.href = '/app.html';
-          }, 500);
-        }
-      }, 2000);
+        window.location.href = './app.html';
+      }, 1000);
     });
     
     // Performance monitoring
