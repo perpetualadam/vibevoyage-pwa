@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/overlay_background"
+    android:padding="12dp"
+    android:elevation="8dp">
+
+    <!-- Speed and Speed Limit Container -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp">
+
+        <!-- Current Speed -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/speed_background"
+            android:padding="8dp"
+            android:layout_marginRight="8dp">
+
+            <TextView
+                android:id="@+id/speed_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="24sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="km/h"
+                android:textSize="10sp"
+                android:textColor="#CCCCCC" />
+
+        </LinearLayout>
+
+        <!-- Speed Limit -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/speed_limit_background"
+            android:padding="6dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LIMIT"
+                android:textSize="8sp"
+                android:textColor="#FF6B6B"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/speed_limit_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="50"
+                android:textSize="16sp"
+                android:textColor="#FF6B6B"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Navigation Instruction -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/turn_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_turn_right"
+            android:tint="#00FF88"
+            android:layout_marginRight="6dp" />
+
+        <TextView
+            android:id="@+id/instruction_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Turn right in 200m"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:maxWidth="200dp" />
+
+    </LinearLayout>
+
+    <!-- ETA Information -->
+    <TextView
+        android:id="@+id/eta_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ETA: 15:30"
+        android:textSize="11sp"
+        android:textColor="#CCCCCC"
+        android:layout_gravity="center"
+        android:layout_marginBottom="4dp"
+        android:visibility="gone" />
+
+    <!-- Obstacle Alert Container -->
+    <LinearLayout
+        android:id="@+id/alert_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/alert_background"
+        android:padding="6dp"
+        android:layout_marginTop="4dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_warning"
+            android:tint="#FFA500"
+            android:layout_marginRight="4dp" />
+
+        <TextView
+            android:id="@+id/alert_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Speed camera 500m ahead"
+            android:textSize="10sp"
+            android:textColor="#FFA500"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:maxWidth="180dp" />
+
+    </LinearLayout>
+
+    <!-- Status Indicator -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#00FF88"
+        android:layout_marginTop="6dp" />
+
+</LinearLayout>

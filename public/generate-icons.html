@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+        }
+        .icon-preview {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        canvas {
+            border: 1px solid #333;
+            margin: 5px;
+        }
+        button {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00CC66;
+        }
+        .instructions {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 VibeVoyage Icon Generator</h1>
+    <p>Generate all required PWA icons from the SVG</p>
+    
+    <div class="instructions">
+        <h3>📋 Instructions:</h3>
+        <ol>
+            <li>Click "Generate All Icons" below</li>
+            <li>Right-click each generated icon and "Save image as..."</li>
+            <li>Save with the exact filename shown (e.g., "icon-192x192.png")</li>
+            <li>Save all icons to the <code>/public/icons/</code> folder</li>
+        </ol>
+    </div>
+    
+    <button onclick="generateAllIcons()">🚀 Generate All Icons</button>
+    <button onclick="downloadAll()">📥 Download All (Zip)</button>
+    
+    <div id="iconContainer"></div>
+    
+    <script>
+        const iconSizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const svgContent = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="256" cy="256" r="256" fill="#000000"/>
+            <defs>
+                <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" style="stop-color:#00FF88;stop-opacity:0.2"/>
+                    <stop offset="100%" style="stop-color:#000000;stop-opacity:1"/>
+                </radialGradient>
+                <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#00FF88"/>
+                    <stop offset="100%" style="stop-color:#00CC66"/>
+                </linearGradient>
+            </defs>
+            <circle cx="256" cy="256" r="256" fill="url(#bgGradient)"/>
+            <path d="M256 80 L320 200 L280 200 L280 320 L232 320 L232 200 L192 200 Z" fill="url(#iconGradient)" stroke="#FFFFFF" stroke-width="2"/>
+            <circle cx="256" cy="256" r="180" fill="none" stroke="url(#iconGradient)" stroke-width="4" opacity="0.6"/>
+            <circle cx="256" cy="76" r="8" fill="#00FF88"/>
+            <circle cx="436" cy="256" r="8" fill="#00FF88"/>
+            <circle cx="256" cy="436" r="8" fill="#00FF88"/>
+            <circle cx="76" cy="256" r="8" fill="#00FF88"/>
+            <circle cx="256" cy="256" r="12" fill="#FFFFFF" stroke="#00FF88" stroke-width="2"/>
+            <path d="M150 350 Q200 300 250 350 Q300 400 350 350" fill="none" stroke="#00FF88" stroke-width="6" stroke-linecap="round" opacity="0.8"/>
+            <path d="M380 180 Q380 160 400 160 Q420 160 420 180 Q420 200 400 220 Q380 200 380 180 Z" fill="#FF6B6B"/>
+            <circle cx="400" cy="180" r="6" fill="#FFFFFF"/>
+            <rect x="120" y="380" width="60" height="30" rx="15" fill="rgba(0,255,136,0.2)" stroke="#00FF88" stroke-width="2"/>
+            <text x="150" y="400" text-anchor="middle" fill="#00FF88" font-family="Arial, sans-serif" font-size="16" font-weight="bold">65</text>
+            <text x="256" y="480" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="24" font-weight="bold">VibeVoyage</text>
+        </svg>`;
+        
+        function generateAllIcons() {
+            const container = document.getElementById('iconContainer');
+            container.innerHTML = '<h2>🎨 Generated Icons</h2>';
+            
+            iconSizes.forEach(size => {
+                generateIcon(size, container);
+            });
+        }
+        
+        function generateIcon(size, container) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            const img = new Image();
+            const svgBlob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+                
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'icon-preview';
+                iconDiv.innerHTML = `
+                    <h4>icon-${size}x${size}.png</h4>
+                    ${canvas.outerHTML}
+                    <br>
+                    <button onclick="downloadIcon(this, ${size})">💾 Download</button>
+                `;
+                container.appendChild(iconDiv);
+            };
+            
+            img.src = url;
+        }
+        
+        function downloadIcon(button, size) {
+            const canvas = button.parentElement.querySelector('canvas');
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function downloadAll() {
+            alert('Individual download recommended. Click "Download" for each icon size needed.');
+        }
+        
+        // Auto-generate on page load
+        window.onload = function() {
+            setTimeout(generateAllIcons, 500);
+        };
+    </script>
+</body>
+</html>

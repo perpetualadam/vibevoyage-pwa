@@ -1,0 +1,62 @@
+name: Deploy VibeVoyage PWA
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        if [ -f package.json ]; then
+          npm ci
+        else
+          echo "No package.json found, skipping npm install"
+        fi
+        
+    - name: Build PWA
+      run: |
+        echo "Building VibeVoyage PWA..."
+        # Copy public folder contents to build directory
+        mkdir -p build
+        cp -r public/* build/ 2>/dev/null || cp -r public/* build/ || echo "Copying public folder contents"
+        
+        # Ensure required files exist
+        if [ ! -f build/index.html ]; then
+          echo "Error: index.html not found in public folder"
+          exit 1
+        fi
+        
+        if [ ! -f build/manifest.json ]; then
+          echo "Error: manifest.json not found in public folder"
+          exit 1
+        fi
+        
+        echo "PWA build complete!"
+        ls -la build/
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build
+        cname: vibevoyage.app  # Optional: if you have a custom domain
+        
+    - name: Deployment Success
+      run: |
+        echo "🎉 VibeVoyage PWA deployed successfully!"
+        echo "🌐 Your PWA is live at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+        echo "📱 Install it as an app on your device!"

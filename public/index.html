@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="/icons/icon-192x192.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#00FF88" />
+  <meta name="background-color" content="#000000" />
+  
+  <!-- PWA Meta Tags -->
+  <meta name="application-name" content="VibeVoyage" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VibeVoyage" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="msapplication-TileColor" content="#00FF88" />
+  <meta name="msapplication-tap-highlight" content="no" />
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Budget-friendly, Waze-inspired navigation app with enhanced safety, gamification, and eco-friendly features" />
+  <meta name="keywords" content="navigation, GPS, traffic, safety, eco-friendly, gamification, voice commands, AR navigation" />
+  <meta name="author" content="VibeVoyage Team" />
+  
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="VibeVoyage - Smart Navigation" />
+  <meta property="og:description" content="Budget-friendly, Waze-inspired navigation app with enhanced safety, gamification, and eco-friendly features" />
+  <meta property="og:image" content="/icons/icon-512x512.png" />
+  <meta property="og:url" content="https://vibevoyage.app" />
+  <meta property="og:site_name" content="VibeVoyage" />
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="VibeVoyage - Smart Navigation" />
+  <meta name="twitter:description" content="Budget-friendly, Waze-inspired navigation app with enhanced safety, gamification, and eco-friendly features" />
+  <meta name="twitter:image" content="/icons/icon-512x512.png" />
+  
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+  
+  <!-- Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  
+  <!-- Preload Critical Resources -->
+  <link rel="preload" href="/sounds/police_siren.mp3" as="audio" />
+  <link rel="preload" href="/sounds/camera_beep.mp3" as="audio" />
+  <link rel="preload" href="/sounds/speed_alert.mp3" as="audio" />
+  
+  <!-- DNS Prefetch -->
+  <link rel="dns-prefetch" href="//tile.openstreetmap.org" />
+  <link rel="dns-prefetch" href="//api.tomtom.com" />
+  <link rel="dns-prefetch" href="//overpass-api.de" />
+  
+  <title>VibeVoyage - Smart Navigation</title>
+  
+  <style>
+    /* Critical CSS for loading screen */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-color: #000;
+      color: #fff;
+      overflow: hidden;
+    }
+    
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    
+    .loading-logo {
+      width: 120px;
+      height: 120px;
+      border-radius: 60px;
+      background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 30px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .loading-text {
+      font-size: 24px;
+      font-weight: bold;
+      color: #00FF88;
+      margin-bottom: 10px;
+    }
+    
+    .loading-subtitle {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 30px;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top: 3px solid #00FF88;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .offline-indicator {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #FF6B6B;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      z-index: 10000;
+      display: none;
+    }
+    
+    .install-prompt {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
+      color: #000;
+      padding: 15px;
+      border-radius: 12px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10000;
+    }
+    
+    .install-prompt button {
+      background: rgba(0, 0, 0, 0.2);
+      border: none;
+      color: #000;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loading-logo">
+      <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" fill="#000"/>
+      </svg>
+    </div>
+    <div class="loading-text">VibeVoyage</div>
+    <div class="loading-subtitle">Smart Navigation Loading...</div>
+    <div class="loading-spinner"></div>
+  </div>
+  
+  <!-- Offline Indicator -->
+  <div id="offline-indicator" class="offline-indicator">
+    📡 You're offline - Using cached data
+  </div>
+  
+  <!-- Install Prompt -->
+  <div id="install-prompt" class="install-prompt">
+    <div>
+      <strong>Install VibeVoyage</strong><br>
+      Get the full app experience
+    </div>
+    <button onclick="installApp()">Install</button>
+  </div>
+  
+  <!-- App Root -->
+  <div id="root"></div>
+  
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+            
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New content available
+                  if (confirm('New version available! Reload to update?')) {
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+    
+    // PWA Install Prompt
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-prompt').style.display = 'flex';
+    });
+    
+    function installApp() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          }
+          deferredPrompt = null;
+          document.getElementById('install-prompt').style.display = 'none';
+        });
+      }
+    }
+    
+    // Online/Offline Status
+    function updateOnlineStatus() {
+      const indicator = document.getElementById('offline-indicator');
+      if (navigator.onLine) {
+        indicator.style.display = 'none';
+      } else {
+        indicator.style.display = 'block';
+      }
+    }
+    
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+    
+    // Hide loading screen when app loads
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+          loadingScreen.style.opacity = '0';
+          loadingScreen.style.transition = 'opacity 0.5s ease-out';
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 500);
+        }
+      }, 2000);
+    });
+    
+    // Performance monitoring
+    window.addEventListener('load', () => {
+      if ('performance' in window) {
+        const perfData = performance.getEntriesByType('navigation')[0];
+        console.log('Page load time:', perfData.loadEventEnd - perfData.fetchStart, 'ms');
+      }
+    });
+    
+    // Error handling
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.error);
+      // Could send to analytics service
+    });
+    
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      // Could send to analytics service
+    });
+  </script>
+</body>
+</html>
