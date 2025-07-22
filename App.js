@@ -34,24 +34,52 @@ class VibeVoyageApp {
     }
     
     initMap() {
+        console.log('🗺️ Initializing map...');
+
+        // Check if Leaflet is available
+        if (typeof L === 'undefined') {
+            console.error('❌ Leaflet library not loaded');
+            this.showMapPlaceholder();
+            return;
+        }
+
+        // Check if map container exists
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) {
+            console.error('❌ Map container not found');
+            return;
+        }
+
         try {
+            // Clear any existing content
+            mapContainer.innerHTML = '';
+
             // Initialize Leaflet map
             this.map = L.map('map').setView([40.7128, -74.0060], 13); // Default to NYC
-            
+
             // Add OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
+                maxZoom: 19,
+                crossOrigin: true
             }).addTo(this.map);
-            
+
             // Add click handler for destination selection
             this.map.on('click', (e) => {
+                console.log('🎯 Map clicked:', e.latlng);
                 this.setDestination(e.latlng);
             });
-            
-            console.log('🗺️ Map initialized');
+
+            // Force map to resize after initialization
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                }
+            }, 100);
+
+            console.log('✅ Map initialized successfully');
         } catch (error) {
-            console.error('Map initialization failed:', error);
+            console.error('❌ Map initialization failed:', error);
             this.showMapPlaceholder();
         }
     }
@@ -69,22 +97,26 @@ class VibeVoyageApp {
     }
     
     async getCurrentLocation() {
+        console.log('📍 Getting current location...');
         const statusElement = document.getElementById('locationStatus');
-        
+
         if (!navigator.geolocation) {
+            console.error('❌ Geolocation not supported');
             statusElement.textContent = 'Location not supported';
             statusElement.className = 'status-offline';
+            this.showNotification('Location services not available', 'error');
             return;
         }
-        
+
         statusElement.textContent = 'Getting location...';
         statusElement.className = 'status-warning';
-        
+
         try {
+            console.log('📍 Requesting location permission...');
             const position = await new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: 15000,
                     maximumAge: 60000
                 });
             });
@@ -113,10 +145,37 @@ class VibeVoyageApp {
             console.log('📍 Location found:', this.currentLocation);
             
         } catch (error) {
-            console.error('Location error:', error);
-            statusElement.textContent = 'Location unavailable';
+            console.error('❌ Location error:', error);
+
+            let errorMessage = 'Location unavailable';
+            let notificationMessage = 'Location access denied. Please enable location services.';
+
+            // Handle specific error types
+            if (error.code === 1) {
+                errorMessage = 'Location denied';
+                notificationMessage = 'Please allow location access and refresh the page.';
+            } else if (error.code === 2) {
+                errorMessage = 'Location unavailable';
+                notificationMessage = 'Location services unavailable. Check your connection.';
+            } else if (error.code === 3) {
+                errorMessage = 'Location timeout';
+                notificationMessage = 'Location request timed out. Please try again.';
+            }
+
+            statusElement.textContent = errorMessage;
             statusElement.className = 'status-offline';
-            this.showNotification('Location access denied. Please enable location services.', 'error');
+            this.showNotification(notificationMessage, 'error');
+
+            // Set a default location (NYC) for demo purposes
+            this.currentLocation = { lat: 40.7128, lng: -74.0060 };
+            if (this.map) {
+                this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 13);
+                L.marker([this.currentLocation.lat, this.currentLocation.lng])
+                    .addTo(this.map)
+                    .bindPopup('📍 Demo Location (NYC)')
+                    .openPopup();
+            }
+            document.getElementById('fromInput').value = 'Demo Location (NYC)';
         }
     }
     
@@ -379,32 +438,121 @@ class VibeVoyageApp {
 
 // Global functions for HTML onclick handlers
 function toggleSettings() {
-    app.showNotification('Settings panel coming soon! ⚙️', 'info');
+    console.log('⚙️ Opening settings...');
+
+    // Create a simple settings modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            max-width: 400px;
+            width: 90%;
+            color: #fff;
+        ">
+            <h3 style="margin: 0 0 20px 0; color: #00FF88;">⚙️ Settings</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>Voice Guidance</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);">
+                    <span>Compass Directions</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" style="transform: scale(1.2);">
+                    <span>Avoid Tolls</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" style="transform: scale(1.2);">
+                    <span>Avoid Highways</span>
+                </label>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" style="
+                background: #00FF88;
+                color: #000;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: bold;
+                width: 100%;
+            ">Close Settings</button>
+        </div>
+    `;
+
+    // Close modal when clicking outside
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    };
+
+    document.body.appendChild(modal);
+    app.showNotification('Settings opened! ⚙️', 'info');
 }
 
 function getCurrentLocation() {
-    app.getCurrentLocation();
+    if (app && app.getCurrentLocation) {
+        app.getCurrentLocation();
+    } else {
+        console.error('❌ App not ready yet');
+    }
 }
 
 function startNavigation() {
-    app.startNavigation();
+    if (app && app.startNavigation) {
+        app.startNavigation();
+    } else {
+        console.error('❌ App not ready yet');
+    }
 }
 
 function stopNavigation() {
-    app.stopNavigation();
+    if (app && app.stopNavigation) {
+        app.stopNavigation();
+    } else {
+        console.error('❌ App not ready yet');
+    }
 }
 
 function findNearby(type) {
-    app.findNearby(type);
+    if (app && app.findNearby) {
+        app.findNearby(type);
+    } else {
+        console.error('❌ App not ready yet');
+    }
 }
 
 function handleSearchKeypress(event) {
     if (event.key === 'Enter') {
         const value = event.target.value.trim();
-        if (value) {
+        if (value && app && app.showNotification && app.setDestination) {
             // Simple geocoding simulation
             app.showNotification(`Searching for "${value}"...`, 'info');
-            
+
             // Simulate setting destination
             setTimeout(() => {
                 const randomLat = 40.7128 + (Math.random() - 0.5) * 0.1;
@@ -412,6 +560,8 @@ function handleSearchKeypress(event) {
                 app.setDestination({ lat: randomLat, lng: randomLng });
                 app.showNotification(`Destination set: ${value}`, 'success');
             }, 1000);
+        } else if (value) {
+            console.error('❌ App not ready yet');
         }
     }
 }
@@ -419,7 +569,45 @@ function handleSearchKeypress(event) {
 // Initialize app when DOM is loaded
 let app;
 document.addEventListener('DOMContentLoaded', () => {
-    app = new VibeVoyageApp();
+    console.log('🚀 DOM loaded, initializing VibeVoyage...');
+
+    // Small delay to ensure all resources are loaded
+    setTimeout(() => {
+        try {
+            app = new VibeVoyageApp();
+        } catch (error) {
+            console.error('❌ Failed to initialize app:', error);
+
+            // Show error message to user
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #FF6B6B;
+                color: white;
+                padding: 20px;
+                border-radius: 8px;
+                text-align: center;
+                z-index: 10000;
+            `;
+            errorDiv.innerHTML = `
+                <h3>⚠️ App Initialization Failed</h3>
+                <p>Please refresh the page to try again.</p>
+                <button onclick="window.location.reload()" style="
+                    background: white;
+                    color: #FF6B6B;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    margin-top: 10px;
+                ">Refresh Page</button>
+            `;
+            document.body.appendChild(errorDiv);
+        }
+    }, 500);
 });
 
 // PWA Install prompt

@@ -444,7 +444,21 @@
     
     <!-- Leaflet JS for maps -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <script src="./app.js"></script>
+
+    <!-- Debug script to check if everything loads -->
+    <script>
+        console.log('🌟 VibeVoyage PWA Loading...');
+        console.log('Leaflet available:', typeof L !== 'undefined');
+        console.log('Geolocation available:', 'geolocation' in navigator);
+        console.log('ServiceWorker available:', 'serviceWorker' in navigator);
+
+        // Check if map container exists
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded');
+            console.log('Map container found:', !!document.getElementById('map'));
+        });
+    </script>
+
+    <script src="./App.js"></script>
 </body>
 </html>
