@@ -338,35 +338,205 @@
             opacity: 0.8;
         }
 
-        /* Lane Guidance */
-        .nav-lanes {
-            display: flex;
-            gap: 3px;
-            align-items: center;
+        /* Visual Lane Recognition System */
+        .lane-visualization {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border-top: 1px solid rgba(0, 255, 136, 0.3);
+            padding: 15px 20px;
+            color: #fff;
         }
 
-        .lane {
+        .lane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .lane-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #00FF88;
+        }
+
+        .lane-instruction {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        /* Top-down Lane Display */
+        .lane-display {
+            display: flex;
+            justify-content: center;
+            gap: 2px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .lane-item {
+            width: 35px;
+            height: 60px;
+            border: 2px solid #444;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 2px;
+            background: linear-gradient(180deg, #333 0%, #222 100%);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .lane-item.valid {
+            border-color: #00FF88;
+            background: linear-gradient(180deg, #00FF88 0%, #00CC66 100%);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            transform: scale(1.05);
+        }
+
+        .lane-item.recommended {
+            border-color: #FFD700;
+            background: linear-gradient(180deg, #FFD700 0%, #FFA500 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+            transform: scale(1.1);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .lane-arrow {
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .lane-number {
+            font-size: 10px;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        /* 3D Road View */
+        .lane-road-view {
+            height: 80px;
+            background: linear-gradient(180deg, #444 0%, #222 50%, #111 100%);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .road-surface {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(180deg, #333 0%, #111 100%);
+            transform: perspective(100px) rotateX(45deg);
+            transform-origin: bottom;
+        }
+
+        .road-lane {
+            position: absolute;
+            bottom: 0;
+            height: 60px;
+            border-left: 1px dashed #666;
+            border-right: 1px dashed #666;
+            transition: all 0.3s ease;
+        }
+
+        .road-lane.valid {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00FF88;
+        }
+
+        .road-lane.recommended {
+            background: rgba(255, 215, 0, 0.3);
+            border-color: #FFD700;
+            animation: roadPulse 1.5s ease-in-out infinite;
+        }
+
+        .road-car {
+            position: absolute;
+            bottom: 10px;
             width: 20px;
             height: 30px;
-            border: 2px solid rgba(0, 0, 0, 0.3);
+            background: #00FF88;
             border-radius: 3px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 12px;
-            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.5s ease;
+            z-index: 10;
         }
 
-        .lane.valid {
-            border-color: #000;
-            background: rgba(0, 0, 0, 0.2);
-            font-weight: bold;
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1.1);
+                box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+            }
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
+            }
         }
 
-        .lane.recommended {
-            border-color: #000;
-            background: rgba(0, 0, 0, 0.4);
-            color: #fff;
+        @keyframes roadPulse {
+            0%, 100% {
+                background: rgba(255, 215, 0, 0.3);
+            }
+            50% {
+                background: rgba(255, 215, 0, 0.5);
+            }
+        }
+
+        /* Lane Direction Indicators */
+        .lane-directions {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .direction-indicator {
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            font-size: 12px;
+            border: 1px solid #444;
+        }
+
+        .direction-indicator.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00FF88;
+            color: #00FF88;
+        }
+
+        /* Responsive Design for Lane Visualization */
+        @media (max-width: 768px) {
+            .lane-visualization {
+                padding: 10px 15px;
+            }
+
+            .lane-item {
+                width: 28px;
+                height: 50px;
+            }
+
+            .lane-arrow {
+                font-size: 14px;
+            }
+
+            .lane-road-view {
+                height: 60px;
+            }
         }
 
         /* Car marker animation */
@@ -483,16 +653,29 @@
                     <div class="nav-text">
                         <div class="nav-distance" id="navDistance">0.3 mi</div>
                         <div class="nav-direction" id="navDirection">Turn right onto Main Street</div>
-                        <div class="nav-lanes" id="navLanes" style="display: none; margin-top: 5px;">
-                            <!-- Lane guidance will be inserted here -->
-                        </div>
                     </div>
                 </div>
                 <div class="nav-actions">
                     <button class="nav-btn" onclick="toggleNavigationView()" title="Toggle View">🗺️</button>
+                    <button class="nav-btn" onclick="testLaneGuidance()" title="Test Lane Guidance">🛣️</button>
                     <button class="nav-btn nav-stop" onclick="stopNavigation()" title="Stop Navigation">⏹️</button>
                 </div>
             </div>
+
+            <!-- Visual Lane Recognition Display -->
+            <div id="laneVisualization" class="lane-visualization" style="display: none;">
+                <div class="lane-header">
+                    <span class="lane-title">Lane Guidance</span>
+                    <span class="lane-instruction" id="laneInstruction">Use right lanes</span>
+                </div>
+                <div class="lane-display" id="laneDisplay">
+                    <!-- Dynamic lane visualization will be inserted here -->
+                </div>
+                <div class="lane-road-view" id="laneRoadView">
+                    <!-- 3D-style road view will be inserted here -->
+                </div>
+            </div>
+
             <div class="nav-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill" style="width: 0%"></div>

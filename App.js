@@ -378,6 +378,17 @@ class VibeVoyageApp {
         document.getElementById('navDirection').textContent = instruction;
         document.getElementById('navDistance').textContent = distance;
 
+        // Show lane guidance for upcoming intersections
+        if (currentStep.distance < 500 && currentStep.intersections && currentStep.intersections.length > 0) {
+            const intersection = currentStep.intersections[0];
+            if (intersection.lanes && intersection.lanes.length > 1) {
+                this.showLaneGuidance(intersection.lanes);
+            }
+        } else if (currentStep.distance > 500) {
+            // Hide lane guidance when far from intersection
+            this.hideLaneGuidance();
+        }
+
         // Move to next step if we're close to current step
         if (currentStep.distance < 50 && this.currentStepIndex < this.routeSteps.length - 1) {
             this.currentStepIndex++;
@@ -524,55 +535,239 @@ class VibeVoyageApp {
     }
 
     showLaneGuidance(lanes) {
-        const laneContainer = document.getElementById('navLanes');
-        if (!laneContainer) return;
+        // Check if lane guidance is enabled in settings
+        const laneGuidanceToggle = document.getElementById('laneGuidanceToggle');
+        if (laneGuidanceToggle && !laneGuidanceToggle.checked) {
+            return; // Lane guidance disabled
+        }
 
-        laneContainer.style.display = 'flex';
-        laneContainer.innerHTML = '';
+        console.log('🛣️ Showing lane guidance:', lanes);
+
+        // Show the lane visualization panel
+        const laneVisualization = document.getElementById('laneVisualization');
+        if (laneVisualization) {
+            laneVisualization.style.display = 'block';
+        }
+
+        // Create top-down lane display
+        this.createLaneDisplay(lanes);
+
+        // Create 3D road view
+        this.create3DRoadView(lanes);
+
+        // Update lane instruction text
+        this.updateLaneInstruction(lanes);
+    }
+
+    createLaneDisplay(lanes) {
+        const laneDisplay = document.getElementById('laneDisplay');
+        if (!laneDisplay) return;
+
+        laneDisplay.innerHTML = '';
 
         lanes.forEach((lane, index) => {
-            const laneDiv = document.createElement('div');
-            laneDiv.className = 'lane';
+            const laneItem = document.createElement('div');
+            laneItem.className = 'lane-item';
 
+            // Determine lane status
             if (lane.valid) {
-                laneDiv.classList.add('valid');
-            }
-
-            // Add lane direction indicators
-            if (lane.indications && lane.indications.length > 0) {
-                const indication = lane.indications[0];
-                switch (indication) {
-                    case 'left':
-                        laneDiv.textContent = '←';
-                        break;
-                    case 'right':
-                        laneDiv.textContent = '→';
-                        break;
-                    case 'straight':
-                        laneDiv.textContent = '↑';
-                        break;
-                    case 'slight_left':
-                        laneDiv.textContent = '↖';
-                        break;
-                    case 'slight_right':
-                        laneDiv.textContent = '↗';
-                        break;
-                    default:
-                        laneDiv.textContent = '↑';
+                if (lane.active || (lane.indications && lane.indications.includes('straight'))) {
+                    laneItem.classList.add('recommended');
+                } else {
+                    laneItem.classList.add('valid');
                 }
-            } else {
-                laneDiv.textContent = '↑';
             }
 
-            laneContainer.appendChild(laneDiv);
+            // Create arrow element
+            const arrow = document.createElement('div');
+            arrow.className = 'lane-arrow';
+            arrow.textContent = this.getLaneArrow(lane);
+
+            // Create lane number
+            const number = document.createElement('div');
+            number.className = 'lane-number';
+            number.textContent = index + 1;
+
+            laneItem.appendChild(arrow);
+            laneItem.appendChild(number);
+            laneDisplay.appendChild(laneItem);
         });
     }
 
-    hideLaneGuidance() {
-        const laneContainer = document.getElementById('navLanes');
-        if (laneContainer) {
-            laneContainer.style.display = 'none';
+    create3DRoadView(lanes) {
+        const roadView = document.getElementById('laneRoadView');
+        if (!roadView) return;
+
+        roadView.innerHTML = '';
+
+        // Create road surface
+        const roadSurface = document.createElement('div');
+        roadSurface.className = 'road-surface';
+        roadView.appendChild(roadSurface);
+
+        // Calculate lane width
+        const laneWidth = 100 / lanes.length;
+
+        // Create road lanes
+        lanes.forEach((lane, index) => {
+            const roadLane = document.createElement('div');
+            roadLane.className = 'road-lane';
+            roadLane.style.left = `${index * laneWidth}%`;
+            roadLane.style.width = `${laneWidth}%`;
+
+            if (lane.valid) {
+                if (lane.active || (lane.indications && lane.indications.includes('straight'))) {
+                    roadLane.classList.add('recommended');
+                } else {
+                    roadLane.classList.add('valid');
+                }
+            }
+
+            roadView.appendChild(roadLane);
+        });
+
+        // Add car indicator
+        const car = document.createElement('div');
+        car.className = 'road-car';
+        car.textContent = '🚗';
+
+        // Position car in current lane (assume middle lane for now)
+        const currentLaneIndex = Math.floor(lanes.length / 2);
+        car.style.left = `${(currentLaneIndex * laneWidth) + (laneWidth / 2) - 10}px`;
+
+        roadView.appendChild(car);
+    }
+
+    getLaneArrow(lane) {
+        if (!lane.indications || lane.indications.length === 0) {
+            return '↑';
         }
+
+        const indication = lane.indications[0];
+        const arrows = {
+            'left': '←',
+            'right': '→',
+            'straight': '↑',
+            'slight_left': '↖',
+            'slight_right': '↗',
+            'sharp_left': '↙',
+            'sharp_right': '↘',
+            'uturn': '↩',
+            'merge_left': '↰',
+            'merge_right': '↱'
+        };
+
+        return arrows[indication] || '↑';
+    }
+
+    updateLaneInstruction(lanes) {
+        const instructionElement = document.getElementById('laneInstruction');
+        if (!instructionElement) return;
+
+        const validLanes = lanes.filter(lane => lane.valid);
+        const recommendedLanes = lanes.filter(lane =>
+            lane.valid && (lane.active || (lane.indications && lane.indications.includes('straight')))
+        );
+
+        let instruction = '';
+
+        if (recommendedLanes.length > 0) {
+            const laneNumbers = recommendedLanes.map((_, index) =>
+                lanes.findIndex(lane => lane === recommendedLanes[index]) + 1
+            );
+
+            if (laneNumbers.length === 1) {
+                instruction = `Use lane ${laneNumbers[0]}`;
+            } else {
+                instruction = `Use lanes ${laneNumbers.join(' or ')}`;
+            }
+        } else if (validLanes.length > 0) {
+            const laneNumbers = validLanes.map((_, index) =>
+                lanes.findIndex(lane => lane === validLanes[index]) + 1
+            );
+
+            if (laneNumbers.length === 1) {
+                instruction = `Use lane ${laneNumbers[0]}`;
+            } else if (laneNumbers.length <= 3) {
+                instruction = `Use lanes ${laneNumbers.join(' or ')}`;
+            } else {
+                instruction = `Use any of ${laneNumbers.length} lanes`;
+            }
+        } else {
+            instruction = 'Follow the road';
+        }
+
+        instructionElement.textContent = instruction;
+    }
+
+    hideLaneGuidance() {
+        const laneVisualization = document.getElementById('laneVisualization');
+        if (laneVisualization) {
+            laneVisualization.style.display = 'none';
+        }
+    }
+
+    // Simulate lane data for demonstration
+    simulateLaneData() {
+        const scenarios = [
+            {
+                name: "Highway Merge",
+                lanes: [
+                    { valid: false, indications: ['left'] },
+                    { valid: true, indications: ['left', 'straight'], active: false },
+                    { valid: true, indications: ['straight'], active: true },
+                    { valid: true, indications: ['straight', 'right'], active: false },
+                    { valid: false, indications: ['right'] }
+                ]
+            },
+            {
+                name: "City Intersection",
+                lanes: [
+                    { valid: true, indications: ['left'], active: false },
+                    { valid: true, indications: ['straight'], active: true },
+                    { valid: true, indications: ['straight'], active: true },
+                    { valid: true, indications: ['right'], active: false }
+                ]
+            },
+            {
+                name: "Highway Exit",
+                lanes: [
+                    { valid: true, indications: ['straight'], active: false },
+                    { valid: true, indications: ['straight'], active: false },
+                    { valid: true, indications: ['straight', 'right'], active: true },
+                    { valid: true, indications: ['right'], active: true },
+                    { valid: false, indications: ['right'] }
+                ]
+            },
+            {
+                name: "Roundabout Approach",
+                lanes: [
+                    { valid: false, indications: ['left'] },
+                    { valid: true, indications: ['straight'], active: true },
+                    { valid: true, indications: ['straight', 'right'], active: false },
+                    { valid: false, indications: ['right'] }
+                ]
+            }
+        ];
+
+        // Cycle through scenarios
+        if (!this.currentScenarioIndex) {
+            this.currentScenarioIndex = 0;
+        }
+
+        const scenario = scenarios[this.currentScenarioIndex];
+        this.showLaneGuidance(scenario.lanes);
+
+        // Show scenario name
+        this.showNotification(`🛣️ Lane Scenario: ${scenario.name}`, 'info');
+
+        // Move to next scenario
+        this.currentScenarioIndex = (this.currentScenarioIndex + 1) % scenarios.length;
+
+        // Auto-hide after 8 seconds for demo
+        setTimeout(() => {
+            this.hideLaneGuidance();
+        }, 8000);
     }
 
     getOrdinal(num) {
@@ -1050,6 +1245,12 @@ function toggleSettings() {
                     <span>Compass Directions</span>
                 </label>
             </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="laneGuidanceToggle">
+                    <span>🛣️ Visual Lane Guidance</span>
+                </label>
+            </div>
 
             <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚗 Route Preferences</h4>
             <div style="margin-bottom: 15px;">
@@ -1260,6 +1461,13 @@ function swapLocations() {
         app.showNotification('🔄 Locations swapped!', 'success');
     } else {
         app.showNotification('ℹ️ Input fields swapped', 'info');
+    }
+}
+
+function testLaneGuidance() {
+    if (app && app.simulateLaneData) {
+        app.simulateLaneData();
+        app.showNotification('🛣️ Testing lane guidance visualization', 'info');
     }
 }
 
