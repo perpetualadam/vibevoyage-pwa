@@ -5,8 +5,12 @@ class VibeVoyageApp {
         this.currentLocation = null;
         this.destination = null;
         this.isNavigating = false;
+        this.journeyState = 'idle'; // idle, route-selected, navigating, paused
         this.watchId = null;
         this.route = null;
+        this.lastKnownNavigationPosition = null;
+        this.journeyStartTime = null;
+        this.pausedTime = null;
         this.routeData = null;
         this.routeSteps = [];
         this.currentStepIndex = 0;
@@ -17,6 +21,19 @@ class VibeVoyageApp {
         this.routeOutline = null;
         this.followingCar = true;
         this.poiMarkers = [];
+        this.availableRoutes = [];
+        this.selectedRouteIndex = 0;
+        this.routeLines = [];
+        this.hazardMarkers = [];
+
+        // Follow mode properties
+        this.followMode = true;
+        this.autoZoomEnabled = true;
+        this.lastKnownPosition = null;
+        this.mapBounds = null;
+        this.followModeZoomLevel = 17;
+        this.overviewZoomLevel = 13;
+        this.panThreshold = 0.3; // 30% of screen before re-centering
         
         this.init();
     }
@@ -79,6 +96,9 @@ class VibeVoyageApp {
                 console.log('🎯 Map clicked:', e.latlng);
                 this.setDestination(e.latlng);
             });
+
+            // Add map interaction handlers for follow mode
+            this.setupMapInteractionHandlers();
 
             // Force map to resize after initialization
             setTimeout(() => {
@@ -216,139 +236,1228 @@ class VibeVoyageApp {
             this.showNotification('Please set a destination first', 'error');
             return;
         }
-        
+
         const navBtn = document.getElementById('navigateBtn');
-        navBtn.innerHTML = '<span class="spinner"></span> Calculating route...';
+        navBtn.innerHTML = '<span class="spinner"></span> Calculating routes...';
         navBtn.disabled = true;
-        
+
         try {
-            // Simulate route calculation
+            // Calculate multiple routes
             await this.calculateRoute();
-            
-            // Start navigation
-            this.isNavigating = true;
-            this.showNavigationPanel();
-            
-            // Start location tracking
-            this.startLocationTracking();
-            
-            navBtn.innerHTML = '🛑 Stop Navigation';
-            navBtn.onclick = () => this.stopNavigation();
-            navBtn.disabled = false;
-            
-            this.showNotification('Navigation started! 🚗', 'success');
-            
-            // Simulate voice guidance
-            this.speakInstruction('Navigation started. Follow the route.');
-            
+
+            // If we have a selected route, start navigation immediately
+            if (this.routeData && this.routeSteps) {
+                this.startSelectedNavigation();
+            }
+
         } catch (error) {
             console.error('Navigation error:', error);
-            this.showNotification('Failed to calculate route', 'error');
+            this.showNotification('Failed to calculate routes', 'error');
             navBtn.innerHTML = '🚗 Start Navigation';
             navBtn.disabled = false;
         }
     }
+
+    startSelectedNavigation() {
+        // Start navigation with selected route
+        this.isNavigating = true;
+        this.showNavigationPanel();
+
+        // Start location tracking
+        this.startLocationTracking();
+
+        const navBtn = document.getElementById('navigateBtn');
+        navBtn.innerHTML = '🛑 Stop Navigation';
+        navBtn.onclick = () => this.stopNavigation();
+        navBtn.disabled = false;
+
+        // Get route info for notification
+        const routeType = this.routeData.type || 'selected';
+        const distance = (this.routeData.distance / 1000).toFixed(1);
+        const duration = Math.round(this.routeData.duration / 60);
+
+        this.showNotification(`🚗 Navigation started on ${routeType} route!`, 'success');
+
+        // Voice guidance
+        this.speakInstruction(`Navigation started. Following the ${routeType} route.`);
+
+        // Enable follow mode for navigation
+        this.enableFollowMode();
+
+        // Show initial route overview, then switch to follow mode after 3 seconds
+        if (this.autoZoomEnabled && this.mapBounds) {
+            this.autoZoomToRoute();
+            setTimeout(() => {
+                if (this.isNavigating) {
+                    this.enableFollowMode();
+                }
+            }, 3000);
+        }
+    }
     
     async calculateRoute() {
-        console.log('🛣️ Calculating route with real roads...');
+        console.log('🛣️ Calculating multiple route options...');
 
         if (!this.currentLocation || !this.destination) {
             throw new Error('Missing start or end location');
         }
 
         try {
-            // Use OSRM (Open Source Routing Machine) for real road routing with detailed annotations
-            const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
-            const end = `${this.destination.lng},${this.destination.lat}`;
+            // Calculate multiple routes with different preferences
+            const routes = await this.calculateMultipleRoutes();
 
-            const response = await fetch(
-                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&voice_instructions=true&banner_instructions=true`
-            );
+            if (routes.length > 0) {
+                // Store all routes
+                this.availableRoutes = routes;
 
-            if (!response.ok) {
-                throw new Error('Routing service unavailable');
-            }
+                // Show route selection panel
+                this.showRouteSelection(routes);
 
-            const data = await response.json();
+                // Display all routes on map
+                this.displayMultipleRoutes(routes);
 
-            if (data.routes && data.routes.length > 0) {
-                const route = data.routes[0];
-                this.routeData = route;
-
-                // Extract route coordinates
-                const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-
-                // Remove existing route
-                if (this.routeLine) {
-                    this.map.removeLayer(this.routeLine);
-                }
-
-                // Add route line following actual roads
-                this.routeLine = L.polyline(routeCoords, {
-                    color: '#00FF88',
-                    weight: 6,
-                    opacity: 0.9,
-                    className: 'route-line'
-                }).addTo(this.map);
-
-                // Add route outline for better visibility
-                this.routeOutline = L.polyline(routeCoords, {
-                    color: '#000000',
-                    weight: 8,
-                    opacity: 0.5
-                }).addTo(this.map);
-                this.routeOutline.bringToBack();
-
-                // Store route steps for turn-by-turn navigation
-                this.routeSteps = route.legs[0].steps;
-                this.currentStepIndex = 0;
-
-                // Fit map to route with padding
-                this.map.fitBounds(this.routeLine.getBounds(), {
-                    padding: [50, 50],
-                    maxZoom: 16
-                });
-
-                // Calculate and display route info
-                const distance = (route.distance / 1000).toFixed(1); // km
-                const duration = Math.round(route.duration / 60); // minutes
-
-                this.showNotification(`Route calculated: ${distance}km, ${duration} min`, 'success');
-
-                console.log('✅ Route calculated:', {
-                    distance: distance + 'km',
-                    duration: duration + 'min',
-                    steps: this.routeSteps.length
-                });
+                console.log('✅ Multiple routes calculated:', routes.length);
 
             } else {
-                throw new Error('No route found');
+                throw new Error('No routes found');
             }
 
         } catch (error) {
             console.error('❌ Route calculation failed:', error);
 
-            // Fallback to straight line if routing fails
-            this.showNotification('Using direct route (routing service unavailable)', 'warning');
+            // Fallback to single route
+            await this.calculateSingleRoute();
+        }
+    }
 
-            const routeCoords = [
-                [this.currentLocation.lat, this.currentLocation.lng],
-                [this.destination.lat, this.destination.lng]
-            ];
+    async calculateMultipleRoutes() {
+        const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
+        const end = `${this.destination.lng},${this.destination.lat}`;
 
-            if (this.routeLine) {
-                this.map.removeLayer(this.routeLine);
+        const routePromises = [
+            // Fastest route
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true`),
+
+            // Alternative routes with different parameters
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway`),
+
+            // Shortest distance route
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false`)
+        ];
+
+        const responses = await Promise.allSettled(routePromises);
+        const routes = [];
+
+        for (let i = 0; i < responses.length; i++) {
+            const response = responses[i];
+            if (response.status === 'fulfilled' && response.value.ok) {
+                const data = await response.value.json();
+                if (data.routes && data.routes.length > 0) {
+                    // Add all routes from this response
+                    data.routes.forEach((route, index) => {
+                        routes.push({
+                            ...route,
+                            routeIndex: routes.length,
+                            type: this.getRouteType(i, index),
+                            color: this.getRouteColor(routes.length)
+                        });
+                    });
+                }
             }
+        }
 
-            this.routeLine = L.polyline(routeCoords, {
-                color: '#FFA500',
-                weight: 5,
-                opacity: 0.8,
-                dashArray: '10, 10'
+        // Remove duplicates and limit to 4 routes
+        const uniqueRoutes = this.removeDuplicateRoutes(routes).slice(0, 4);
+
+        // Sort routes by type preference
+        return this.sortRoutesByPreference(uniqueRoutes);
+    }
+
+    getRouteType(requestIndex, routeIndex) {
+        if (requestIndex === 0 && routeIndex === 0) return 'fastest';
+        if (requestIndex === 1) return 'scenic';
+        if (requestIndex === 2) return 'shortest';
+        return 'alternative';
+    }
+
+    getRouteColor(index) {
+        const colors = ['#00FF88', '#FFD700', '#87CEEB', '#90EE90'];
+        return colors[index % colors.length];
+    }
+
+    removeDuplicateRoutes(routes) {
+        const unique = [];
+        const tolerance = 1000; // 1km tolerance for considering routes different
+
+        routes.forEach(route => {
+            const isDuplicate = unique.some(existing =>
+                Math.abs(existing.distance - route.distance) < tolerance &&
+                Math.abs(existing.duration - route.duration) < 300 // 5 minutes
+            );
+
+            if (!isDuplicate) {
+                unique.push(route);
+            }
+        });
+
+        return unique;
+    }
+
+    sortRoutesByPreference(routes) {
+        const typeOrder = { fastest: 0, shortest: 1, scenic: 2, alternative: 3 };
+        return routes.sort((a, b) => {
+            const orderA = typeOrder[a.type] || 999;
+            const orderB = typeOrder[b.type] || 999;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.duration - b.duration; // Secondary sort by duration
+        });
+    }
+
+    async calculateSingleRoute() {
+        // Fallback to single route calculation
+        const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
+        const end = `${this.destination.lng},${this.destination.lat}`;
+
+        try {
+            const response = await fetch(
+                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    this.selectRoute(route, 0);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Single route calculation failed:', error);
+        }
+
+        // Final fallback to straight line
+        this.showNotification('Using direct route (routing service unavailable)', 'warning');
+
+        const routeCoords = [
+            [this.currentLocation.lat, this.currentLocation.lng],
+            [this.destination.lat, this.destination.lng]
+        ];
+
+        if (this.routeLine) {
+            this.map.removeLayer(this.routeLine);
+        }
+
+        this.routeLine = L.polyline(routeCoords, {
+            color: '#FFA500',
+            weight: 5,
+            opacity: 0.8,
+            dashArray: '10, 10'
+        }).addTo(this.map);
+
+        this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
+    }
+
+    showRouteSelection(routes) {
+        const panel = document.getElementById('routeSelectionPanel');
+        const optionsContainer = document.getElementById('routeOptions');
+
+        if (!panel || !optionsContainer) return;
+
+        // Clear existing options
+        optionsContainer.innerHTML = '';
+
+        // Create route options
+        routes.forEach((route, index) => {
+            const option = this.createRouteOption(route, index);
+            optionsContainer.appendChild(option);
+        });
+
+        // Show panel
+        panel.style.display = 'block';
+        setTimeout(() => panel.classList.add('show'), 100);
+
+        // Select first route by default
+        this.selectRouteOption(0);
+    }
+
+    createRouteOption(route, index) {
+        const option = document.createElement('div');
+        option.className = `route-option ${route.type}`;
+        option.onclick = () => this.selectRouteOption(index);
+
+        const distance = (route.distance / 1000).toFixed(1);
+        const duration = Math.round(route.duration / 60);
+        const hours = Math.floor(duration / 60);
+        const minutes = duration % 60;
+        const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+        // Calculate additional stats
+        const avgSpeed = Math.round((route.distance / 1000) / (route.duration / 3600));
+        const fuelCost = this.estimateFuelCost(route.distance);
+
+        option.innerHTML = `
+            <div class="route-info">
+                <div class="route-main">
+                    <span class="route-name">${this.getRouteName(route.type)}</span>
+                    <span class="route-badge ${route.type}">${route.type}</span>
+                </div>
+                <div class="route-stats">
+                    <div class="route-stat">
+                        <span class="route-stat-icon">🕒</span>
+                        <span class="route-stat-value">${timeText}</span>
+                    </div>
+                    <div class="route-stat">
+                        <span class="route-stat-icon">📏</span>
+                        <span class="route-stat-value">${distance} km</span>
+                    </div>
+                    <div class="route-stat">
+                        <span class="route-stat-icon">⚡</span>
+                        <span class="route-stat-value">${avgSpeed} km/h</span>
+                    </div>
+                    <div class="route-stat">
+                        <span class="route-stat-icon">⛽</span>
+                        <span class="route-stat-value">$${fuelCost}</span>
+                    </div>
+                </div>
+                <div class="route-details">
+                    ${this.getRouteDescription(route)}
+                </div>
+            </div>
+        `;
+
+        return option;
+    }
+
+    getRouteName(type) {
+        const names = {
+            fastest: 'Fastest Route',
+            shortest: 'Shortest Route',
+            scenic: 'Scenic Route',
+            alternative: 'Alternative Route'
+        };
+        return names[type] || 'Route';
+    }
+
+    getRouteDescription(route) {
+        const descriptions = {
+            fastest: 'Optimized for speed with highways and main roads',
+            shortest: 'Minimum distance with local roads',
+            scenic: 'Avoids highways for a more scenic drive',
+            alternative: 'Alternative path with different road types'
+        };
+
+        const baseDesc = descriptions[route.type] || 'Alternative routing option';
+        const tollInfo = route.legs && route.legs[0] && route.legs[0].annotation ?
+            ' • May include tolls' : ' • Toll-free route';
+
+        return baseDesc + tollInfo;
+    }
+
+    estimateFuelCost(distanceMeters) {
+        // Rough fuel cost estimation (assuming $1.50/L, 8L/100km)
+        const distanceKm = distanceMeters / 1000;
+        const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km
+        const cost = fuelUsed * 1.50;
+        return cost.toFixed(2);
+    }
+
+    selectRouteOption(index) {
+        // Update UI selection
+        const options = document.querySelectorAll('.route-option');
+        options.forEach((option, i) => {
+            option.classList.toggle('selected', i === index);
+        });
+
+        // Update selected route index
+        this.selectedRouteIndex = index;
+
+        // Highlight selected route on map
+        this.highlightSelectedRoute(index);
+
+        // Enable select button
+        const selectBtn = document.getElementById('selectRouteBtn');
+        if (selectBtn) {
+            selectBtn.disabled = false;
+        }
+    }
+
+    displayMultipleRoutes(routes) {
+        // Clear existing route lines
+        this.clearRouteLines();
+
+        // Add all routes to map
+        routes.forEach((route, index) => {
+            const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+            const routeLine = L.polyline(routeCoords, {
+                color: route.color,
+                weight: index === 0 ? 6 : 5,
+                opacity: index === 0 ? 0.9 : 0.7,
+                className: `route-line-${index + 1}`
             }).addTo(this.map);
 
-            this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
+            // Add route outline
+            const routeOutline = L.polyline(routeCoords, {
+                color: '#000000',
+                weight: index === 0 ? 8 : 7,
+                opacity: 0.3
+            }).addTo(this.map);
+            routeOutline.bringToBack();
+
+            this.routeLines.push({ line: routeLine, outline: routeOutline });
+        });
+
+        // Fit map to show all routes
+        if (routes.length > 0) {
+            const group = new L.featureGroup(this.routeLines.map(r => r.line));
+            this.map.fitBounds(group.getBounds(), { padding: [50, 50] });
         }
+    }
+
+    highlightSelectedRoute(index) {
+        // Reset all route styles
+        this.routeLines.forEach((routeLine, i) => {
+            routeLine.line.setStyle({
+                weight: i === index ? 8 : 5,
+                opacity: i === index ? 1 : 0.6,
+                className: i === index ? 'route-line-selected' : `route-line-${i + 1}`
+            });
+        });
+    }
+
+    clearRouteLines() {
+        // Remove existing route lines
+        this.routeLines.forEach(routeLine => {
+            if (this.map.hasLayer(routeLine.line)) {
+                this.map.removeLayer(routeLine.line);
+            }
+            if (this.map.hasLayer(routeLine.outline)) {
+                this.map.removeLayer(routeLine.outline);
+            }
+        });
+        this.routeLines = [];
+
+        // Remove old single route line
+        if (this.routeLine && this.map.hasLayer(this.routeLine)) {
+            this.map.removeLayer(this.routeLine);
+        }
+        if (this.routeOutline && this.map.hasLayer(this.routeOutline)) {
+            this.map.removeLayer(this.routeOutline);
+        }
+    }
+
+    selectRoute(route, index) {
+        console.log('🎯 Route selected:', route.type, index);
+
+        // Store selected route data
+        this.routeData = route;
+        this.routeSteps = route.legs[0].steps;
+        this.currentStepIndex = 0;
+
+        // Clear all route lines
+        this.clearRouteLines();
+
+        // Add only the selected route
+        const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+        this.routeLine = L.polyline(routeCoords, {
+            color: '#00FF88',
+            weight: 8,
+            opacity: 1,
+            className: 'route-line-selected'
+        }).addTo(this.map);
+
+        this.routeOutline = L.polyline(routeCoords, {
+            color: '#000000',
+            weight: 10,
+            opacity: 0.5
+        }).addTo(this.map);
+        this.routeOutline.bringToBack();
+
+        // Auto-zoom to fit entire route
+        this.autoZoomToRoute();
+
+        // Store route bounds for later use
+        this.mapBounds = this.routeLine.getBounds();
+
+        // Calculate and display route info
+        const distance = (route.distance / 1000).toFixed(1);
+        const duration = Math.round(route.duration / 60);
+        const hours = Math.floor(duration / 60);
+        const minutes = duration % 60;
+        const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+        this.showNotification(`✅ ${this.getRouteName(route.type)}: ${distance}km, ${timeText}`, 'success');
+
+        // Add hazard markers to the selected route
+        this.addHazardMarkersToRoute(route);
+
+        // Show journey control panel instead of starting navigation immediately
+        this.showJourneyControlPanel(route);
+    }
+
+    autoZoomToRoute() {
+        if (!this.routeLine || !this.map) return;
+
+        // Check if auto-zoom is enabled in settings
+        const autoZoomToggle = document.getElementById('autoZoomToggle');
+        if (autoZoomToggle && !autoZoomToggle.checked) {
+            console.log('🔍 Auto-zoom disabled in settings');
+            return;
+        }
+
+        console.log('🔍 Auto-zooming to fit entire route');
+
+        // Calculate optimal bounds with padding
+        const bounds = this.routeLine.getBounds();
+        const padding = this.calculateOptimalPadding();
+
+        // Fit bounds with smooth animation
+        this.map.fitBounds(bounds, {
+            padding: padding,
+            maxZoom: this.overviewZoomLevel,
+            animate: true,
+            duration: 1.5
+        });
+
+        // Update follow mode button state
+        this.updateFollowModeUI(false);
+    }
+
+    calculateOptimalPadding() {
+        // Calculate padding based on screen size and UI elements
+        const mapContainer = this.map.getContainer();
+        const containerWidth = mapContainer.offsetWidth;
+        const containerHeight = mapContainer.offsetHeight;
+
+        // Account for navigation panel and other UI elements
+        const topPadding = this.isNavigating ? 120 : 50;
+        const bottomPadding = 100;
+        const sidePadding = Math.min(50, containerWidth * 0.1);
+
+        return [topPadding, sidePadding, bottomPadding, sidePadding];
+    }
+
+    enableFollowMode() {
+        if (!this.map || !this.currentLocation) return;
+
+        // Check if follow mode is enabled in settings
+        const followModeToggle = document.getElementById('followModeToggle');
+        if (followModeToggle && !followModeToggle.checked) {
+            console.log('📍 Follow mode disabled in settings');
+            return;
+        }
+
+        console.log('📍 Enabling follow mode');
+
+        this.followMode = true;
+        this.centerOnUserLocation(true);
+        this.updateFollowModeUI(true);
+
+        // Set appropriate zoom level for following
+        if (this.map.getZoom() < this.followModeZoomLevel) {
+            this.map.setZoom(this.followModeZoomLevel);
+        }
+    }
+
+    disableFollowMode() {
+        console.log('🗺️ Disabling follow mode');
+
+        this.followMode = false;
+        this.updateFollowModeUI(false);
+    }
+
+    centerOnUserLocation(animate = true) {
+        if (!this.map || !this.currentLocation) return;
+
+        const options = {
+            animate: animate,
+            duration: animate ? 1.0 : 0,
+            easeLinearity: 0.25
+        };
+
+        this.map.setView(
+            [this.currentLocation.lat, this.currentLocation.lng],
+            this.followModeZoomLevel,
+            options
+        );
+    }
+
+    checkIfUserOffScreen() {
+        if (!this.map || !this.currentLocation || !this.followMode) return false;
+
+        const mapBounds = this.map.getBounds();
+        const userLatLng = L.latLng(this.currentLocation.lat, this.currentLocation.lng);
+
+        // Check if user is within bounds
+        if (!mapBounds.contains(userLatLng)) {
+            return true;
+        }
+
+        // Check if user is near edge (within threshold)
+        const mapSize = this.map.getSize();
+        const userPoint = this.map.latLngToContainerPoint(userLatLng);
+
+        const threshold = {
+            x: mapSize.x * this.panThreshold,
+            y: mapSize.y * this.panThreshold
+        };
+
+        return (
+            userPoint.x < threshold.x ||
+            userPoint.x > mapSize.x - threshold.x ||
+            userPoint.y < threshold.y ||
+            userPoint.y > mapSize.y - threshold.y
+        );
+    }
+
+    updateFollowModeUI(isFollowing) {
+        const followBtn = document.getElementById('followModeBtn');
+        const recenterBtn = document.getElementById('recenterBtn');
+
+        if (followBtn) {
+            if (isFollowing) {
+                followBtn.classList.add('follow-active');
+                followBtn.title = 'Following Location (Click to disable)';
+            } else {
+                followBtn.classList.remove('follow-active');
+                followBtn.title = 'Enable Follow Mode';
+            }
+        }
+
+        if (recenterBtn) {
+            recenterBtn.style.display = isFollowing ? 'none' : 'flex';
+        }
+    }
+
+    handleLocationUpdate(newLocation) {
+        // Store previous location for comparison
+        const previousLocation = this.lastKnownPosition;
+        this.lastKnownPosition = newLocation;
+
+        // If follow mode is enabled
+        if (this.followMode && this.isNavigating) {
+            // Check if user moved significantly or is off-screen
+            if (this.shouldRecenterMap(previousLocation, newLocation)) {
+                this.smoothPanToLocation(newLocation);
+            }
+        } else if (this.isNavigating) {
+            // If not in follow mode, check if user is completely off-screen
+            if (this.checkIfUserOffScreen()) {
+                // Show re-center button with pulse animation
+                this.showRecenterPrompt();
+            }
+        }
+    }
+
+    shouldRecenterMap(previousLocation, newLocation) {
+        if (!previousLocation) return true;
+
+        // Check if user moved significantly
+        const distanceMoved = this.calculateDistance(
+            previousLocation.lat, previousLocation.lng,
+            newLocation.lat, newLocation.lng
+        );
+
+        // Re-center if moved more than 50 meters or if off-screen
+        return distanceMoved > 50 || this.checkIfUserOffScreen();
+    }
+
+    smoothPanToLocation(location) {
+        if (!this.map || !location) return;
+
+        // Smooth pan to new location
+        this.map.panTo([location.lat, location.lng], {
+            animate: true,
+            duration: 0.8,
+            easeLinearity: 0.25
+        });
+
+        // Maintain appropriate zoom level
+        const currentZoom = this.map.getZoom();
+        if (currentZoom < this.followModeZoomLevel - 1) {
+            this.map.setZoom(this.followModeZoomLevel, { animate: true });
+        }
+    }
+
+    showRecenterPrompt() {
+        const recenterBtn = document.getElementById('recenterBtn');
+        if (recenterBtn && !recenterBtn.classList.contains('recenter-pulse')) {
+            recenterBtn.classList.add('recenter-pulse');
+            setTimeout(() => {
+                recenterBtn.classList.remove('recenter-pulse');
+            }, 500);
+        }
+    }
+
+    calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371000; // Earth's radius in meters
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    // Journey Control Functions
+    showJourneyControlPanel(route) {
+        const panel = document.getElementById('journeyControlPanel');
+        const routeInfo = document.getElementById('journeyRouteInfo');
+
+        if (!panel || !routeInfo) return;
+
+        // Update route information
+        const distance = (route.distance / 1000).toFixed(1);
+        const duration = Math.round(route.duration / 60);
+        const hours = Math.floor(duration / 60);
+        const minutes = duration % 60;
+        const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+        routeInfo.innerHTML = `
+            <span class="route-name">${this.getRouteName(route.type)}</span>
+            <span class="route-stats">${distance} km • ${timeText}</span>
+        `;
+
+        // Detect and display hazards
+        this.detectRouteHazards(route);
+
+        // Show panel
+        panel.style.display = 'block';
+        setTimeout(() => panel.classList.add('show'), 100);
+
+        // Update journey state
+        this.journeyState = 'route-selected';
+    }
+
+    detectRouteHazards(route) {
+        const hazardCount = document.getElementById('hazardCount');
+        const hazardIcons = document.getElementById('hazardIcons');
+
+        if (!hazardCount || !hazardIcons) return;
+
+        // Simulate hazard detection along route
+        const simulatedHazards = [
+            { type: 'camera', icon: '📸', name: 'Speed Camera', distance: '2.1 km' },
+            { type: 'police', icon: '🚨', name: 'Police Report', distance: '5.8 km' },
+            { type: 'roadwork', icon: '🚧', name: 'Road Work', distance: '8.3 km' }
+        ];
+
+        hazardCount.textContent = `${simulatedHazards.length} hazards detected`;
+
+        hazardIcons.innerHTML = '';
+        simulatedHazards.forEach(hazard => {
+            const hazardElement = document.createElement('div');
+            hazardElement.className = `hazard-icon ${hazard.type}`;
+            hazardElement.innerHTML = `
+                <span>${hazard.icon}</span>
+                <span>${hazard.name}</span>
+            `;
+            hazardElement.onclick = () => this.showHazardDetails(hazard);
+            hazardIcons.appendChild(hazardElement);
+        });
+    }
+
+    showHazardDetails(hazard) {
+        this.showNotification(`${hazard.icon} ${hazard.name} in ${hazard.distance}`, 'warning');
+    }
+
+    startJourney() {
+        console.log('🚗 Starting journey...');
+
+        if (this.journeyState !== 'route-selected') {
+            this.showNotification('Please select a route first', 'error');
+            return;
+        }
+
+        // Hide journey control panel
+        this.hideJourneyControlPanel();
+
+        // Start actual navigation
+        this.journeyState = 'navigating';
+        this.journeyStartTime = Date.now();
+        this.isNavigating = true;
+
+        // Show navigation panel
+        this.showNavigationPanel();
+
+        // Start location tracking
+        this.startLocationTracking();
+
+        // Enable follow mode
+        this.enableFollowMode();
+
+        // Initialize voice log
+        this.initializeVoiceLog();
+
+        // Start hazard monitoring
+        this.startHazardMonitoring();
+
+        this.showNotification('🚗 Journey started! Drive safely.', 'success');
+        this.speakInstruction('Journey started. Follow the route and drive safely.');
+        this.addVoiceLogEntry('Journey started');
+    }
+
+    pauseJourney() {
+        console.log('⏸️ Pausing journey...');
+
+        if (this.journeyState !== 'navigating') return;
+
+        this.journeyState = 'paused';
+        this.pausedTime = Date.now();
+        this.isNavigating = false;
+
+        // Stop location tracking
+        if (this.watchId) {
+            navigator.geolocation.clearWatch(this.watchId);
+            this.watchId = null;
+        }
+
+        // Store last known position
+        this.lastKnownNavigationPosition = { ...this.currentLocation };
+
+        // Show resume button
+        this.showResumeButton();
+
+        this.showNotification('⏸️ Journey paused', 'warning');
+        this.speakInstruction('Journey paused. Tap resume when ready to continue.');
+        this.addVoiceLogEntry('Journey paused');
+    }
+
+    resumeJourney() {
+        console.log('▶️ Resuming journey...');
+
+        if (this.journeyState !== 'paused') return;
+
+        this.journeyState = 'navigating';
+        this.isNavigating = true;
+
+        // Hide resume button
+        this.hideResumeButton();
+
+        // Resume location tracking
+        this.startLocationTracking();
+
+        // Re-enable follow mode
+        this.enableFollowMode();
+
+        const pauseDuration = Math.round((Date.now() - this.pausedTime) / 1000);
+        this.showNotification('▶️ Journey resumed', 'success');
+        this.speakInstruction('Journey resumed. Continue following the route.');
+        this.addVoiceLogEntry(`Journey resumed after ${pauseDuration}s pause`);
+    }
+
+    cancelJourney() {
+        console.log('❌ Cancelling journey...');
+
+        this.journeyState = 'idle';
+        this.isNavigating = false;
+        this.journeyStartTime = null;
+        this.pausedTime = null;
+        this.lastKnownNavigationPosition = null;
+
+        // Hide all panels
+        this.hideJourneyControlPanel();
+        this.hideNavigationPanel();
+
+        // Stop location tracking
+        if (this.watchId) {
+            navigator.geolocation.clearWatch(this.watchId);
+            this.watchId = null;
+        }
+
+        // Clear route and hazards
+        this.clearRouteLines();
+        this.clearHazardMarkers();
+
+        // Stop hazard monitoring
+        this.stopHazardMonitoring();
+
+        this.showNotification('❌ Journey cancelled', 'info');
+        this.addVoiceLogEntry('Journey cancelled');
+    }
+
+    hideJourneyControlPanel() {
+        const panel = document.getElementById('journeyControlPanel');
+        if (panel) {
+            panel.classList.remove('show');
+            setTimeout(() => {
+                panel.style.display = 'none';
+            }, 300);
+        }
+    }
+
+    showResumeButton() {
+        const startBtn = document.getElementById('startJourneyBtn');
+        const resumeBtn = document.getElementById('resumeJourneyBtn');
+        const pauseBtn = document.getElementById('pauseJourneyBtn');
+
+        if (startBtn) startBtn.style.display = 'none';
+        if (resumeBtn) resumeBtn.style.display = 'flex';
+        if (pauseBtn) pauseBtn.style.display = 'none';
+    }
+
+    hideResumeButton() {
+        const startBtn = document.getElementById('startJourneyBtn');
+        const resumeBtn = document.getElementById('resumeJourneyBtn');
+        const pauseBtn = document.getElementById('pauseJourneyBtn');
+
+        if (startBtn) startBtn.style.display = 'none';
+        if (resumeBtn) resumeBtn.style.display = 'none';
+        if (pauseBtn) pauseBtn.style.display = 'flex';
+    }
+
+    // Voice Log Functions
+    initializeVoiceLog() {
+        const voiceLogContent = document.getElementById('voiceLogContent');
+        if (voiceLogContent) {
+            voiceLogContent.innerHTML = '';
+        }
+        this.addVoiceLogEntry('Voice log initialized');
+    }
+
+    addVoiceLogEntry(text) {
+        const voiceLogContent = document.getElementById('voiceLogContent');
+        if (!voiceLogContent) return;
+
+        const time = new Date().toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const entry = document.createElement('div');
+        entry.className = 'voice-entry';
+        entry.innerHTML = `
+            <span class="voice-time">${time}</span>
+            <span class="voice-text">${text}</span>
+        `;
+
+        voiceLogContent.appendChild(entry);
+        voiceLogContent.scrollTop = voiceLogContent.scrollHeight;
+
+        // Keep only last 20 entries
+        while (voiceLogContent.children.length > 20) {
+            voiceLogContent.removeChild(voiceLogContent.firstChild);
+        }
+    }
+
+    clearVoiceLog() {
+        const voiceLogContent = document.getElementById('voiceLogContent');
+        if (voiceLogContent) {
+            voiceLogContent.innerHTML = '';
+        }
+        this.addVoiceLogEntry('Voice log cleared');
+    }
+
+    // Hazard Monitoring Functions
+    startHazardMonitoring() {
+        console.log('🚨 Starting hazard monitoring...');
+
+        // Initialize hazard summary
+        this.updateHazardSummary();
+
+        // Start periodic hazard checks
+        this.hazardCheckInterval = setInterval(() => {
+            this.checkNearbyHazards();
+        }, 5000); // Check every 5 seconds
+    }
+
+    stopHazardMonitoring() {
+        if (this.hazardCheckInterval) {
+            clearInterval(this.hazardCheckInterval);
+            this.hazardCheckInterval = null;
+        }
+    }
+
+    updateHazardSummary() {
+        const hazardSummaryContent = document.getElementById('hazardSummaryContent');
+        const hazardTotal = document.getElementById('hazardTotal');
+
+        if (!hazardSummaryContent || !hazardTotal) return;
+
+        // Simulate hazards ahead on route
+        const hazardsAhead = [
+            { type: 'camera', icon: '📸', name: 'Speed Camera', distance: 1200, description: 'Fixed speed camera on A1' },
+            { type: 'police', icon: '🚨', name: 'Police', distance: 2800, description: 'Police checkpoint reported' },
+            { type: 'roadwork', icon: '🚧', name: 'Road Work', distance: 4500, description: 'Lane closure ahead' }
+        ];
+
+        hazardTotal.textContent = `${hazardsAhead.length} ahead`;
+
+        hazardSummaryContent.innerHTML = '';
+        hazardsAhead.forEach(hazard => {
+            const item = document.createElement('div');
+            item.className = `hazard-summary-item ${hazard.type}`;
+            item.innerHTML = `
+                <span class="hazard-icon">${hazard.icon}</span>
+                <div class="hazard-info">
+                    <span class="hazard-name">${hazard.name}</span>
+                    <span class="hazard-distance">${this.formatDistance(hazard.distance)} ahead</span>
+                </div>
+            `;
+            item.onclick = () => this.showHazardDetails({
+                ...hazard,
+                distance: this.formatDistance(hazard.distance)
+            });
+            hazardSummaryContent.appendChild(item);
+        });
+    }
+
+    checkNearbyHazards() {
+        if (!this.isNavigating || !this.currentLocation) return;
+
+        // Simulate hazard detection
+        const nearbyHazards = this.simulateNearbyHazards();
+
+        nearbyHazards.forEach(hazard => {
+            if (hazard.distance < 500 && !hazard.alerted) {
+                this.showHazardAlert(hazard);
+                hazard.alerted = true;
+            }
+        });
+    }
+
+    simulateNearbyHazards() {
+        // Simulate some hazards for demonstration
+        return [
+            {
+                type: 'camera',
+                icon: '📸',
+                name: 'Speed Camera',
+                distance: Math.random() * 1000,
+                alerted: false
+            }
+        ];
+    }
+
+    showHazardAlert(hazard) {
+        const alertElement = document.getElementById('navHazardAlert');
+        if (alertElement) {
+            alertElement.style.display = 'flex';
+            alertElement.innerHTML = `
+                <span class="hazard-icon">${hazard.icon}</span>
+                <span class="hazard-text">${hazard.name} in ${Math.round(hazard.distance)}m</span>
+            `;
+
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                alertElement.style.display = 'none';
+            }, 10000);
+        }
+
+        // Voice alert
+        this.speakInstruction(`${hazard.name} ahead in ${Math.round(hazard.distance)} meters`, 'high');
+        this.addVoiceLogEntry(`Alert: ${hazard.name} in ${Math.round(hazard.distance)}m`);
+    }
+
+    // Hazard Marker Functions
+    addHazardMarkersToRoute(route) {
+        if (!this.map || !route) return;
+
+        // Clear existing hazard markers
+        this.clearHazardMarkers();
+
+        // Simulate hazards along the route
+        const routeCoords = route.geometry.coordinates;
+        const hazards = this.generateRouteHazards(routeCoords);
+
+        hazards.forEach(hazard => {
+            const marker = this.createHazardMarker(hazard);
+            this.hazardMarkers.push(marker);
+        });
+    }
+
+    generateRouteHazards(routeCoords) {
+        const hazards = [];
+        const hazardTypes = [
+            { type: 'camera', icon: '📸', name: 'Speed Camera', color: '#FFA500' },
+            { type: 'police', icon: '🚨', name: 'Police Report', color: '#FF6B6B' },
+            { type: 'roadwork', icon: '🚧', name: 'Road Work', color: '#FFD700' },
+            { type: 'traffic-light', icon: '🚦', name: 'Traffic Light', color: '#87CEEB' }
+        ];
+
+        // Add hazards at random points along route
+        for (let i = 0; i < Math.min(5, Math.floor(routeCoords.length / 20)); i++) {
+            const randomIndex = Math.floor(Math.random() * routeCoords.length);
+            const coord = routeCoords[randomIndex];
+            const hazardType = hazardTypes[Math.floor(Math.random() * hazardTypes.length)];
+
+            hazards.push({
+                id: `hazard_${i}`,
+                ...hazardType,
+                position: [coord[1], coord[0]], // [lat, lng]
+                description: `${hazardType.name} reported by community`,
+                timestamp: Date.now() - Math.random() * 3600000, // Random time in last hour
+                confidence: Math.random() * 0.4 + 0.6 // 60-100% confidence
+            });
+        }
+
+        return hazards;
+    }
+
+    createHazardMarker(hazard) {
+        // Create custom icon
+        const hazardIcon = L.divIcon({
+            className: 'hazard-marker',
+            html: `
+                <div class="hazard-marker-content" style="
+                    background: ${hazard.color};
+                    color: #000;
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    border: 2px solid #fff;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                    animation: hazardPulse 2s ease-in-out infinite;
+                ">
+                    ${hazard.icon}
+                </div>
+            `,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        // Create marker
+        const marker = L.marker(hazard.position, { icon: hazardIcon })
+            .addTo(this.map);
+
+        // Add click handler
+        marker.on('click', () => {
+            this.showHazardPopup(hazard, marker);
+        });
+
+        // Add hover effects
+        marker.on('mouseover', () => {
+            marker.getElement().style.transform = 'scale(1.2)';
+        });
+
+        marker.on('mouseout', () => {
+            marker.getElement().style.transform = 'scale(1)';
+        });
+
+        return marker;
+    }
+
+    showHazardPopup(hazard, marker) {
+        const timeAgo = this.getTimeAgo(hazard.timestamp);
+        const confidence = Math.round(hazard.confidence * 100);
+
+        const popupContent = `
+            <div class="hazard-popup">
+                <div class="hazard-popup-header">
+                    <span class="hazard-popup-icon">${hazard.icon}</span>
+                    <span class="hazard-popup-title">${hazard.name}</span>
+                </div>
+                <div class="hazard-popup-content">
+                    <p><strong>Description:</strong> ${hazard.description}</p>
+                    <p><strong>Reported:</strong> ${timeAgo}</p>
+                    <p><strong>Confidence:</strong> ${confidence}%</p>
+                </div>
+                <div class="hazard-popup-actions">
+                    <button onclick="app.confirmHazard('${hazard.id}')" class="hazard-btn confirm">
+                        👍 Confirm
+                    </button>
+                    <button onclick="app.reportHazardGone('${hazard.id}')" class="hazard-btn gone">
+                        ❌ Not There
+                    </button>
+                </div>
+            </div>
+        `;
+
+        marker.bindPopup(popupContent, {
+            maxWidth: 250,
+            className: 'hazard-popup-container'
+        }).openPopup();
+
+        // Add voice announcement
+        this.addVoiceLogEntry(`Hazard details: ${hazard.name}`);
+    }
+
+    confirmHazard(hazardId) {
+        this.showNotification('👍 Hazard confirmed - thank you!', 'success');
+        this.addVoiceLogEntry('Hazard confirmed by user');
+    }
+
+    reportHazardGone(hazardId) {
+        // Find and remove the hazard marker
+        const markerIndex = this.hazardMarkers.findIndex(marker =>
+            marker.options.hazardId === hazardId
+        );
+
+        if (markerIndex !== -1) {
+            this.map.removeLayer(this.hazardMarkers[markerIndex]);
+            this.hazardMarkers.splice(markerIndex, 1);
+        }
+
+        this.showNotification('❌ Hazard removed - thank you!', 'success');
+        this.addVoiceLogEntry('Hazard reported as gone');
+    }
+
+    clearHazardMarkers() {
+        this.hazardMarkers.forEach(marker => {
+            if (this.map.hasLayer(marker)) {
+                this.map.removeLayer(marker);
+            }
+        });
+        this.hazardMarkers = [];
+    }
+
+    getTimeAgo(timestamp) {
+        const now = Date.now();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(minutes / 60);
+
+        if (hours > 0) {
+            return `${hours}h ago`;
+        } else if (minutes > 0) {
+            return `${minutes}m ago`;
+        } else {
+            return 'Just now';
+        }
+    }
+
+    setupMapInteractionHandlers() {
+        if (!this.map) return;
+
+        // Disable follow mode when user manually interacts with map
+        this.map.on('dragstart', () => {
+            if (this.followMode && this.isNavigating) {
+                console.log('🖱️ User dragging map - disabling follow mode');
+                this.disableFollowMode();
+            }
+        });
+
+        // Disable follow mode on zoom by user
+        this.map.on('zoomstart', (e) => {
+            // Only disable if zoom was initiated by user, not programmatically
+            if (this.followMode && this.isNavigating && !e.hard) {
+                console.log('🔍 User zooming map - disabling follow mode');
+                this.disableFollowMode();
+            }
+        });
+
+        // Re-enable follow mode if user double-clicks on their location
+        this.map.on('dblclick', (e) => {
+            if (this.isNavigating && this.currentLocation) {
+                const clickedLocation = e.latlng;
+                const userLocation = L.latLng(this.currentLocation.lat, this.currentLocation.lng);
+                const distance = clickedLocation.distanceTo(userLocation);
+
+                // If double-clicked within 100m of user location, enable follow mode
+                if (distance < 100) {
+                    console.log('👆 Double-clicked near user location - enabling follow mode');
+                    this.enableFollowMode();
+                }
+            }
+        });
     }
     
     showNavigationPanel() {
@@ -842,15 +1951,13 @@ class VibeVoyageApp {
                 // Update car position with heading
                 this.updateCarPosition(newLocation.lat, newLocation.lng, heading);
 
+                // Handle follow mode and auto-centering
+                this.handleLocationUpdate(newLocation);
+
                 // Update navigation instructions and progress
                 if (this.isNavigating) {
                     this.updateNavigationInstructions();
                     this.updateNavigationProgress();
-
-                    // Center map on car if in navigation mode
-                    if (this.map) {
-                        this.map.setView([newLocation.lat, newLocation.lng], this.map.getZoom());
-                    }
                 }
             },
             (error) => {
@@ -890,10 +1997,11 @@ class VibeVoyageApp {
             progressFill.style.width = `${progress}%`;
         }
 
-        // Update ETA and remaining distance
+        // Update ETA, remaining distance, and total distance
         const eta = this.calculateETA(remainingDistance);
         const etaElement = document.getElementById('navETA');
         const remainingElement = document.getElementById('navRemaining');
+        const totalElement = document.getElementById('navTotal');
 
         if (etaElement) {
             etaElement.textContent = `ETA: ${eta}`;
@@ -901,6 +2009,11 @@ class VibeVoyageApp {
 
         if (remainingElement) {
             remainingElement.textContent = `${this.formatDistance(remainingDistance)} remaining`;
+        }
+
+        if (totalElement && this.routeData) {
+            const totalDistance = this.routeData.distance;
+            totalElement.textContent = `Total: ${this.formatDistance(totalDistance)}`;
         }
     }
 
@@ -1251,6 +2364,18 @@ function toggleSettings() {
                     <span>🛣️ Visual Lane Guidance</span>
                 </label>
             </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="autoZoomToggle">
+                    <span>🔍 Auto-Zoom to Route</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="followModeToggle">
+                    <span>📍 Auto-Follow Location</span>
+                </label>
+            </div>
 
             <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚗 Route Preferences</h4>
             <div style="margin-bottom: 15px;">
@@ -1468,6 +2593,104 @@ function testLaneGuidance() {
     if (app && app.simulateLaneData) {
         app.simulateLaneData();
         app.showNotification('🛣️ Testing lane guidance visualization', 'info');
+    }
+}
+
+function hideRouteSelection() {
+    const panel = document.getElementById('routeSelectionPanel');
+    if (panel) {
+        panel.classList.remove('show');
+        setTimeout(() => {
+            panel.style.display = 'none';
+        }, 300);
+    }
+}
+
+function selectRouteForJourney() {
+    if (app && app.availableRoutes && app.availableRoutes.length > 0) {
+        const selectedRoute = app.availableRoutes[app.selectedRouteIndex];
+        app.selectRoute(selectedRoute, app.selectedRouteIndex);
+        hideRouteSelection();
+    }
+}
+
+function startJourney() {
+    if (app && app.startJourney) {
+        app.startJourney();
+    }
+}
+
+function pauseJourney() {
+    if (app && app.pauseJourney) {
+        app.pauseJourney();
+    }
+}
+
+function resumeJourney() {
+    if (app && app.resumeJourney) {
+        app.resumeJourney();
+    }
+}
+
+function cancelJourney() {
+    if (app && app.cancelJourney) {
+        app.cancelJourney();
+    }
+}
+
+function clearVoiceLog() {
+    if (app && app.clearVoiceLog) {
+        app.clearVoiceLog();
+    }
+}
+
+function toggleFollowMode() {
+    if (!app) return;
+
+    if (app.followMode) {
+        app.disableFollowMode();
+        app.showNotification('📍 Follow mode disabled', 'info');
+    } else {
+        app.enableFollowMode();
+        app.showNotification('📍 Follow mode enabled', 'success');
+    }
+}
+
+function recenterMap() {
+    if (!app || !app.currentLocation) {
+        app.showNotification('❌ Location not available', 'error');
+        return;
+    }
+
+    console.log('🎯 Re-centering map on user location');
+
+    // Re-center and enable follow mode
+    app.enableFollowMode();
+    app.showNotification('🎯 Map re-centered', 'success');
+
+    // Add pulse animation to button
+    const recenterBtn = document.getElementById('recenterBtn');
+    if (recenterBtn) {
+        recenterBtn.classList.add('recenter-pulse');
+        setTimeout(() => {
+            recenterBtn.classList.remove('recenter-pulse');
+        }, 500);
+    }
+}
+
+function toggleNavigationView() {
+    if (!app || !app.map) return;
+
+    if (app.followMode) {
+        // Switch to overview mode
+        if (app.mapBounds) {
+            app.autoZoomToRoute();
+            app.showNotification('🗺️ Overview mode', 'info');
+        }
+    } else {
+        // Switch to follow mode
+        app.enableFollowMode();
+        app.showNotification('📍 Follow mode', 'info');
     }
 }
 

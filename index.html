@@ -246,6 +246,229 @@
             transform: translateY(0);
         }
 
+        .nav-hazard-alert {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #FFC107;
+            border-radius: 5px;
+            padding: 5px 8px;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #FFC107;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .nav-hazard-alert .hazard-icon {
+            font-size: 14px;
+        }
+
+        /* Voice Log and Hazard Summary Panel */
+        .nav-bottom-panel {
+            background: rgba(0, 0, 0, 0.9);
+            border-top: 1px solid #333;
+            display: flex;
+            height: 120px;
+        }
+
+        .voice-log, .hazard-summary-panel {
+            flex: 1;
+            padding: 10px;
+            border-right: 1px solid #333;
+        }
+
+        .hazard-summary-panel {
+            border-right: none;
+        }
+
+        .voice-log-header, .hazard-summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #00FF88;
+        }
+
+        .voice-clear-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .voice-clear-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #999;
+        }
+
+        .voice-log-content, .hazard-summary-content {
+            height: 80px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+
+        .voice-entry {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 2px 0;
+        }
+
+        .voice-time {
+            color: #666;
+            min-width: 35px;
+        }
+
+        .voice-text {
+            color: #ccc;
+            flex: 1;
+        }
+
+        .hazard-summary-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            padding: 4px 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .hazard-summary-item:hover {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .hazard-summary-item .hazard-icon {
+            font-size: 14px;
+        }
+
+        .hazard-summary-item .hazard-info {
+            flex: 1;
+        }
+
+        .hazard-summary-item .hazard-name {
+            display: block;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .hazard-summary-item .hazard-distance {
+            display: block;
+            color: #666;
+            font-size: 10px;
+        }
+
+        .hazard-total {
+            color: #FFC107;
+            font-size: 11px;
+        }
+
+        /* Hazard Markers */
+        @keyframes hazardPulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        .hazard-marker {
+            z-index: 1000;
+        }
+
+        .hazard-marker-content {
+            transition: transform 0.2s ease;
+        }
+
+        /* Hazard Popup Styles */
+        .hazard-popup {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-width: 200px;
+        }
+
+        .hazard-popup-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .hazard-popup-icon {
+            font-size: 20px;
+        }
+
+        .hazard-popup-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .hazard-popup-content {
+            margin-bottom: 15px;
+        }
+
+        .hazard-popup-content p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .hazard-popup-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .hazard-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .hazard-btn.confirm {
+            background: #28a745;
+            color: white;
+        }
+
+        .hazard-btn.confirm:hover {
+            background: #218838;
+        }
+
+        .hazard-btn.gone {
+            background: #dc3545;
+            color: white;
+        }
+
+        .hazard-btn.gone:hover {
+            background: #c82333;
+        }
+
+        .hazard-popup-container .leaflet-popup-content-wrapper {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .hazard-popup-container .leaflet-popup-tip {
+            background: white;
+        }
+
         .nav-content {
             display: flex;
             justify-content: space-between;
@@ -307,6 +530,27 @@
         .nav-btn:hover {
             background: rgba(0, 0, 0, 0.3);
             transform: scale(1.1);
+        }
+
+        .nav-btn.active {
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .nav-btn.follow-active {
+            background: #00FF88;
+            color: #000;
+        }
+
+        .nav-btn.recenter-pulse {
+            animation: recenterPulse 0.5s ease-in-out;
+        }
+
+        @keyframes recenterPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
         }
 
         .nav-progress {
@@ -519,6 +763,395 @@
             color: #00FF88;
         }
 
+        /* Route Selection Panel */
+        .route-selection-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            color: #fff;
+            border-top: 2px solid #00FF88;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            max-height: 70vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .route-selection-panel.show {
+            transform: translateY(0);
+        }
+
+        .route-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 20px 10px 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .route-header h3 {
+            margin: 0;
+            color: #00FF88;
+            font-size: 18px;
+        }
+
+        .close-routes {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .close-routes:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .route-options {
+            padding: 10px 20px;
+        }
+
+        .route-option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .route-option:hover {
+            background: rgba(0, 0, 0, 0.5);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+
+        .route-option.selected {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: #00FF88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .route-option.fastest {
+            border-left: 4px solid #00FF88;
+        }
+
+        .route-option.shortest {
+            border-left: 4px solid #FFD700;
+        }
+
+        .route-option.scenic {
+            border-left: 4px solid #87CEEB;
+        }
+
+        .route-option.eco {
+            border-left: 4px solid #90EE90;
+        }
+
+        .route-info {
+            flex: 1;
+        }
+
+        .route-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .route-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .route-badge {
+            background: #00FF88;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .route-badge.fastest {
+            background: #00FF88;
+        }
+
+        .route-badge.shortest {
+            background: #FFD700;
+        }
+
+        .route-badge.scenic {
+            background: #87CEEB;
+        }
+
+        .route-badge.eco {
+            background: #90EE90;
+        }
+
+        .route-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 5px;
+        }
+
+        .route-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .route-stat-icon {
+            font-size: 16px;
+        }
+
+        .route-stat-value {
+            font-weight: bold;
+            color: #00FF88;
+        }
+
+        .route-details {
+            font-size: 12px;
+            color: #ccc;
+            line-height: 1.3;
+        }
+
+        .route-actions {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            border-top: 1px solid #333;
+        }
+
+        .route-actions .btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+        }
+
+        /* Route Visualization on Map */
+        .route-line-1 {
+            color: #00FF88 !important;
+            weight: 6;
+            opacity: 0.9;
+        }
+
+        .route-line-2 {
+            color: #FFD700 !important;
+            weight: 5;
+            opacity: 0.7;
+        }
+
+        .route-line-3 {
+            color: #87CEEB !important;
+            weight: 5;
+            opacity: 0.7;
+        }
+
+        .route-line-4 {
+            color: #90EE90 !important;
+            weight: 5;
+            opacity: 0.7;
+        }
+
+        .route-line-selected {
+            weight: 8 !important;
+            opacity: 1 !important;
+            animation: routeHighlight 2s ease-in-out infinite;
+        }
+
+        @keyframes routeHighlight {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Journey Control Panel */
+        .journey-control-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            color: #fff;
+            border-top: 2px solid #00FF88;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1002;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .journey-control-panel.show {
+            transform: translateY(0);
+        }
+
+        .journey-header {
+            padding: 20px 20px 10px 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .journey-header h3 {
+            margin: 0 0 10px 0;
+            color: #00FF88;
+            font-size: 18px;
+        }
+
+        .journey-route-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .journey-route-info .route-name {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .journey-route-info .route-stats {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .journey-preview {
+            padding: 15px 20px;
+        }
+
+        .hazard-summary {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .hazard-count {
+            display: block;
+            color: #FFC107;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .hazard-icons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .hazard-icon {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            border: 1px solid #444;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .hazard-icon:hover {
+            background: rgba(0, 0, 0, 0.7);
+            border-color: #666;
+        }
+
+        .hazard-icon.police {
+            border-color: #FF6B6B;
+            color: #FF6B6B;
+        }
+
+        .hazard-icon.camera {
+            border-color: #FFA500;
+            color: #FFA500;
+        }
+
+        .hazard-icon.roadwork {
+            border-color: #FFD700;
+            color: #FFD700;
+        }
+
+        .hazard-icon.traffic-light {
+            border-color: #87CEEB;
+            color: #87CEEB;
+        }
+
+        .journey-actions {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            border-top: 1px solid #333;
+        }
+
+        .journey-actions .btn {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .journey-start-btn {
+            background: linear-gradient(135deg, #00FF88 0%, #00CC66 100%);
+            color: #000;
+            font-size: 16px;
+        }
+
+        .journey-resume-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .journey-start-btn:hover, .journey-resume-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        /* Responsive Design for Route Selection */
+        @media (max-width: 768px) {
+            .route-selection-panel {
+                max-height: 80vh;
+            }
+
+            .route-option {
+                padding: 12px;
+            }
+
+            .route-stats {
+                gap: 15px;
+            }
+
+            .route-stat {
+                font-size: 13px;
+            }
+
+            .journey-control-panel {
+                border-radius: 15px 15px 0 0;
+            }
+
+            .journey-actions .btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+
         /* Responsive Design for Lane Visualization */
         @media (max-width: 768px) {
             .lane-visualization {
@@ -645,6 +1278,49 @@
             </div>
         </header>
         
+        <!-- Route Selection Panel (Hidden by default) -->
+        <div id="routeSelectionPanel" class="route-selection-panel" style="display: none;">
+            <div class="route-header">
+                <h3>Choose Your Route</h3>
+                <button class="close-routes" onclick="hideRouteSelection()">×</button>
+            </div>
+            <div class="route-options" id="routeOptions">
+                <!-- Route options will be dynamically inserted here -->
+            </div>
+            <div class="route-actions">
+                <button class="btn btn-secondary" onclick="hideRouteSelection()">Cancel</button>
+                <button class="btn" onclick="selectRouteForJourney()" id="selectRouteBtn" disabled>Select Route</button>
+            </div>
+        </div>
+
+        <!-- Journey Control Panel (Hidden by default) -->
+        <div id="journeyControlPanel" class="journey-control-panel" style="display: none;">
+            <div class="journey-header">
+                <h3>Ready to Start Journey</h3>
+                <div class="journey-route-info" id="journeyRouteInfo">
+                    <span class="route-name">Fastest Route</span>
+                    <span class="route-stats">12.5 km • 18 min</span>
+                </div>
+            </div>
+            <div class="journey-preview" id="journeyPreview">
+                <div class="hazard-summary">
+                    <span class="hazard-count" id="hazardCount">3 hazards detected</span>
+                    <div class="hazard-icons" id="hazardIcons">
+                        <!-- Hazard icons will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            <div class="journey-actions">
+                <button class="btn btn-secondary" onclick="cancelJourney()">Cancel</button>
+                <button class="btn btn-primary journey-start-btn" onclick="startJourney()" id="startJourneyBtn">
+                    🚗 Start Journey
+                </button>
+                <button class="btn btn-success journey-resume-btn" onclick="resumeJourney()" id="resumeJourneyBtn" style="display: none;">
+                    ▶️ Resume Journey
+                </button>
+            </div>
+        </div>
+
         <!-- Navigation Panel (Hidden by default) -->
         <div id="navPanel" class="nav-panel">
             <div class="nav-content">
@@ -653,12 +1329,44 @@
                     <div class="nav-text">
                         <div class="nav-distance" id="navDistance">0.3 mi</div>
                         <div class="nav-direction" id="navDirection">Turn right onto Main Street</div>
+                        <div class="nav-hazard-alert" id="navHazardAlert" style="display: none;">
+                            <span class="hazard-icon">⚠️</span>
+                            <span class="hazard-text">Speed camera in 200m</span>
+                        </div>
                     </div>
                 </div>
                 <div class="nav-actions">
+                    <button class="nav-btn" id="followModeBtn" onclick="toggleFollowMode()" title="Toggle Follow Mode">📍</button>
+                    <button class="nav-btn" id="recenterBtn" onclick="recenterMap()" title="Re-center on Location">🎯</button>
                     <button class="nav-btn" onclick="toggleNavigationView()" title="Toggle View">🗺️</button>
                     <button class="nav-btn" onclick="testLaneGuidance()" title="Test Lane Guidance">🛣️</button>
+                    <button class="nav-btn" onclick="pauseJourney()" title="Pause Journey" id="pauseJourneyBtn">⏸️</button>
                     <button class="nav-btn nav-stop" onclick="stopNavigation()" title="Stop Navigation">⏹️</button>
+                </div>
+            </div>
+
+            <!-- Voice Log and Hazard Summary -->
+            <div class="nav-bottom-panel" id="navBottomPanel">
+                <div class="voice-log" id="voiceLog">
+                    <div class="voice-log-header">
+                        <span>Voice Log</span>
+                        <button class="voice-clear-btn" onclick="clearVoiceLog()">Clear</button>
+                    </div>
+                    <div class="voice-log-content" id="voiceLogContent">
+                        <div class="voice-entry">
+                            <span class="voice-time">12:34</span>
+                            <span class="voice-text">Navigation started</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hazard-summary-panel" id="hazardSummaryPanel">
+                    <div class="hazard-summary-header">
+                        <span>Route Hazards</span>
+                        <span class="hazard-total" id="hazardTotal">3 ahead</span>
+                    </div>
+                    <div class="hazard-summary-content" id="hazardSummaryContent">
+                        <!-- Hazard summary items will be inserted here -->
+                    </div>
                 </div>
             </div>
 
@@ -683,6 +1391,7 @@
                 <div class="nav-stats">
                     <span id="navETA">ETA: --:--</span>
                     <span id="navRemaining">-- km remaining</span>
+                    <span id="navTotal">Total: -- km</span>
                 </div>
             </div>
         </div>
