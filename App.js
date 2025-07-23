@@ -105,6 +105,9 @@ class VibeVoyageApp {
         // Check if Leaflet is available
         if (typeof L === 'undefined') {
             console.error('❌ Leaflet library not loaded');
+            console.log('🔍 Checking if Leaflet script is in DOM...');
+            const leafletScript = document.querySelector('script[src*="leaflet"]');
+            console.log('📜 Leaflet script found:', !!leafletScript);
             this.showMapPlaceholder();
             return;
         }
@@ -113,8 +116,17 @@ class VibeVoyageApp {
         const mapContainer = document.getElementById('map');
         if (!mapContainer) {
             console.error('❌ Map container not found');
+            console.log('🔍 Available elements with "map" in ID:',
+                Array.from(document.querySelectorAll('[id*="map"]')).map(el => el.id));
             return;
         }
+
+        console.log('✅ Map container found:', mapContainer);
+        console.log('📐 Map container dimensions:', {
+            width: mapContainer.offsetWidth,
+            height: mapContainer.offsetHeight,
+            display: getComputedStyle(mapContainer).display
+        });
 
         try {
             // Clear any existing content
@@ -160,8 +172,17 @@ class VibeVoyageApp {
             setTimeout(() => {
                 if (this.map) {
                     this.map.invalidateSize();
+                    console.log('🗺️ Map size invalidated and refreshed');
                 }
             }, 100);
+
+            // Additional resize after DOM is fully loaded
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                    console.log('🗺️ Map final resize completed');
+                }
+            }, 500);
 
             console.log('✅ Map initialized successfully');
         } catch (error) {
@@ -172,14 +193,18 @@ class VibeVoyageApp {
     
     showMapPlaceholder() {
         const mapElement = document.getElementById('map');
-        mapElement.innerHTML = `
-            <div class="map-placeholder">
-                <div class="icon">🗺️</div>
-                <div>Map Loading...</div>
-                <small>Click to retry if map doesn't load</small>
-            </div>
-        `;
-        mapElement.onclick = () => this.initMap();
+        if (mapElement) {
+            mapElement.innerHTML = `
+                <div class="map-placeholder">
+                    <div class="icon">🗺️</div>
+                    <div>Map Loading...</div>
+                    <small>Click to retry if map doesn't load</small>
+                    <button onclick="app.initMap()" class="btn btn-secondary" style="margin-top: 10px;">
+                        🔄 Retry Map Load
+                    </button>
+                </div>
+            `;
+        }
     }
     
     async getCurrentLocation() {
