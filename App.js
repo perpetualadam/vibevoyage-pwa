@@ -1321,8 +1321,144 @@ class VibeVoyageApp {
             return 'street_address';
         }
 
+        // Check for common company names
+        if (this.isCompanyName(query)) {
+            return 'company_name';
+        }
+
         // Business or place name
         return 'place_name';
+    }
+
+    isCompanyName(query) {
+        const companyKeywords = [
+            // Fast food
+            'mcdonalds', 'burger king', 'kfc', 'subway', 'pizza hut', 'dominos', 'taco bell',
+            'wendys', 'starbucks', 'dunkin', 'chipotle', 'five guys',
+
+            // Retail
+            'walmart', 'target', 'costco', 'home depot', 'lowes', 'best buy', 'apple store',
+            'microsoft store', 'amazon', 'ikea', 'macys', 'nordstrom', 'sears',
+
+            // Gas stations
+            'shell', 'bp', 'exxon', 'chevron', 'mobil', 'texaco', 'citgo', 'sunoco',
+
+            // UK specific
+            'tesco', 'sainsburys', 'asda', 'morrisons', 'marks spencer', 'john lewis',
+            'currys', 'argos', 'boots', 'costa coffee', 'greggs', 'nandos',
+
+            // Banks
+            'bank of america', 'chase', 'wells fargo', 'citibank', 'hsbc', 'barclays',
+            'lloyds', 'natwest', 'santander',
+
+            // Hotels
+            'hilton', 'marriott', 'holiday inn', 'hyatt', 'sheraton', 'radisson',
+            'premier inn', 'travelodge',
+
+            // Pharmacies
+            'cvs', 'walgreens', 'rite aid', 'boots pharmacy',
+
+            // Grocery
+            'kroger', 'safeway', 'publix', 'whole foods', 'trader joes'
+        ];
+
+        const queryLower = query.toLowerCase().replace(/[^\w\s]/g, '');
+        return companyKeywords.some(keyword =>
+            queryLower.includes(keyword.replace(/\s/g, '')) ||
+            queryLower.includes(keyword)
+        );
+    }
+
+    async getAddressSuggestions(query, format) {
+        const suggestions = [];
+
+        try {
+            switch (format) {
+                case 'uk_postcode':
+                    suggestions.push(...await this.searchUKPostcode(query));
+                    break;
+                case 'us_zipcode':
+                    suggestions.push(...await this.searchUSZipcode(query));
+                    break;
+                case 'coordinates':
+                    suggestions.push(...await this.parseCoordinates(query));
+                    break;
+                case 'street_address':
+                    suggestions.push(...await this.searchStreetAddress(query));
+                    break;
+                case 'company_name':
+                    suggestions.push(...await this.searchCompanyName(query));
+                    break;
+                case 'place_name':
+                default:
+                    suggestions.push(...await this.searchPlaceName(query));
+                    break;
+            }
+        } catch (error) {
+            console.error('Address search error:', error);
+        }
+
+        return suggestions.slice(0, 5); // Limit to 5 suggestions
+    }
+
+    async searchCompanyName(companyName) {
+        try {
+            // Search for company/business with enhanced query
+            const enhancedQuery = `${companyName} business store restaurant`;
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(enhancedQuery)}&limit=5&addressdetails=1&extratags=1`
+            );
+            const data = await response.json();
+
+            // Filter and prioritize business results
+            const businessResults = data.filter(item =>
+                item.type === 'restaurant' ||
+                item.type === 'fast_food' ||
+                item.type === 'cafe' ||
+                item.type === 'shop' ||
+                item.type === 'retail' ||
+                item.class === 'shop' ||
+                item.class === 'amenity'
+            );
+
+            const results = businessResults.length > 0 ? businessResults : data;
+
+            return results.map(item => ({
+                type: this.getBusinessType(item),
+                main: this.extractBusinessName(item.display_name, companyName),
+                details: item.display_name,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon)
+            }));
+        } catch (error) {
+            console.error('Company name search error:', error);
+            return [];
+        }
+    }
+
+    getBusinessType(item) {
+        if (item.type === 'restaurant' || item.type === 'fast_food') return 'Restaurant';
+        if (item.type === 'cafe') return 'Cafe';
+        if (item.type === 'shop' || item.class === 'shop') return 'Store';
+        if (item.type === 'fuel') return 'Gas Station';
+        if (item.type === 'bank') return 'Bank';
+        if (item.type === 'pharmacy') return 'Pharmacy';
+        if (item.type === 'hotel') return 'Hotel';
+        return 'Business';
+    }
+
+    extractBusinessName(displayName, searchTerm) {
+        // Try to extract the business name from the full address
+        const parts = displayName.split(',');
+        const firstPart = parts[0].trim();
+
+        // If the first part contains the search term, use it
+        if (firstPart.toLowerCase().includes(searchTerm.toLowerCase())) {
+            return firstPart;
+        }
+
+        // Otherwise, return the search term with location
+        return `${searchTerm} - ${parts[1] ? parts[1].trim() : firstPart}`;
     }
 
     showSuggestions(inputType, suggestions) {
