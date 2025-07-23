@@ -34,6 +34,12 @@ class VibeVoyageApp {
         this.followModeZoomLevel = 17;
         this.overviewZoomLevel = 13;
         this.panThreshold = 0.3; // 30% of screen before re-centering
+        this.adaptiveZoomEnabled = true;
+        this.currentSpeed = 0;
+        this.offScreenIndicatorVisible = false;
+        this.batteryOptimizedMode = false;
+        this.lastUpdateTime = 0;
+        this.updateThrottleMs = 1000; // Default 1 second
         
         this.init();
     }
@@ -784,31 +790,102 @@ class VibeVoyageApp {
     }
 
     checkIfUserOffScreen() {
-        if (!this.map || !this.currentLocation || !this.followMode) return false;
+        if (!this.map || !this.currentLocation) return false;
 
         const mapBounds = this.map.getBounds();
         const userLatLng = L.latLng(this.currentLocation.lat, this.currentLocation.lng);
 
-        // Check if user is within bounds
+        // Check if user is completely outside map bounds
         if (!mapBounds.contains(userLatLng)) {
+            this.showOffScreenIndicator(userLatLng, mapBounds);
             return true;
         }
 
-        // Check if user is near edge (within threshold)
-        const mapSize = this.map.getSize();
-        const userPoint = this.map.latLngToContainerPoint(userLatLng);
+        // Check if user is near edge (within threshold) when in follow mode
+        if (this.followMode) {
+            const mapSize = this.map.getSize();
+            const userPoint = this.map.latLngToContainerPoint(userLatLng);
 
-        const threshold = {
-            x: mapSize.x * this.panThreshold,
-            y: mapSize.y * this.panThreshold
-        };
+            const threshold = {
+                x: mapSize.x * this.panThreshold,
+                y: mapSize.y * this.panThreshold
+            };
 
-        return (
-            userPoint.x < threshold.x ||
-            userPoint.x > mapSize.x - threshold.x ||
-            userPoint.y < threshold.y ||
-            userPoint.y > mapSize.y - threshold.y
-        );
+            const nearEdge = (
+                userPoint.x < threshold.x ||
+                userPoint.x > mapSize.x - threshold.x ||
+                userPoint.y < threshold.y ||
+                userPoint.y > mapSize.y - threshold.y
+            );
+
+            if (nearEdge) {
+                this.hideOffScreenIndicator(); // Hide indicator when near edge but still visible
+                return true;
+            }
+        }
+
+        this.hideOffScreenIndicator();
+        return false;
+    }
+
+    showOffScreenIndicator(userLatLng, mapBounds) {
+        // Check if off-screen indicators are enabled
+        const indicatorToggle = document.getElementById('offScreenIndicatorToggle');
+        if (indicatorToggle && !indicatorToggle.checked) {
+            return;
+        }
+
+        const indicator = document.getElementById('offScreenIndicator');
+        const arrow = document.getElementById('offScreenArrow');
+
+        if (!indicator || !arrow) return;
+
+        // Calculate direction to user
+        const mapCenter = this.map.getCenter();
+        const direction = this.getOffScreenDirection(mapCenter, userLatLng, mapBounds);
+
+        // Update arrow and position
+        arrow.textContent = direction.arrow;
+        indicator.className = `off-screen-indicator ${direction.position}`;
+        indicator.style.display = 'block';
+
+        this.offScreenIndicatorVisible = true;
+    }
+
+    hideOffScreenIndicator() {
+        const indicator = document.getElementById('offScreenIndicator');
+        if (indicator && this.offScreenIndicatorVisible) {
+            indicator.style.display = 'none';
+            this.offScreenIndicatorVisible = false;
+        }
+    }
+
+    getOffScreenDirection(mapCenter, userLatLng, mapBounds) {
+        const centerLat = mapCenter.lat;
+        const centerLng = mapCenter.lng;
+        const userLat = userLatLng.lat;
+        const userLng = userLatLng.lng;
+
+        // Calculate relative position
+        const latDiff = userLat - centerLat;
+        const lngDiff = userLng - centerLng;
+
+        // Determine primary direction
+        if (Math.abs(latDiff) > Math.abs(lngDiff)) {
+            // Primarily north/south
+            if (latDiff > 0) {
+                return { arrow: '↑', position: 'top' };
+            } else {
+                return { arrow: '↓', position: 'bottom' };
+            }
+        } else {
+            // Primarily east/west
+            if (lngDiff > 0) {
+                return { arrow: '→', position: 'right' };
+            } else {
+                return { arrow: '←', position: 'left' };
+            }
+        }
     }
 
     updateFollowModeUI(isFollowing) {
@@ -831,6 +908,13 @@ class VibeVoyageApp {
     }
 
     handleLocationUpdate(newLocation) {
+        // Battery optimization - throttle updates
+        const now = Date.now();
+        if (this.batteryOptimizedMode && (now - this.lastUpdateTime) < this.updateThrottleMs) {
+            return;
+        }
+        this.lastUpdateTime = now;
+
         // Store previous location for comparison
         const previousLocation = this.lastKnownPosition;
         this.lastKnownPosition = newLocation;
@@ -850,6 +934,22 @@ class VibeVoyageApp {
         }
     }
 
+    enableBatteryOptimization() {
+        console.log('🔋 Enabling battery optimization mode');
+        this.batteryOptimizedMode = true;
+        this.updateThrottleMs = 2000; // Reduce update frequency to 2 seconds
+        this.adaptiveZoomEnabled = false; // Disable adaptive zoom to save processing
+        this.showNotification('🔋 Battery optimization enabled', 'info');
+    }
+
+    disableBatteryOptimization() {
+        console.log('⚡ Disabling battery optimization mode');
+        this.batteryOptimizedMode = false;
+        this.updateThrottleMs = 1000; // Back to 1 second updates
+        this.adaptiveZoomEnabled = true; // Re-enable adaptive zoom
+        this.showNotification('⚡ Battery optimization disabled', 'info');
+    }
+
     shouldRecenterMap(previousLocation, newLocation) {
         if (!previousLocation) return true;
 
@@ -859,8 +959,74 @@ class VibeVoyageApp {
             newLocation.lat, newLocation.lng
         );
 
-        // Re-center if moved more than 50 meters or if off-screen
-        return distanceMoved > 50 || this.checkIfUserOffScreen();
+        // Check if user is off-screen
+        const isOffScreen = this.checkIfUserOffScreen();
+
+        // Predictive re-centering based on movement direction and speed
+        const needsPredictiveRecentering = this.checkPredictiveRecentering(previousLocation, newLocation);
+
+        // Re-center if moved significantly, off-screen, or predictive logic suggests it
+        return distanceMoved > 50 || isOffScreen || needsPredictiveRecentering;
+    }
+
+    checkPredictiveRecentering(previousLocation, newLocation) {
+        // Check if predictive re-centering is enabled
+        const predictiveToggle = document.getElementById('predictiveRecenterToggle');
+        if (predictiveToggle && !predictiveToggle.checked) {
+            return false;
+        }
+
+        if (!this.followMode || this.currentSpeed < 5) return false; // Only for moving users
+
+        // Calculate movement vector
+        const bearing = this.calculateBearing(
+            previousLocation.lat, previousLocation.lng,
+            newLocation.lat, newLocation.lng
+        );
+
+        // Predict where user will be in next few seconds
+        const predictionTimeSeconds = Math.min(5, Math.max(2, this.currentSpeed / 10));
+        const predictedLocation = this.predictFutureLocation(newLocation, bearing, predictionTimeSeconds);
+
+        // Check if predicted location would be off-screen
+        if (predictedLocation) {
+            const mapBounds = this.map.getBounds();
+            const predictedLatLng = L.latLng(predictedLocation.lat, predictedLocation.lng);
+
+            // If predicted location is outside bounds, re-center now
+            return !mapBounds.contains(predictedLatLng);
+        }
+
+        return false;
+    }
+
+    predictFutureLocation(currentLocation, bearing, timeSeconds) {
+        if (this.currentSpeed <= 0) return null;
+
+        // Distance = speed * time (convert km/h to m/s)
+        const speedMs = this.currentSpeed / 3.6;
+        const distanceMeters = speedMs * timeSeconds;
+
+        // Calculate future position using bearing and distance
+        const R = 6371000; // Earth's radius in meters
+        const lat1 = currentLocation.lat * Math.PI / 180;
+        const lng1 = currentLocation.lng * Math.PI / 180;
+        const bearingRad = bearing * Math.PI / 180;
+
+        const lat2 = Math.asin(
+            Math.sin(lat1) * Math.cos(distanceMeters / R) +
+            Math.cos(lat1) * Math.sin(distanceMeters / R) * Math.cos(bearingRad)
+        );
+
+        const lng2 = lng1 + Math.atan2(
+            Math.sin(bearingRad) * Math.sin(distanceMeters / R) * Math.cos(lat1),
+            Math.cos(distanceMeters / R) - Math.sin(lat1) * Math.sin(lat2)
+        );
+
+        return {
+            lat: lat2 * 180 / Math.PI,
+            lng: lng2 * 180 / Math.PI
+        };
     }
 
     smoothPanToLocation(location) {
@@ -873,11 +1039,52 @@ class VibeVoyageApp {
             easeLinearity: 0.25
         });
 
-        // Maintain appropriate zoom level
-        const currentZoom = this.map.getZoom();
-        if (currentZoom < this.followModeZoomLevel - 1) {
-            this.map.setZoom(this.followModeZoomLevel, { animate: true });
+        // Apply adaptive zoom based on speed
+        if (this.adaptiveZoomEnabled) {
+            const adaptiveZoom = this.calculateAdaptiveZoom();
+            const currentZoom = this.map.getZoom();
+
+            // Only adjust zoom if difference is significant
+            if (Math.abs(currentZoom - adaptiveZoom) > 0.5) {
+                this.map.setZoom(adaptiveZoom, { animate: true });
+            }
+        } else {
+            // Maintain standard follow mode zoom level
+            const currentZoom = this.map.getZoom();
+            if (currentZoom < this.followModeZoomLevel - 1) {
+                this.map.setZoom(this.followModeZoomLevel, { animate: true });
+            }
         }
+    }
+
+    calculateAdaptiveZoom() {
+        // Check if adaptive zoom is enabled
+        const adaptiveZoomToggle = document.getElementById('adaptiveZoomToggle');
+        if (adaptiveZoomToggle && !adaptiveZoomToggle.checked) {
+            return this.followModeZoomLevel;
+        }
+
+        // Base zoom level
+        let zoom = this.followModeZoomLevel;
+
+        // Adjust zoom based on speed (higher speed = lower zoom for better overview)
+        if (this.currentSpeed > 0) {
+            if (this.currentSpeed < 10) {
+                // Walking/slow speed - closer zoom
+                zoom = Math.min(18, this.followModeZoomLevel + 1);
+            } else if (this.currentSpeed < 30) {
+                // City driving - standard zoom
+                zoom = this.followModeZoomLevel;
+            } else if (this.currentSpeed < 60) {
+                // Highway driving - wider view
+                zoom = Math.max(15, this.followModeZoomLevel - 1);
+            } else {
+                // High speed - much wider view
+                zoom = Math.max(14, this.followModeZoomLevel - 2);
+            }
+        }
+
+        return zoom;
     }
 
     showRecenterPrompt() {
@@ -899,6 +1106,22 @@ class VibeVoyageApp {
                 Math.sin(dLng/2) * Math.sin(dLng/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         return R * c;
+    }
+
+    calculateSpeedFromPosition(prevLocation, newLocation, timestamp) {
+        if (!prevLocation || !prevLocation.timestamp) return 0;
+
+        const distance = this.calculateDistance(
+            prevLocation.lat, prevLocation.lng,
+            newLocation.lat, newLocation.lng
+        );
+
+        const timeDiff = (timestamp - prevLocation.timestamp) / 1000; // seconds
+
+        if (timeDiff <= 0) return 0;
+
+        // Speed in km/h
+        return (distance / 1000) / (timeDiff / 3600);
     }
 
     // Journey Control Functions
@@ -1937,14 +2160,24 @@ class VibeVoyageApp {
                     lng: position.coords.longitude
                 };
 
-                // Calculate heading if we have a previous location
+                // Calculate heading and speed if we have a previous location
                 let heading = 0;
+                let speed = 0;
+
                 if (this.currentLocation) {
                     heading = this.calculateBearing(
                         this.currentLocation.lat, this.currentLocation.lng,
                         newLocation.lat, newLocation.lng
                     );
+
+                    // Calculate speed from position changes
+                    speed = this.calculateSpeedFromPosition(this.currentLocation, newLocation, position.timestamp);
                 }
+
+                // Use GPS speed if available, otherwise use calculated speed
+                this.currentSpeed = position.coords.speed ?
+                    position.coords.speed * 3.6 : // Convert m/s to km/h
+                    speed;
 
                 this.currentLocation = newLocation;
 
@@ -2376,6 +2609,30 @@ function toggleSettings() {
                     <span>📍 Auto-Follow Location</span>
                 </label>
             </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="adaptiveZoomToggle">
+                    <span>🔍 Adaptive Zoom (Speed-based)</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="predictiveRecenterToggle">
+                    <span>🎯 Predictive Re-centering</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" checked style="transform: scale(1.2);" id="offScreenIndicatorToggle">
+                    <span>📍 Off-Screen Indicators</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" style="transform: scale(1.2);" id="batteryOptimizationToggle" onchange="toggleBatteryOptimization()">
+                    <span>🔋 Battery Optimization Mode</span>
+                </label>
+            </div>
 
             <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚗 Route Preferences</h4>
             <div style="margin-bottom: 15px;">
@@ -2641,6 +2898,17 @@ function cancelJourney() {
 function clearVoiceLog() {
     if (app && app.clearVoiceLog) {
         app.clearVoiceLog();
+    }
+}
+
+function toggleBatteryOptimization() {
+    const toggle = document.getElementById('batteryOptimizationToggle');
+    if (!app || !toggle) return;
+
+    if (toggle.checked) {
+        app.enableBatteryOptimization();
+    } else {
+        app.disableBatteryOptimization();
     }
 }
 

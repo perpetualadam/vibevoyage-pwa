@@ -469,6 +469,99 @@
             background: white;
         }
 
+        /* Off-Screen Indicator */
+        .off-screen-indicator {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px solid #00FF88;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1003;
+            text-align: center;
+            min-width: 120px;
+            animation: offScreenPulse 2s ease-in-out infinite;
+        }
+
+        .off-screen-arrow {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #00FF88;
+            animation: offScreenArrowBounce 1s ease-in-out infinite;
+        }
+
+        .off-screen-text {
+            font-size: 12px;
+            margin-bottom: 10px;
+            color: #ccc;
+        }
+
+        .off-screen-recenter {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .off-screen-recenter:hover {
+            background: #00CC66;
+            transform: scale(1.05);
+        }
+
+        @keyframes offScreenPulse {
+            0%, 100% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+            50% {
+                opacity: 0.8;
+                transform: translateY(-50%) scale(1.05);
+            }
+        }
+
+        @keyframes offScreenArrowBounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-3px);
+            }
+        }
+
+        /* Position variants for off-screen indicator */
+        .off-screen-indicator.top {
+            top: 20px;
+            right: 50%;
+            transform: translateX(50%);
+        }
+
+        .off-screen-indicator.bottom {
+            bottom: 20px;
+            right: 50%;
+            transform: translateX(50%);
+        }
+
+        .off-screen-indicator.left {
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .off-screen-indicator.right {
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
         .nav-content {
             display: flex;
             justify-content: space-between;
@@ -1343,6 +1436,14 @@
                     <button class="nav-btn" onclick="pauseJourney()" title="Pause Journey" id="pauseJourneyBtn">⏸️</button>
                     <button class="nav-btn nav-stop" onclick="stopNavigation()" title="Stop Navigation">⏹️</button>
                 </div>
+            </div>
+
+            <!-- Off-Screen Indicator -->
+            <div id="offScreenIndicator" class="off-screen-indicator" style="display: none;">
+                <div class="off-screen-arrow" id="offScreenArrow">↑</div>
+                <div class="off-screen-text">You are here</div>
+                <button class="off-screen-recenter" onclick="recenterMap()">Re-center</button>
+            </div>
             </div>
 
             <!-- Voice Log and Hazard Summary -->
