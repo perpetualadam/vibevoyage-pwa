@@ -90,7 +90,11 @@ class VibeVoyageApp {
         
         // Initialize service worker
         this.initServiceWorker();
-        
+
+        // Initialize map type
+        this.currentMapType = 'street';
+        this.followMode = true;
+
         console.log('✅ VibeVoyage PWA Ready!');
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
     }
@@ -116,15 +120,26 @@ class VibeVoyageApp {
             // Clear any existing content
             mapContainer.innerHTML = '';
 
-            // Initialize Leaflet map
-            this.map = L.map('map').setView([40.7128, -74.0060], 13); // Default to NYC
+            // Initialize Leaflet map with better options
+            this.map = L.map('map', {
+                center: [40.7128, -74.0060], // Default to NYC
+                zoom: 13,
+                zoomControl: false,
+                attributionControl: false
+            });
 
             // Add OpenStreetMap tiles
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19,
                 crossOrigin: true
             }).addTo(this.map);
+
+            // Initialize map layers for different elements
+            this.markersLayer = L.layerGroup().addTo(this.map);
+            this.routeLayer = L.layerGroup().addTo(this.map);
+            this.hazardsLayer = L.layerGroup().addTo(this.map);
+            this.vehicleLayer = L.layerGroup().addTo(this.map);
 
             // Add click handler for destination selection
             this.map.on('click', (e) => {
@@ -134,6 +149,12 @@ class VibeVoyageApp {
 
             // Add map interaction handlers for follow mode
             this.setupMapInteractionHandlers();
+
+            // Hide map placeholder
+            const placeholder = document.getElementById('mapPlaceholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
 
             // Force map to resize after initialization
             setTimeout(() => {
@@ -1573,6 +1594,33 @@ class VibeVoyageApp {
             const priceDisplay = this.getFuelPriceDisplay();
             fuelPriceDisplay.innerHTML = `Current fuel price: ${priceDisplay}`;
         }
+
+    updateHeaderUnits() {
+        // Update any header elements that display units
+        const speedElements = document.querySelectorAll('.speed-display');
+        const distanceElements = document.querySelectorAll('.distance-display');
+
+        speedElements.forEach(element => {
+            if (element.dataset.kmh) {
+                const speed = parseFloat(element.dataset.kmh);
+                const formatted = this.formatSpeed(speed);
+                element.textContent = formatted;
+            }
+        });
+
+        distanceElements.forEach(element => {
+            if (element.dataset.meters) {
+                const distance = parseFloat(element.dataset.meters);
+                const formatted = this.formatDistance(distance);
+                element.textContent = formatted;
+            }
+        });
+
+        // Update navigation panel if active
+        if (this.isNavigating) {
+            this.updateNavigationProgress();
+        }
+    }
     }
 
     async detectUserCountry() {
@@ -3096,21 +3144,151 @@ class VibeVoyageApp {
     }
 
     updateCarPosition(lat, lng, heading = 0) {
-        if (this.carMarker) {
-            // Smooth animation to new position
-            this.carMarker.setLatLng([lat, lng]);
+        if (!this.map) return;
 
-            // Update car rotation based on heading
-            const carElement = this.carMarker.getElement();
-            if (carElement) {
-                const carDiv = carElement.querySelector('div');
-                if (carDiv) {
-                    carDiv.style.transform = `rotate(${heading - 45}deg)`;
-                }
-            }
-        } else {
-            this.addCarMarker(lat, lng, heading);
+        // Clear existing vehicle markers
+        this.vehicleLayer.clearLayers();
+
+        // Create vehicle marker with direction
+        const vehicleIcon = L.divIcon({
+            className: 'vehicle-marker',
+            html: `<div class="vehicle-icon" style="transform: rotate(${heading}deg)">🚗</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        this.vehicleMarker = L.marker([lat, lng], { icon: vehicleIcon }).addTo(this.vehicleLayer);
+
+        // Update current location
+        this.currentLocation = { lat, lng };
+
+        // Follow vehicle if navigation is active
+        if (this.isNavigating && this.followMode) {
+            this.map.setView([lat, lng], this.map.getZoom(), { animate: true });
         }
+
+        // Check for route progress if navigating
+        if (this.isNavigating && this.currentRoute) {
+            this.updateRouteProgress(lat, lng);
+        }
+
+        console.log(`🚗 Vehicle position updated: ${lat.toFixed(6)}, ${lng.toFixed(6)}, heading: ${heading}°`);
+    }
+
+    updateRouteProgress(lat, lng) {
+        if (!this.currentRoute || !this.currentRoute.coordinates) return;
+
+        // Find closest point on route
+        let minDistance = Infinity;
+        let closestIndex = 0;
+
+        this.currentRoute.coordinates.forEach((coord, index) => {
+            const distance = this.calculateDistance(lat, lng, coord[1], coord[0]);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestIndex = index;
+            }
+        });
+
+        // Update progress
+        this.routeProgress = {
+            currentIndex: closestIndex,
+            distanceFromRoute: minDistance,
+            remainingDistance: this.calculateRemainingDistance(closestIndex),
+            estimatedTimeRemaining: this.calculateRemainingTime(closestIndex)
+        };
+
+        // Check if off route (more than 50 meters away)
+        if (minDistance > 0.05) { // 50 meters in km
+            this.handleOffRoute();
+        }
+
+        // Update navigation UI
+        this.updateNavigationUI();
+    }
+
+    calculateRemainingDistance(currentIndex) {
+        if (!this.currentRoute || !this.currentRoute.coordinates) return 0;
+
+        let distance = 0;
+        for (let i = currentIndex; i < this.currentRoute.coordinates.length - 1; i++) {
+            const coord1 = this.currentRoute.coordinates[i];
+            const coord2 = this.currentRoute.coordinates[i + 1];
+            distance += this.calculateDistance(coord1[1], coord1[0], coord2[1], coord2[0]);
+        }
+
+        return distance;
+    }
+
+    calculateRemainingTime(currentIndex) {
+        const remainingDistance = this.calculateRemainingDistance(currentIndex);
+        const averageSpeed = 50; // km/h assumption
+        return (remainingDistance / averageSpeed) * 60; // minutes
+    }
+
+    handleOffRoute() {
+        if (this.offRouteTimeout) return; // Already handling off-route
+
+        this.offRouteTimeout = setTimeout(() => {
+            this.showNotification('🔄 You are off route. Recalculating...', 'warning');
+            this.recalculateRoute();
+            this.offRouteTimeout = null;
+        }, 5000); // Wait 5 seconds before recalculating
+    }
+
+    drawRouteWithHazards(route) {
+        if (!this.map || !route) return;
+
+        // Clear existing route layers
+        this.routeLayer.clearLayers();
+        this.hazardsLayer.clearLayers();
+
+        // Draw main route line
+        if (route.coordinates && route.coordinates.length > 0) {
+            const routeLine = L.polyline(
+                route.coordinates.map(coord => [coord[1], coord[0]]), // Swap lat/lng
+                {
+                    color: '#00FF88',
+                    weight: 6,
+                    opacity: 0.8,
+                    smoothFactor: 1
+                }
+            ).addTo(this.routeLayer);
+
+            // Store route line reference
+            this.currentRouteLine = routeLine;
+
+            // Fit map to route
+            this.map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+        }
+
+        // Add start and end markers
+        if (this.currentLocation) {
+            const startIcon = L.divIcon({
+                className: 'route-marker start-marker',
+                html: '<div class="marker-icon">🏁</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            L.marker([this.currentLocation.lat, this.currentLocation.lng], { icon: startIcon })
+                .addTo(this.routeLayer);
+        }
+
+        if (this.destination) {
+            const endIcon = L.divIcon({
+                className: 'route-marker end-marker',
+                html: '<div class="marker-icon">🎯</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            L.marker([this.destination.lat, this.destination.lng], { icon: endIcon })
+                .addTo(this.routeLayer);
+        }
+
+        // Detect and display route hazards
+        this.detectRouteHazards(route);
     }
 
     initServiceWorker() {
@@ -3378,6 +3556,74 @@ function toggleSettings() {
     app.showNotification('Settings opened! ⚙️', 'info');
 }
 
+// Map control functions
+function centerOnLocation() {
+    if (app && app.currentLocation && app.map) {
+        app.map.setView([app.currentLocation.lat, app.currentLocation.lng], 15, { animate: true });
+        app.showNotification('📍 Centered on current location', 'info');
+    }
+}
+
+function toggleMapType() {
+    if (app && app.map && app.tileLayer) {
+        // Toggle between different map types
+        app.map.removeLayer(app.tileLayer);
+
+        if (app.currentMapType === 'street') {
+            // Switch to satellite
+            app.tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            }).addTo(app.map);
+            app.currentMapType = 'satellite';
+            app.showNotification('🛰️ Switched to satellite view', 'info');
+        } else {
+            // Switch back to street
+            app.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(app.map);
+            app.currentMapType = 'street';
+            app.showNotification('🗺️ Switched to street view', 'info');
+        }
+    }
+}
+
+function recenterMap() {
+    if (app && app.currentLocation && app.map) {
+        app.map.setView([app.currentLocation.lat, app.currentLocation.lng], app.map.getZoom(), { animate: true });
+    }
+}
+
+function zoomIn() {
+    if (app && app.map) {
+        app.map.zoomIn();
+    }
+}
+
+function zoomOut() {
+    if (app && app.map) {
+        app.map.zoomOut();
+    }
+}
+
+function showAlternativeRoutes() {
+    if (app && app.calculateAlternativeRoutes) {
+        app.calculateAlternativeRoutes();
+    }
+}
+
+function proceedWithRoute() {
+    const hazardsSection = document.getElementById('routeHazardsSection');
+    if (hazardsSection) {
+        hazardsSection.style.display = 'none';
+    }
+
+    if (app) {
+        app.showNotification('⚠️ Proceeding with hazardous route', 'warning');
+    }
+}
+
 function getCurrentLocation() {
     if (app && app.getCurrentLocation) {
         app.getCurrentLocation();
@@ -3557,6 +3803,9 @@ function updateUnits(unitType, value) {
         if (unitType === 'fuel') {
             app.updateFuelPriceDisplay();
         }
+
+        // Update header displays with new units
+        app.updateHeaderUnits();
 
         app.showNotification(`📏 ${unitType} units updated to ${value}`, 'success');
     }

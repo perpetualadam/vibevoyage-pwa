@@ -80,10 +80,53 @@
             background: #555;
         }
         
-        /* Search Section */
-        .search-section {
-            padding: 15px 15px 10px 15px;
+        /* Journey Planning Section */
+        .journey-planning-section {
+            padding: 15px;
             background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .planning-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Route Hazards Section */
+        .route-hazards-section {
+            padding: 15px;
+            background: rgba(255, 107, 107, 0.1);
+            border-bottom: 1px solid #FF6B6B;
+        }
+
+        .hazards-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .hazards-list {
+            margin: 10px 0;
+        }
+
+        .hazard-item {
+            background: rgba(255, 107, 107, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #FF6B6B;
+            font-size: 13px;
+        }
+
+        .hazards-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .hazards-actions .btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
         }
         
         .search-container {
@@ -147,13 +190,184 @@
         .map-section {
             flex: 1;
             position: relative;
-            min-height: 400px;
+            min-height: 500px;
+            background: #1a1a1a;
         }
-        
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 1px solid #333;
+        }
+
+        .map-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 12px;
+            min-height: 32px;
+        }
+
+        .interactive-map {
+            width: 100%;
+            height: calc(100% - 50px);
+            position: relative;
+            background: #1a1a1a;
+        }
+
         #map {
             width: 100%;
             height: 100%;
             background: #1a1a1a;
+        }
+
+        /* Map Overlay Controls */
+        .map-overlay-controls {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .map-control-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #00FF88;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .map-control-btn:hover {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: #00FF88;
+            transform: scale(1.05);
+        }
+
+        .control-icon {
+            font-size: 16px;
+        }
+
+        /* Route Markers and Vehicle */
+        .vehicle-marker {
+            background: none;
+            border: none;
+        }
+
+        .vehicle-icon {
+            font-size: 20px;
+            text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+            transition: transform 0.3s ease;
+        }
+
+        .route-marker {
+            background: none;
+            border: none;
+        }
+
+        .marker-icon {
+            font-size: 18px;
+            text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .hazard-marker {
+            background: rgba(255, 107, 107, 0.9);
+            border: 2px solid #FF6B6B;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hazard-marker.hazard-high {
+            background: rgba(255, 0, 0, 0.9);
+            border-color: #FF0000;
+            animation: pulse-hazard 2s infinite;
+        }
+
+        .hazard-marker.hazard-medium {
+            background: rgba(255, 165, 0, 0.9);
+            border-color: #FFA500;
+        }
+
+        .hazard-marker.hazard-low {
+            background: rgba(255, 255, 0, 0.9);
+            border-color: #FFFF00;
+        }
+
+        .hazard-icon {
+            font-size: 14px;
+        }
+
+        @keyframes pulse-hazard {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* Hazard List Items */
+        .hazard-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hazard-message {
+            flex: 1;
+            color: #fff;
+        }
+
+        .hazard-severity {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .severity-high {
+            background: #FF0000;
+            color: #fff;
+        }
+
+        .severity-medium {
+            background: #FFA500;
+            color: #000;
+        }
+
+        .severity-low {
+            background: #FFFF00;
+            color: #000;
+        }
+
+        /* Map Error State */
+        .map-error {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #666;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
         }
         
         .map-placeholder {
@@ -1783,9 +1997,11 @@
             </div>
         </div>
         
-        <!-- Search Section -->
-        <section class="search-section">
-            <div class="search-container">
+        <!-- Journey Planning Section -->
+        <section class="journey-planning-section">
+            <div class="planning-container">
+                <h2 style="color: #00FF88; margin: 0 0 15px 0; font-size: 18px; text-align: center;">🗺️ Plan Your Journey</h2>
+
                 <div class="mobile-input-container">
                     <div class="input-row">
                         <div class="input-wrapper">
@@ -1814,47 +2030,52 @@
                     </div>
                 </div>
 
-                <!-- Address Format Examples -->
-                <div class="address-examples mobile-examples">
-                    <div class="examples-header">📍 Supported Formats:</div>
-                    <div class="examples-mobile">
-                        <span class="example-tag">🏢 Companies</span>
-                        <span class="example-tag">🏠 Addresses</span>
-                        <span class="example-tag">📮 Postcodes</span>
-                        <span class="example-tag">📍 Coordinates</span>
-                    </div>
-                    <div class="examples-detail" style="display: none;">
-                        <div class="example-item">
-                            <strong>Companies:</strong> Apple Store, Starbucks, McDonald's
-                        </div>
-                        <div class="example-item">
-                            <strong>Addresses:</strong> 10 Downing Street, London
-                        </div>
-                        <div class="example-item">
-                            <strong>Postcodes:</strong> SW1 2AA, 90210
-                        </div>
-                        <div class="example-item">
-                            <strong>Coordinates:</strong> 51.5074, -0.1278
-                        </div>
-                    </div>
-                </div>
                 <button class="navigate-btn mobile-navigate-btn" id="navigateBtn" onclick="startNavigation()" disabled>
                     🚗 Start Navigation
                 </button>
-                <div style="text-align: center; margin-top: 10px; font-size: 12px; color: #666;">
-                    💡 Type addresses like "Times Square, NYC" or "Eiffel Tower, Paris"
+            </div>
+        </section>
+
+        <!-- Route Hazards Section -->
+        <section class="route-hazards-section" id="routeHazardsSection" style="display: none;">
+            <div class="hazards-container">
+                <h3 style="color: #FF6B6B; margin: 0 0 10px 0; font-size: 16px;">⚠️ Route Hazards Detected</h3>
+                <div id="hazardsList" class="hazards-list"></div>
+                <div class="hazards-actions">
+                    <button class="btn btn-secondary" onclick="showAlternativeRoutes()">🔄 Find Alternative Routes</button>
+                    <button class="btn btn-primary" onclick="proceedWithRoute()">✅ Continue Anyway</button>
                 </div>
             </div>
         </section>
         
         <!-- Map Section -->
         <section class="map-section">
-            <div id="map">
-                <div class="map-placeholder">
-                    <div class="icon">🗺️</div>
-                    <div>Interactive Map Loading...</div>
-                    <small>Click to allow location access</small>
+            <div class="map-header">
+                <h3 style="color: #00FF88; margin: 0; font-size: 16px;">🗺️ Live Navigation Map</h3>
+                <div class="map-controls">
+                    <button class="btn btn-secondary btn-sm" onclick="centerOnLocation()" title="Center on current location">📍</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleMapType()" title="Toggle map type">🛰️</button>
                 </div>
+            </div>
+            <div id="map" class="interactive-map">
+                <div class="map-placeholder" id="mapPlaceholder">
+                    <div class="icon">🗺️</div>
+                    <div>Loading Interactive Map...</div>
+                    <small>Initializing GPS and map tiles...</small>
+                </div>
+            </div>
+
+            <!-- Map Overlay Controls -->
+            <div class="map-overlay-controls">
+                <button class="map-control-btn" id="recenterBtn" onclick="recenterMap()" title="Recenter map">
+                    <span class="control-icon">🎯</span>
+                </button>
+                <button class="map-control-btn" id="zoomInBtn" onclick="zoomIn()" title="Zoom in">
+                    <span class="control-icon">➕</span>
+                </button>
+                <button class="map-control-btn" id="zoomOutBtn" onclick="zoomOut()" title="Zoom out">
+                    <span class="control-icon">➖</span>
+                </button>
             </div>
         </section>
         
