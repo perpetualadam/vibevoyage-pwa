@@ -40,6 +40,15 @@ class VibeVoyageApp {
         this.batteryOptimizedMode = false;
         this.lastUpdateTime = 0;
         this.updateThrottleMs = 1000; // Default 1 second
+
+        // Unit measurement system
+        this.units = {
+            distance: 'metric', // metric, imperial, nautical
+            speed: 'kmh', // kmh, mph, ms, knots
+            temperature: 'celsius', // celsius, fahrenheit, kelvin
+            fuel: 'liters', // liters, gallons_us, gallons_uk
+            pressure: 'bar' // bar, psi, kpa
+        };
         
         this.init();
     }
@@ -49,13 +58,16 @@ class VibeVoyageApp {
         
         // Initialize map
         this.initMap();
-        
+
+        // Load saved units
+        this.loadUnitsFromStorage();
+
         // Get user location
         await this.getCurrentLocation();
-        
+
         // Setup event listeners
         this.setupEventListeners();
-        
+
         // Check online status
         this.updateConnectionStatus();
         
@@ -686,14 +698,14 @@ class VibeVoyageApp {
         // Store route bounds for later use
         this.mapBounds = this.routeLine.getBounds();
 
-        // Calculate and display route info
-        const distance = (route.distance / 1000).toFixed(1);
+        // Calculate and display route info with proper units
+        const distance = this.formatDistance(route.distance);
         const duration = Math.round(route.duration / 60);
         const hours = Math.floor(duration / 60);
         const minutes = duration % 60;
         const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
-        this.showNotification(`✅ ${this.getRouteName(route.type)}: ${distance}km, ${timeText}`, 'success');
+        this.showNotification(`✅ ${this.getRouteName(route.type)}: ${distance}, ${timeText}`, 'success');
 
         // Add hazard markers to the selected route
         this.addHazardMarkersToRoute(route);
@@ -1122,6 +1134,227 @@ class VibeVoyageApp {
 
         // Speed in km/h
         return (distance / 1000) / (timeDiff / 3600);
+    }
+
+    // Unit Conversion Functions
+    convertDistance(meters, targetUnit = null) {
+        const unit = targetUnit || this.units.distance;
+
+        switch (unit) {
+            case 'imperial':
+                if (meters < 1609) {
+                    return { value: Math.round(meters * 3.28084), unit: 'ft' };
+                } else {
+                    return { value: (meters / 1609.34).toFixed(1), unit: 'mi' };
+                }
+            case 'nautical':
+                return { value: (meters / 1852).toFixed(2), unit: 'nm' };
+            case 'metric':
+            default:
+                if (meters < 1000) {
+                    return { value: Math.round(meters), unit: 'm' };
+                } else {
+                    return { value: (meters / 1000).toFixed(1), unit: 'km' };
+                }
+        }
+    }
+
+    convertSpeed(kmh, targetUnit = null) {
+        const unit = targetUnit || this.units.speed;
+
+        switch (unit) {
+            case 'mph':
+                return { value: (kmh * 0.621371).toFixed(1), unit: 'mph' };
+            case 'ms':
+                return { value: (kmh / 3.6).toFixed(1), unit: 'm/s' };
+            case 'knots':
+                return { value: (kmh * 0.539957).toFixed(1), unit: 'kn' };
+            case 'kmh':
+            default:
+                return { value: kmh.toFixed(1), unit: 'km/h' };
+        }
+    }
+
+    convertFuelConsumption(litersPerKm, targetUnit = null) {
+        const unit = targetUnit || this.units.fuel;
+
+        switch (unit) {
+            case 'gallons_us':
+                // Convert to MPG (US)
+                const mpgUs = 235.214 / (litersPerKm * 100);
+                return { value: mpgUs.toFixed(1), unit: 'MPG (US)' };
+            case 'gallons_uk':
+                // Convert to MPG (UK)
+                const mpgUk = 282.481 / (litersPerKm * 100);
+                return { value: mpgUk.toFixed(1), unit: 'MPG (UK)' };
+            case 'liters':
+            default:
+                return { value: (litersPerKm * 100).toFixed(1), unit: 'L/100km' };
+        }
+    }
+
+    formatDistance(meters) {
+        const converted = this.convertDistance(meters);
+        return `${converted.value} ${converted.unit}`;
+    }
+
+    formatSpeed(kmh) {
+        const converted = this.convertSpeed(kmh);
+        return `${converted.value} ${converted.unit}`;
+    }
+
+    // Address Input and Geocoding Functions
+    async handleAddressInput(inputType, query) {
+        if (!query || query.length < 3) {
+            this.hideSuggestions(inputType);
+            return;
+        }
+
+        // Detect input type and format
+        const inputFormat = this.detectAddressFormat(query);
+        console.log(`🔍 Detected format: ${inputFormat} for query: ${query}`);
+
+        // Get suggestions based on input
+        const suggestions = await this.getAddressSuggestions(query, inputFormat);
+        this.showSuggestions(inputType, suggestions);
+    }
+
+    detectAddressFormat(query) {
+        // UK Postcode pattern (e.g., S73 9EP, M1 1AA, SW1A 1AA)
+        if (/^[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}$/i.test(query.trim())) {
+            return 'uk_postcode';
+        }
+
+        // US ZIP Code pattern (e.g., 90210, 90210-1234)
+        if (/^\d{5}(-\d{4})?$/.test(query.trim())) {
+            return 'us_zipcode';
+        }
+
+        // Canadian Postal Code (e.g., K1A 0A6)
+        if (/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(query.trim())) {
+            return 'ca_postcode';
+        }
+
+        // Coordinates pattern (e.g., 51.5074, -0.1278 or 51.5074,-0.1278)
+        if (/^-?\d+\.?\d*,?\s?-?\d+\.?\d*$/.test(query.trim())) {
+            return 'coordinates';
+        }
+
+        // Plus Code (e.g., 9C3XGV7M+F3)
+        if (/^[23456789CFGHJMPQRVWX]{4,}\+[23456789CFGHJMPQRVWX]{2,}/.test(query.trim().toUpperCase())) {
+            return 'plus_code';
+        }
+
+        // Street address with number
+        if (/^\d+\s+/.test(query.trim())) {
+            return 'street_address';
+        }
+
+        // Business or place name
+        return 'place_name';
+    }
+
+    showSuggestions(inputType, suggestions) {
+        const suggestionsContainer = document.getElementById(`${inputType}Suggestions`);
+        if (!suggestionsContainer) return;
+
+        if (suggestions.length === 0) {
+            suggestionsContainer.style.display = 'none';
+            return;
+        }
+
+        suggestionsContainer.innerHTML = '';
+        suggestions.forEach(suggestion => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.innerHTML = `
+                <div class="suggestion-type">${suggestion.type}</div>
+                <div class="suggestion-main">${suggestion.main}</div>
+                <div class="suggestion-details">${suggestion.details}</div>
+            `;
+
+            item.onclick = () => {
+                this.selectSuggestion(inputType, suggestion);
+            };
+
+            suggestionsContainer.appendChild(item);
+        });
+
+        suggestionsContainer.style.display = 'block';
+    }
+
+    hideSuggestions(inputType) {
+        const suggestionsContainer = document.getElementById(`${inputType}Suggestions`);
+        if (suggestionsContainer) {
+            suggestionsContainer.style.display = 'none';
+        }
+    }
+
+    selectSuggestion(inputType, suggestion) {
+        const input = document.getElementById(`${inputType}Input`);
+        if (input) {
+            input.value = suggestion.main;
+        }
+
+        // Set the location
+        if (inputType === 'from') {
+            this.currentLocation = { lat: suggestion.lat, lng: suggestion.lng };
+            this.updateCarPosition(suggestion.lat, suggestion.lng);
+        } else {
+            this.destination = { lat: suggestion.lat, lng: suggestion.lng };
+            this.setDestination({ lat: suggestion.lat, lng: suggestion.lng });
+        }
+
+        this.hideSuggestions(inputType);
+        this.showNotification(`📍 ${suggestion.type} selected: ${suggestion.main}`, 'success');
+    }
+
+    updateUnitDisplays() {
+        // Update any existing distance/speed displays with new units
+        if (this.routeData) {
+            // Update route information displays
+            const routeInfo = document.getElementById('journeyRouteInfo');
+            if (routeInfo) {
+                const distance = this.formatDistance(this.routeData.distance);
+                const duration = Math.round(this.routeData.duration / 60);
+                const hours = Math.floor(duration / 60);
+                const minutes = duration % 60;
+                const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+                routeInfo.innerHTML = `
+                    <span class="route-name">${this.getRouteName(this.routeData.type)}</span>
+                    <span class="route-stats">${distance} • ${timeText}</span>
+                `;
+            }
+        }
+
+        // Update navigation panel if active
+        if (this.isNavigating) {
+            this.updateNavigationProgress();
+        }
+    }
+
+    loadUnitsFromStorage() {
+        const savedUnits = localStorage.getItem('vibeVoyageUnits');
+        if (savedUnits) {
+            try {
+                this.units = { ...this.units, ...JSON.parse(savedUnits) };
+                console.log('📏 Loaded units from storage:', this.units);
+            } catch (error) {
+                console.error('Error loading units from storage:', error);
+            }
+        }
+    }
+
+    initializeUnitSelectors() {
+        // Set unit selectors to saved values
+        const distanceSelect = document.getElementById('distanceUnit');
+        const speedSelect = document.getElementById('speedUnit');
+        const fuelSelect = document.getElementById('fuelUnit');
+
+        if (distanceSelect) distanceSelect.value = this.units.distance;
+        if (speedSelect) speedSelect.value = this.units.speed;
+        if (fuelSelect) fuelSelect.value = this.units.fuel;
     }
 
     // Journey Control Functions
@@ -2578,60 +2811,95 @@ function toggleSettings() {
         ">
             <h3 style="margin: 0 0 20px 0; color: #00FF88;">⚙️ Navigation Settings</h3>
 
-            <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🔊 Audio & Voice</h4>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);">
-                    <span>Voice Guidance</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);">
-                    <span>Compass Directions</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);" id="laneGuidanceToggle">
-                    <span>🛣️ Visual Lane Guidance</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);" id="autoZoomToggle">
-                    <span>🔍 Auto-Zoom to Route</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);" id="followModeToggle">
-                    <span>📍 Auto-Follow Location</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);" id="adaptiveZoomToggle">
-                    <span>🔍 Adaptive Zoom (Speed-based)</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);" id="predictiveRecenterToggle">
-                    <span>🎯 Predictive Re-centering</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" checked style="transform: scale(1.2);" id="offScreenIndicatorToggle">
-                    <span>📍 Off-Screen Indicators</span>
-                </label>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" style="transform: scale(1.2);" id="batteryOptimizationToggle" onchange="toggleBatteryOptimization()">
-                    <span>🔋 Battery Optimization Mode</span>
-                </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="settings-column">
+                    <h4 style="color: #00FF88; margin: 0 0 15px 0; font-size: 14px;">📏 Units & Measurements</h4>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Distance:</label>
+                        <select id="distanceUnit" onchange="updateUnits('distance', this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
+                            <option value="metric">Metric (km, m)</option>
+                            <option value="imperial">Imperial (mi, ft)</option>
+                            <option value="nautical">Nautical (nm)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Speed:</label>
+                        <select id="speedUnit" onchange="updateUnits('speed', this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
+                            <option value="kmh">km/h</option>
+                            <option value="mph">mph</option>
+                            <option value="ms">m/s</option>
+                            <option value="knots">Knots</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Fuel Consumption:</label>
+                        <select id="fuelUnit" onchange="updateUnits('fuel', this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
+                            <option value="liters">L/100km</option>
+                            <option value="gallons_us">MPG (US)</option>
+                            <option value="gallons_uk">MPG (UK)</option>
+                        </select>
+                    </div>
+
+                    <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🔊 Audio & Voice</h4>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);">
+                            <span style="font-size: 13px;">Voice Guidance</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);">
+                            <span style="font-size: 13px;">Compass Directions</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-column">
+                    <h4 style="color: #00FF88; margin: 0 0 15px 0; font-size: 14px;">🗺️ Map & Navigation</h4>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);" id="laneGuidanceToggle">
+                            <span style="font-size: 13px;">🛣️ Visual Lane Guidance</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);" id="autoZoomToggle">
+                            <span style="font-size: 13px;">🔍 Auto-Zoom to Route</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);" id="followModeToggle">
+                            <span style="font-size: 13px;">📍 Auto-Follow Location</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);" id="adaptiveZoomToggle">
+                            <span style="font-size: 13px;">🔍 Adaptive Zoom (Speed-based)</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);" id="predictiveRecenterToggle">
+                            <span style="font-size: 13px;">🎯 Predictive Re-centering</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" checked style="transform: scale(1.2);" id="offScreenIndicatorToggle">
+                            <span style="font-size: 13px;">📍 Off-Screen Indicators</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" style="transform: scale(1.2);" id="batteryOptimizationToggle" onchange="toggleBatteryOptimization()">
+                            <span style="font-size: 13px;">🔋 Battery Optimization Mode</span>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🚗 Route Preferences</h4>
@@ -2750,6 +3018,14 @@ function toggleSettings() {
     };
 
     document.body.appendChild(modal);
+
+    // Initialize unit selectors after modal is added to DOM
+    setTimeout(() => {
+        if (app && app.initializeUnitSelectors) {
+            app.initializeUnitSelectors();
+        }
+    }, 100);
+
     app.showNotification('Settings opened! ⚙️', 'info');
 }
 
@@ -2909,6 +3185,26 @@ function toggleBatteryOptimization() {
         app.enableBatteryOptimization();
     } else {
         app.disableBatteryOptimization();
+    }
+}
+
+function handleAddressInput(inputType, query) {
+    if (app && app.handleAddressInput) {
+        app.handleAddressInput(inputType, query);
+    }
+}
+
+function updateUnits(unitType, value) {
+    if (app && app.units) {
+        app.units[unitType] = value;
+
+        // Save to localStorage
+        localStorage.setItem('vibeVoyageUnits', JSON.stringify(app.units));
+
+        // Update UI elements that display units
+        app.updateUnitDisplays();
+
+        app.showNotification(`📏 ${unitType} units updated to ${value}`, 'success');
     }
 }
 

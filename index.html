@@ -562,6 +562,141 @@
             transform: translateY(-50%);
         }
 
+        /* Enhanced Address Input */
+        .enhanced-input-group {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            gap: 10px;
+        }
+
+        .enhanced-input {
+            position: relative;
+        }
+
+        .address-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 60px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #333;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .suggestion-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            color: #fff;
+            transition: background 0.2s;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-main {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .suggestion-details {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .suggestion-type {
+            display: inline-block;
+            background: rgba(0, 255, 136, 0.2);
+            color: #00FF88;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-right: 8px;
+        }
+
+        /* Address Examples */
+        .address-examples {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid #333;
+        }
+
+        .examples-header {
+            color: #00FF88;
+            font-weight: bold;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .example-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            border-left: 3px solid #00FF88;
+        }
+
+        .example-item strong {
+            color: #00FF88;
+        }
+
+        .swap-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+        }
+
+        .swap-btn-enhanced {
+            border-radius: 50% !important;
+            width: 50px !important;
+            height: 50px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* Settings Two-Column Layout */
+        @media (min-width: 600px) {
+            .settings-columns {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 599px) {
+            .settings-columns {
+                display: block;
+            }
+
+            .settings-column {
+                margin-bottom: 20px;
+            }
+        }
+
         .nav-content {
             display: flex;
             justify-content: space-between;
@@ -1500,19 +1635,58 @@
         <!-- Search Section -->
         <section class="search-section">
             <div class="search-container">
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <input type="text" id="fromInput" class="search-input" placeholder="From: Current Location"
-                           onkeypress="handleFromSearchKeypress(event)" style="flex: 1;">
-                    <button class="btn btn-secondary" onclick="searchFromLocation(document.getElementById('fromInput').value)"
-                            style="padding: 15px 20px;">🔍</button>
+                <div class="enhanced-input-group">
+                    <div class="input-wrapper">
+                        <input type="text" id="fromInput" class="search-input enhanced-input"
+                               placeholder="From: Address, postcode, coordinates..."
+                               onkeypress="handleFromSearchKeypress(event)"
+                               oninput="handleAddressInput('from', this.value)"
+                               style="flex: 1;">
+                        <button class="btn btn-secondary" onclick="searchFromLocation(document.getElementById('fromInput').value)"
+                                style="padding: 15px 20px;">🔍</button>
+                        <div class="address-suggestions" id="fromSuggestions"></div>
+                    </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                    <button class="btn btn-secondary" onclick="swapLocations()"
-                            style="padding: 15px 12px; font-size: 18px;" title="Swap locations">⇅</button>
-                    <input type="text" id="toInput" class="search-input" placeholder="Where to?"
-                           onkeypress="handleToSearchKeypress(event)" style="flex: 1;">
-                    <button class="btn btn-secondary" onclick="searchToLocation(document.getElementById('toInput').value)"
-                            style="padding: 15px 20px;">🔍</button>
+                <div class="enhanced-input-group">
+                    <div class="swap-container">
+                        <button class="btn btn-secondary swap-btn-enhanced" onclick="swapLocations()"
+                                style="padding: 15px 12px; font-size: 18px;" title="Swap locations">⇅</button>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="text" id="toInput" class="search-input enhanced-input"
+                               placeholder="To: Address, postcode, coordinates..."
+                               onkeypress="handleToSearchKeypress(event)"
+                               oninput="handleAddressInput('to', this.value)"
+                               style="flex: 1;">
+                        <button class="btn btn-secondary" onclick="searchToLocation(document.getElementById('toInput').value)"
+                                style="padding: 15px 20px;">🔍</button>
+                        <div class="address-suggestions" id="toSuggestions"></div>
+                    </div>
+                </div>
+
+                <!-- Address Format Examples -->
+                <div class="address-examples">
+                    <div class="examples-header">📍 Supported Address Formats:</div>
+                    <div class="examples-grid">
+                        <div class="example-item">
+                            <strong>Street Address:</strong> 19 Highstone Lane, Sheffield
+                        </div>
+                        <div class="example-item">
+                            <strong>UK Postcode:</strong> S73 9EP
+                        </div>
+                        <div class="example-item">
+                            <strong>US ZIP Code:</strong> 90210, Beverly Hills
+                        </div>
+                        <div class="example-item">
+                            <strong>Coordinates:</strong> 51.5074, -0.1278
+                        </div>
+                        <div class="example-item">
+                            <strong>Place Name:</strong> Times Square, New York
+                        </div>
+                        <div class="example-item">
+                            <strong>Business:</strong> McDonald's, Oxford Street
+                        </div>
+                    </div>
                 </div>
                 <button class="navigate-btn" id="navigateBtn" onclick="startNavigation()" disabled>
                     🚗 Start Navigation
