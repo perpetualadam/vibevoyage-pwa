@@ -49,6 +49,20 @@ class VibeVoyageApp {
             fuel: 'liters', // liters, gallons_us, gallons_uk
             pressure: 'bar' // bar, psi, kpa
         };
+
+        // Currency and location system
+        this.userCountry = null;
+        this.userCurrency = 'USD';
+        this.fuelPrices = {
+            'US': { currency: 'USD', symbol: '$', price: 3.45 }, // per gallon
+            'GB': { currency: 'GBP', symbol: '£', price: 1.48 }, // per liter
+            'CA': { currency: 'CAD', symbol: 'C$', price: 1.65 }, // per liter
+            'AU': { currency: 'AUD', symbol: 'A$', price: 1.85 }, // per liter
+            'DE': { currency: 'EUR', symbol: '€', price: 1.75 }, // per liter
+            'FR': { currency: 'EUR', symbol: '€', price: 1.82 }, // per liter
+            'JP': { currency: 'JPY', symbol: '¥', price: 165 }, // per liter
+            'DEFAULT': { currency: 'USD', symbol: '$', price: 1.50 } // per liter
+        };
         
         this.init();
     }
@@ -61,6 +75,9 @@ class VibeVoyageApp {
 
         // Load saved units
         this.loadUnitsFromStorage();
+
+        // Detect user country for currency
+        await this.detectUserCountry();
 
         // Get user location
         await this.getCurrentLocation();
@@ -534,7 +551,7 @@ class VibeVoyageApp {
                     </div>
                     <div class="route-stat">
                         <span class="route-stat-icon">⛽</span>
-                        <span class="route-stat-value">$${fuelCost}</span>
+                        <span class="route-stat-value">${fuelCost}</span>
                     </div>
                 </div>
                 <div class="route-details">
@@ -572,11 +589,65 @@ class VibeVoyageApp {
     }
 
     estimateFuelCost(distanceMeters) {
-        // Rough fuel cost estimation (assuming $1.50/L, 8L/100km)
         const distanceKm = distanceMeters / 1000;
-        const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km
-        const cost = fuelUsed * 1.50;
-        return cost.toFixed(2);
+        const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km average consumption
+
+        // Get country-specific fuel pricing
+        const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
+        const { currency, symbol, price } = countryData;
+
+        let cost;
+
+        // Calculate cost based on fuel unit preference
+        switch (this.units.fuel) {
+            case 'gallons_us':
+                // Convert liters to US gallons and calculate cost
+                const gallonsUs = fuelUsed * 0.264172;
+                cost = gallonsUs * (this.userCountry === 'US' ? price : price * 3.78541); // Convert per-liter to per-gallon if needed
+                break;
+            case 'gallons_uk':
+                // Convert liters to UK gallons and calculate cost
+                const gallonsUk = fuelUsed * 0.219969;
+                cost = gallonsUk * (this.userCountry === 'GB' ? price * 4.54609 : price * 4.54609); // Convert per-liter to per-gallon
+                break;
+            case 'liters':
+            default:
+                // Cost per liter
+                cost = fuelUsed * price;
+                break;
+        }
+
+        return `${symbol}${cost.toFixed(2)}`;
+    }
+
+    getFuelPriceDisplay() {
+        const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
+        const { currency, symbol, price } = countryData;
+
+        let unit;
+        let displayPrice = price;
+
+        switch (this.units.fuel) {
+            case 'gallons_us':
+                unit = 'gallon (US)';
+                if (this.userCountry !== 'US') {
+                    displayPrice = price * 3.78541; // Convert per-liter to per-gallon
+                }
+                break;
+            case 'gallons_uk':
+                unit = 'gallon (UK)';
+                displayPrice = price * 4.54609; // Convert per-liter to per-gallon
+                break;
+            case 'liters':
+            default:
+                unit = 'liter';
+                if (this.userCountry === 'US') {
+                    displayPrice = price / 3.78541; // Convert per-gallon to per-liter
+                }
+                break;
+        }
+
+        return `${symbol}${displayPrice.toFixed(2)}/${unit}`;
     }
 
     selectRouteOption(index) {
@@ -1220,7 +1291,7 @@ class VibeVoyageApp {
     }
 
     detectAddressFormat(query) {
-        // UK Postcode pattern (e.g., S73 9EP, M1 1AA, SW1A 1AA)
+        // UK Postcode pattern (e.g., SW1 2AA, M1 1AA, SW1A 1AA)
         if (/^[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}$/i.test(query.trim())) {
             return 'uk_postcode';
         }
@@ -1355,6 +1426,145 @@ class VibeVoyageApp {
         if (distanceSelect) distanceSelect.value = this.units.distance;
         if (speedSelect) speedSelect.value = this.units.speed;
         if (fuelSelect) fuelSelect.value = this.units.fuel;
+
+        // Update fuel price display
+        this.updateFuelPriceDisplay();
+    }
+
+    updateFuelPriceDisplay() {
+        const fuelPriceDisplay = document.getElementById('fuelPriceDisplay');
+        if (fuelPriceDisplay && this.userCountry) {
+            const priceDisplay = this.getFuelPriceDisplay();
+            fuelPriceDisplay.innerHTML = `Current fuel price: ${priceDisplay}`;
+        }
+    }
+
+    async detectUserCountry() {
+        try {
+            // Try multiple methods to detect user country
+            let country = await this.detectCountryByIP();
+
+            if (!country && this.currentLocation) {
+                country = await this.detectCountryByCoordinates(this.currentLocation.lat, this.currentLocation.lng);
+            }
+
+            if (!country) {
+                country = this.detectCountryByTimezone();
+            }
+
+            if (!country) {
+                country = this.detectCountryByLanguage();
+            }
+
+            this.userCountry = country || 'US';
+            this.userCurrency = this.fuelPrices[this.userCountry]?.currency || 'USD';
+
+            console.log(`🌍 Detected user country: ${this.userCountry}, currency: ${this.userCurrency}`);
+
+        } catch (error) {
+            console.error('Country detection failed:', error);
+            this.userCountry = 'US';
+            this.userCurrency = 'USD';
+        }
+    }
+
+    async detectCountryByIP() {
+        try {
+            // Use a free IP geolocation service
+            const response = await fetch('https://ipapi.co/json/', {
+                timeout: 5000
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.country_code;
+            }
+        } catch (error) {
+            console.log('IP-based country detection failed:', error);
+        }
+
+        try {
+            // Fallback to another service
+            const response = await fetch('https://api.country.is/', {
+                timeout: 5000
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.country;
+            }
+        } catch (error) {
+            console.log('Fallback IP detection failed:', error);
+        }
+
+        return null;
+    }
+
+    async detectCountryByCoordinates(lat, lng) {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=3&addressdetails=1`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.address?.country_code?.toUpperCase();
+            }
+        } catch (error) {
+            console.log('Coordinate-based country detection failed:', error);
+        }
+
+        return null;
+    }
+
+    detectCountryByTimezone() {
+        try {
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+            // Map common timezones to countries
+            const timezoneMap = {
+                'America/New_York': 'US',
+                'America/Chicago': 'US',
+                'America/Denver': 'US',
+                'America/Los_Angeles': 'US',
+                'America/Toronto': 'CA',
+                'America/Vancouver': 'CA',
+                'Europe/London': 'GB',
+                'Europe/Berlin': 'DE',
+                'Europe/Paris': 'FR',
+                'Australia/Sydney': 'AU',
+                'Australia/Melbourne': 'AU',
+                'Asia/Tokyo': 'JP'
+            };
+
+            return timezoneMap[timezone] || null;
+        } catch (error) {
+            console.log('Timezone-based country detection failed:', error);
+            return null;
+        }
+    }
+
+    detectCountryByLanguage() {
+        try {
+            const language = navigator.language || navigator.userLanguage;
+
+            // Map language codes to likely countries
+            const languageMap = {
+                'en-US': 'US',
+                'en-GB': 'GB',
+                'en-CA': 'CA',
+                'en-AU': 'AU',
+                'fr-FR': 'FR',
+                'fr-CA': 'CA',
+                'de-DE': 'DE',
+                'ja-JP': 'JP'
+            };
+
+            return languageMap[language] || null;
+        } catch (error) {
+            console.log('Language-based country detection failed:', error);
+            return null;
+        }
     }
 
     // Journey Control Functions
@@ -2838,6 +3048,9 @@ function toggleSettings() {
                             <option value="gallons_us">MPG (US)</option>
                             <option value="gallons_uk">MPG (UK)</option>
                         </select>
+                        <div id="fuelPriceDisplay" style="font-size: 11px; color: #888; margin-top: 5px;">
+                            Loading fuel prices...
+                        </div>
                     </div>
 
                     <h4 style="color: #00FF88; margin: 15px 0 10px 0; font-size: 14px;">🔊 Audio & Voice</h4>
@@ -3203,6 +3416,11 @@ function updateUnits(unitType, value) {
 
         // Update UI elements that display units
         app.updateUnitDisplays();
+
+        // Update fuel price display if fuel unit changed
+        if (unitType === 'fuel') {
+            app.updateFuelPriceDisplay();
+        }
 
         app.showNotification(`📏 ${unitType} units updated to ${value}`, 'success');
     }
