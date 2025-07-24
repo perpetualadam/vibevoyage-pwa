@@ -4111,10 +4111,10 @@ function toggleHazardSettings() {
             // Always refresh hazard panel content to ensure latest version
             container.innerHTML = '';
                 container.innerHTML = `
-                    <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333;">
+                    <div class="hazard-panel-content" style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333; max-width: 500px; margin: 0 auto; position: relative;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
-                            <button onclick="closeHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
+                            <button onclick="closeHazardSettings()" style="background: #FF6B6B; border: none; color: white; font-size: 18px; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-weight: bold; z-index: 10001; position: relative;">✕ Close</button>
                         </div>
                         <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -4165,12 +4165,22 @@ function toggleHazardSettings() {
                             <input type="range" min="100" max="1000" step="50" value="500" style="width: 100%;"
                                    onchange="document.getElementById('alertDistanceValue').textContent = this.value + 'm'">
                         </div>
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button onclick="closeHazardSettings()" style="background: #00FF88; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">Close Hazard Settings</button>
+                        </div>
                     </div>
                 `;
             }
             if (window.app) {
                 window.app.showNotification('Hazard settings opened', 'info');
             }
+
+            // Add click-outside-to-close functionality
+            container.onclick = function(e) {
+                if (e.target === container) {
+                    closeHazardSettings();
+                }
+            };
         } else {
             console.log('Closing hazard settings...');
             container.style.display = 'none';
