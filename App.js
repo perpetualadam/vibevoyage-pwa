@@ -1742,9 +1742,9 @@ class VibeVoyageApp {
                 const mpgUs = 235.214 / (litersPerKm * 100);
                 return { value: mpgUs.toFixed(1), unit: 'MPG (US)' };
             case 'gallons_uk':
-                // Convert to LPG (Litres Per Gallon UK)
-                const lpgUk = 282.481 / (litersPerKm * 100);
-                return { value: lpgUk.toFixed(1), unit: 'LPG (Litres Per Gallon)' };
+                // Convert to LPM (Litres Per Mile)
+                const lpmUk = litersPerKm * 1.60934; // Convert km to miles
+                return { value: lpmUk.toFixed(2), unit: 'LPM (Litres Per Mile)' };
             case 'liters':
             default:
                 return { value: (litersPerKm * 100).toFixed(1), unit: 'L/100km' };
@@ -3822,7 +3822,7 @@ function toggleSettings() {
                         <select id="fuelUnit" onchange="updateUnits('fuel', this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
                             <option value="liters">L/100km</option>
                             <option value="gallons_us">MPG (US)</option>
-                            <option value="gallons_uk">LPG (Litres Per Gallon)</option>
+                            <option value="gallons_uk">LPM (Litres Per Mile)</option>
                         </select>
                         <div id="fuelPriceDisplay" style="font-size: 11px; color: #888; margin-top: 5px;">
                             Loading fuel prices...
@@ -4228,7 +4228,7 @@ function showSimpleSettings() {
                 <select style="width: 100%; padding: 8px; background: #333; color: #fff; border: 1px solid #555;">
                     <option>L/100km</option>
                     <option>MPG (US)</option>
-                    <option>LPG (Litres Per Gallon)</option>
+                    <option>LPM (Litres Per Mile)</option>
                 </select>
             </div>
 
