@@ -2206,10 +2206,43 @@
         }
 
         function toggleSettings() {
-            if (window.app && window.app.toggleSettings) {
+            console.log('Settings button clicked');
+
+            // Try the global function first
+            if (typeof window.toggleSettings === 'function') {
+                window.toggleSettings();
+            } else if (typeof window.showSimpleSettings === 'function') {
+                window.showSimpleSettings();
+            } else if (window.app && window.app.toggleSettings) {
                 window.app.toggleSettings();
             } else {
-                console.log('Settings toggle - app not ready');
+                console.log('Settings toggle - trying fallback');
+                // Fallback inline settings
+                const settingsDiv = document.createElement('div');
+                settingsDiv.innerHTML = `
+                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                                background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333;
+                                color: white; z-index: 10000; max-width: 300px;">
+                        <h3 style="color: #00FF88; margin: 0 0 15px 0;">⚙️ Settings</h3>
+                        <p style="color: #ccc;">Settings panel loaded!</p>
+                        <div style="margin-bottom: 15px;">
+                            <label style="color: #ccc;">Fuel Units:</label><br>
+                            <select style="width: 100%; padding: 8px; background: #333; color: #fff;">
+                                <option>L/100km</option>
+                                <option>MPG (US)</option>
+                                <option>LPG (Litres Per Gallon)</option>
+                            </select>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()"
+                                style="background: #00FF88; color: #000; border: none; padding: 10px;
+                                       border-radius: 4px; cursor: pointer; width: 100%;">
+                            Close
+                        </button>
+                    </div>
+                `;
+                settingsDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999;';
+                settingsDiv.onclick = (e) => { if (e.target === settingsDiv) settingsDiv.remove(); };
+                document.body.appendChild(settingsDiv);
             }
         }
 

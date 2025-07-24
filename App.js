@@ -3759,15 +3759,19 @@ class VibeVoyageApp {
 function toggleSettings() {
     console.log('⚙️ Opening settings...');
 
-    // Remove any existing settings modal
-    const existingModal = document.querySelector('.settings-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
+    try {
+        // Remove any existing settings modal
+        const existingModal = document.querySelector('.settings-modal');
+        if (existingModal) {
+            console.log('Removing existing modal');
+            existingModal.remove();
+        }
 
-    // Create a simple settings modal
-    const modal = document.createElement('div');
-    modal.className = 'settings-modal';
+        // Create a simple settings modal
+        console.log('Creating new modal');
+        const modal = document.createElement('div');
+        modal.className = 'settings-modal';
+        modal.id = 'settingsModal';
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -4002,16 +4006,26 @@ function toggleSettings() {
         }
     };
 
-    document.body.appendChild(modal);
+        console.log('Appending modal to body');
+        document.body.appendChild(modal);
+        console.log('Modal appended successfully');
 
-    // Initialize unit selectors after modal is added to DOM
-    setTimeout(() => {
-        if (app && app.initializeUnitSelectors) {
-            app.initializeUnitSelectors();
+        // Initialize unit selectors after modal is added to DOM
+        setTimeout(() => {
+            if (app && app.initializeUnitSelectors) {
+                app.initializeUnitSelectors();
+            }
+        }, 100);
+
+        if (app && app.showNotification) {
+            app.showNotification('Settings opened! ⚙️', 'info');
         }
-    }, 100);
+        console.log('Settings modal should now be visible');
 
-    app.showNotification('Settings opened! ⚙️', 'info');
+    } catch (error) {
+        console.error('❌ Error opening settings:', error);
+        alert('Error opening settings: ' + error.message);
+    }
 }
 
 // Map control functions
@@ -4162,6 +4176,54 @@ function toggleHazardSettings() {
             }
         }
     }
+}
+
+// Fallback simple settings function
+function showSimpleSettings() {
+    console.log('🔧 Showing simple settings...');
+
+    const settingsHTML = `
+        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333;
+                    color: white; z-index: 10000; max-width: 300px;">
+            <h3 style="color: #00FF88; margin: 0 0 15px 0;">⚙️ Settings</h3>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: #ccc;">Units:</label>
+                <select style="width: 100%; padding: 8px; background: #333; color: #fff; border: 1px solid #555;">
+                    <option>Metric (km/h, km)</option>
+                    <option>Imperial (mph, miles)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: #ccc;">Fuel:</label>
+                <select style="width: 100%; padding: 8px; background: #333; color: #fff; border: 1px solid #555;">
+                    <option>L/100km</option>
+                    <option>MPG (US)</option>
+                    <option>LPG (Litres Per Gallon)</option>
+                </select>
+            </div>
+
+            <button onclick="this.parentElement.remove()"
+                    style="background: #00FF88; color: #000; border: none; padding: 10px 20px;
+                           border-radius: 4px; cursor: pointer; width: 100%;">
+                Close
+            </button>
+        </div>
+    `;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8); z-index: 9999;
+    `;
+    overlay.innerHTML = settingsHTML;
+    overlay.onclick = (e) => {
+        if (e.target === overlay) overlay.remove();
+    };
+
+    document.body.appendChild(overlay);
 }
 
 function startNavigation() {
