@@ -48,6 +48,10 @@ class VibeVoyageApp {
         /** @type {any} */
         this.tileLayer = null;
         /** @type {any} */
+        this.backupMap = null;
+        /** @type {boolean} */
+        this.isUsingBackupMap = false;
+        /** @type {any} */
         this.markersLayer = null;
         /** @type {any} */
         this.routeLayer = null;
@@ -140,8 +144,8 @@ class VibeVoyageApp {
 
         script.onload = () => {
             console.log('✅ Leaflet loaded successfully');
-            setTimeout(() => {
-                this.initMap();
+            setTimeout(async () => {
+                await this.initMap();
             }, 100);
         };
 
@@ -155,9 +159,9 @@ class VibeVoyageApp {
     
     async init() {
         console.log('🌟 VibeVoyage PWA Starting...');
-        
+
         // Initialize map
-        this.initMap();
+        await this.initMap();
 
         // Load saved units
         this.loadUnitsFromStorage();
@@ -185,15 +189,15 @@ class VibeVoyageApp {
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
 
         // Force map initialization after a delay
-        setTimeout(() => {
-            if (!this.map) {
+        setTimeout(async () => {
+            if (!this.map && !this.isUsingBackupMap) {
                 console.log('🔄 Map not initialized, retrying...');
-                this.initMap();
+                await this.initMap();
             }
         }, 1000);
     }
     
-    initMap() {
+    async initMap() {
         console.log('🗺️ Initializing map...');
 
         // Check if Leaflet is available
@@ -208,21 +212,44 @@ class VibeVoyageApp {
             // Try to load Leaflet if not available
             if (!leafletScript) {
                 console.log('🔄 Attempting to load Leaflet...');
-                this.loadLeafletLibrary();
-                return;
+                try {
+                    await this.loadLeafletLibrary();
+                    // Try again after loading
+                    if (typeof L !== 'undefined') {
+                        return this.initLeafletMap();
+                    }
+                } catch (error) {
+                    console.warn('Failed to load Leaflet, using backup map:', error);
+                }
             }
 
-            this.showMapPlaceholder();
-            return;
+            // Use backup map if Leaflet fails
+            return this.initBackupMap();
         }
 
+        // Try Leaflet first with timeout
+        try {
+            await Promise.race([
+                this.initLeafletMap(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Leaflet timeout')), 5000)
+                )
+            ]);
+            console.log('✅ Leaflet map initialized successfully');
+        } catch (error) {
+            console.warn('Leaflet failed, using backup map:', error);
+            this.initBackupMap();
+        }
+    }
+
+    async initLeafletMap() {
         // Check if map container exists
         const mapContainer = document.getElementById('map');
         if (!mapContainer) {
             console.error('❌ Map container not found');
             console.log('🔍 Available elements with "map" in ID:',
                 Array.from(document.querySelectorAll('[id*="map"]')).map(el => el.id));
-            return;
+            throw new Error('Map container not found');
         }
 
         console.log('✅ Map container found:', mapContainer);
@@ -232,17 +259,16 @@ class VibeVoyageApp {
             display: getComputedStyle(mapContainer).display
         });
 
-        try {
-            // Clear any existing content
-            mapContainer.innerHTML = '';
+        // Clear any existing content
+        mapContainer.innerHTML = '';
 
-            // Initialize Leaflet map with better options
-            this.map = L.map('map', {
-                center: [40.7128, -74.0060], // Default to NYC
-                zoom: 13,
-                zoomControl: false,
-                attributionControl: false
-            });
+        // Initialize Leaflet map with better options
+        this.map = L.map('map', {
+            center: [40.7128, -74.0060], // Default to NYC
+            zoom: 13,
+            zoomControl: false,
+            attributionControl: false
+        });
 
             // Add OpenStreetMap tiles
             this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -318,7 +344,289 @@ class VibeVoyageApp {
             `;
         }
     }
-    
+
+    initBackupMap() {
+        console.log('🗺️ Initializing backup map...');
+        this.isUsingBackupMap = true;
+
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) {
+            console.error('❌ Map container not found for backup map');
+            return;
+        }
+
+        // Clear container
+        mapContainer.innerHTML = '';
+
+        // Create canvas for backup map
+        const canvas = document.createElement('canvas');
+        canvas.id = 'backupMapCanvas';
+        canvas.style.cssText = `
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            background: #f0f0f0;
+        `;
+
+        // Set canvas size
+        const rect = mapContainer.getBoundingClientRect();
+        canvas.width = rect.width || 800;
+        canvas.height = rect.height || 400;
+
+        mapContainer.appendChild(canvas);
+
+        // Initialize backup map state
+        this.backupMap = {
+            canvas: canvas,
+            ctx: canvas.getContext('2d'),
+            center: { lat: 40.7128, lng: -74.0060 },
+            zoom: 13,
+            userLocation: null,
+            destination: null,
+            isDragging: false,
+            lastMousePos: { x: 0, y: 0 }
+        };
+
+        // Setup event listeners
+        this.setupBackupMapEvents();
+
+        // Initial render
+        this.renderBackupMap();
+
+        // Hide placeholder
+        const placeholder = document.getElementById('mapPlaceholder');
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
+
+        // Show notification
+        this.showNotification('Using fast backup map', 'info');
+        console.log('✅ Backup map initialized');
+    }
+
+    setupBackupMapEvents() {
+        const canvas = this.backupMap.canvas;
+
+        // Mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            this.backupMap.isDragging = true;
+            this.backupMap.lastMousePos = { x: e.clientX, y: e.clientY };
+            canvas.style.cursor = 'grabbing';
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!this.backupMap.isDragging) return;
+
+            const deltaX = e.clientX - this.backupMap.lastMousePos.x;
+            const deltaY = e.clientY - this.backupMap.lastMousePos.y;
+
+            this.panBackupMap(deltaX, deltaY);
+            this.backupMap.lastMousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            this.backupMap.isDragging = false;
+            canvas.style.cursor = 'grab';
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            this.backupMap.isDragging = false;
+            canvas.style.cursor = 'grab';
+        });
+
+        // Zoom with mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomDelta = e.deltaY > 0 ? -1 : 1;
+            this.zoomBackupMap(zoomDelta);
+        });
+
+        // Touch events for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                this.backupMap.isDragging = true;
+                this.backupMap.lastMousePos = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!this.backupMap.isDragging || e.touches.length !== 1) return;
+
+            const deltaX = e.touches[0].clientX - this.backupMap.lastMousePos.x;
+            const deltaY = e.touches[0].clientY - this.backupMap.lastMousePos.y;
+
+            this.panBackupMap(deltaX, deltaY);
+            this.backupMap.lastMousePos = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY
+            };
+        });
+
+        canvas.addEventListener('touchend', () => {
+            this.backupMap.isDragging = false;
+        });
+
+        // Click for destination
+        canvas.addEventListener('click', (e) => {
+            if (this.backupMap.isDragging) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const coords = this.pixelToLatLng(x, y);
+            this.setDestination(coords);
+        });
+    }
+
+    panBackupMap(deltaX, deltaY) {
+        const scale = Math.pow(2, this.backupMap.zoom);
+        const lngDelta = (deltaX / (scale * 256)) * 360;
+        const latDelta = -(deltaY / (scale * 256)) * 360;
+
+        this.backupMap.center.lng += lngDelta;
+        this.backupMap.center.lat += latDelta;
+
+        // Clamp coordinates
+        this.backupMap.center.lng = Math.max(-180, Math.min(180, this.backupMap.center.lng));
+        this.backupMap.center.lat = Math.max(-85, Math.min(85, this.backupMap.center.lat));
+
+        this.renderBackupMap();
+    }
+
+    zoomBackupMap(delta) {
+        this.backupMap.zoom = Math.max(1, Math.min(18, this.backupMap.zoom + delta));
+        this.renderBackupMap();
+    }
+
+    renderBackupMap() {
+        const ctx = this.backupMap.ctx;
+        const canvas = this.backupMap.canvas;
+
+        // Clear canvas
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw grid pattern
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+        const gridSize = 50;
+
+        for (let x = 0; x < canvas.width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+
+        for (let y = 0; y < canvas.height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Draw center crosshair
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 2;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(centerX - 10, centerY);
+        ctx.lineTo(centerX + 10, centerY);
+        ctx.moveTo(centerX, centerY - 10);
+        ctx.lineTo(centerX, centerY + 10);
+        ctx.stroke();
+
+        // Draw user location
+        if (this.backupMap.userLocation) {
+            const pos = this.latLngToPixel(this.backupMap.userLocation.lat, this.backupMap.userLocation.lng);
+            this.drawMarker(ctx, pos.x, pos.y, '#00FF88', '📍');
+        }
+
+        // Draw destination
+        if (this.backupMap.destination) {
+            const pos = this.latLngToPixel(this.backupMap.destination.lat, this.backupMap.destination.lng);
+            this.drawMarker(ctx, pos.x, pos.y, '#FF6B6B', '🎯');
+        }
+
+        // Draw info
+        ctx.fillStyle = '#333';
+        ctx.font = '14px Arial';
+        ctx.fillText(`Backup Map - Zoom: ${this.backupMap.zoom}`, 10, 25);
+        ctx.fillText(`Center: ${this.backupMap.center.lat.toFixed(4)}, ${this.backupMap.center.lng.toFixed(4)}`, 10, 45);
+
+        // Draw attribution
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fillRect(canvas.width - 200, canvas.height - 20, 200, 20);
+        ctx.fillStyle = '#333';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('© OpenStreetMap contributors', canvas.width - 5, canvas.height - 5);
+        ctx.textAlign = 'left';
+    }
+
+    drawMarker(ctx, x, y, color, emoji) {
+        // Draw marker background
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 15, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Draw emoji
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, x, y);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+    }
+
+    latLngToPixel(lat, lng) {
+        const centerX = this.backupMap.canvas.width / 2;
+        const centerY = this.backupMap.canvas.height / 2;
+
+        const scale = Math.pow(2, this.backupMap.zoom);
+        const worldSize = 256 * scale;
+
+        const worldX = (lng + 180) / 360 * worldSize;
+        const worldY = (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * worldSize;
+
+        const centerWorldX = (this.backupMap.center.lng + 180) / 360 * worldSize;
+        const centerWorldY = (1 - Math.log(Math.tan(this.backupMap.center.lat * Math.PI / 180) + 1 / Math.cos(this.backupMap.center.lat * Math.PI / 180)) / Math.PI) / 2 * worldSize;
+
+        return {
+            x: worldX - centerWorldX + centerX,
+            y: worldY - centerWorldY + centerY
+        };
+    }
+
+    pixelToLatLng(x, y) {
+        const centerX = this.backupMap.canvas.width / 2;
+        const centerY = this.backupMap.canvas.height / 2;
+
+        const scale = Math.pow(2, this.backupMap.zoom);
+        const worldSize = 256 * scale;
+
+        const centerWorldX = (this.backupMap.center.lng + 180) / 360 * worldSize;
+        const centerWorldY = (1 - Math.log(Math.tan(this.backupMap.center.lat * Math.PI / 180) + 1 / Math.cos(this.backupMap.center.lat * Math.PI / 180)) / Math.PI) / 2 * worldSize;
+
+        const worldX = x - centerX + centerWorldX;
+        const worldY = y - centerY + centerWorldY;
+
+        const lng = (worldX / worldSize) * 360 - 180;
+        const n = Math.PI - 2 * Math.PI * worldY / worldSize;
+        const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+
+        return { lat, lng };
+    }
+
     async getCurrentLocation() {
         console.log('📍 Getting current location...');
         const statusElement = document.getElementById('locationStatus');
@@ -350,9 +658,13 @@ class VibeVoyageApp {
             };
             
             // Update map view and add car marker
-            if (this.map) {
+            if (this.isUsingBackupMap && this.backupMap) {
+                this.backupMap.center = { lat: this.currentLocation.lat, lng: this.currentLocation.lng };
+                this.backupMap.userLocation = this.currentLocation;
+                this.backupMap.zoom = 15;
+                this.renderBackupMap();
+            } else if (this.map) {
                 this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15);
-
                 // Add car marker for current location
                 this.addCarMarker(this.currentLocation.lat, this.currentLocation.lng);
             }
@@ -403,24 +715,30 @@ class VibeVoyageApp {
     
     setDestination(latlng) {
         this.destination = latlng;
-        
-        // Clear existing destination marker
-        if (this.destinationMarker) {
-            this.map.removeLayer(this.destinationMarker);
+
+        if (this.isUsingBackupMap && this.backupMap) {
+            // Update backup map
+            this.backupMap.destination = latlng;
+            this.renderBackupMap();
+        } else if (this.map) {
+            // Clear existing destination marker
+            if (this.destinationMarker) {
+                this.map.removeLayer(this.destinationMarker);
+            }
+
+            // Add destination marker
+            this.destinationMarker = L.marker([latlng.lat, latlng.lng])
+                .addTo(this.map)
+                .bindPopup('🎯 Destination')
+                .openPopup();
         }
-        
-        // Add destination marker
-        this.destinationMarker = L.marker([latlng.lat, latlng.lng])
-            .addTo(this.map)
-            .bindPopup('🎯 Destination')
-            .openPopup();
-        
+
         // Update destination input
         document.getElementById('toInput').value = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
-        
+
         // Enable navigation button
         document.getElementById('navigateBtn').disabled = false;
-        
+
         console.log('🎯 Destination set:', latlng);
     }
     
@@ -3766,6 +4084,51 @@ function getCurrentLocation() {
         app.getCurrentLocation();
     } else {
         console.error('❌ App not ready yet');
+    }
+}
+
+function toggleHazardSettings() {
+    console.log('🚨 Toggling hazard settings...');
+    const container = document.getElementById('hazardAvoidanceContainer');
+    if (container) {
+        if (container.style.display === 'none' || !container.style.display) {
+            container.style.display = 'block';
+            // Initialize hazard panel content if empty
+            if (!container.innerHTML.trim()) {
+                container.innerHTML = `
+                    <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
+                            <button onclick="toggleHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <input type="checkbox" checked> 📷 Speed Cameras
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <input type="checkbox" checked> 🚦 Red Light Cameras
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <input type="checkbox"> 🚧 Road Works
+                            </label>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label style="display: block; margin-bottom: 5px;">Alert Distance: <span id="alertDistanceValue">500m</span></label>
+                            <input type="range" min="100" max="1000" step="50" value="500" style="width: 100%;"
+                                   onchange="document.getElementById('alertDistanceValue').textContent = this.value + 'm'">
+                        </div>
+                    </div>
+                `;
+            }
+            if (app) {
+                app.showNotification('Hazard settings opened', 'info');
+            }
+        } else {
+            container.style.display = 'none';
+            if (app) {
+                app.showNotification('Hazard settings closed', 'info');
+            }
+        }
     }
 }
 
