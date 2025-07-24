@@ -22,7 +22,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Main Application -->
-    <script src="App.js?v=2025.5&mobile=true" defer></script>
+    <script src="App.js?v=2025.6&mobile=fixed" defer></script>
     
     <style>
         * {
@@ -1000,6 +1000,23 @@
 
             .quick-actions {
                 padding: 10px;
+            }
+
+            /* Mobile Map Fixes */
+            #map {
+                width: 100% !important;
+                height: 60vh !important;
+                min-height: 300px !important;
+                max-height: 70vh !important;
+                position: relative !important;
+                display: block !important;
+                touch-action: manipulation !important;
+            }
+
+            .leaflet-container {
+                width: 100% !important;
+                height: 100% !important;
+                touch-action: manipulation !important;
             }
 
             .mobile-input {

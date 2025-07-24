@@ -259,25 +259,46 @@ class VibeVoyageApp {
             display: getComputedStyle(mapContainer).display
         });
 
+        // Mobile-specific container fixes
+        if (this.isMobileDevice()) {
+            console.log('📱 Mobile device detected - applying mobile fixes');
+            mapContainer.style.position = 'relative';
+            mapContainer.style.width = '100%';
+            mapContainer.style.height = '100%';
+            mapContainer.style.minHeight = '300px';
+
+            // Force container to be visible
+            mapContainer.style.display = 'block';
+            mapContainer.style.visibility = 'visible';
+        }
+
         try {
             // Clear any existing content
             mapContainer.innerHTML = '';
 
-            // Initialize Leaflet map with mobile-optimized options
+            // Initialize Leaflet map with enhanced mobile options
         this.map = L.map('map', {
             center: [40.7128, -74.0060], // Default to NYC
             zoom: 13,
             zoomControl: false,
             attributionControl: false,
+            // Mobile-specific options
             tap: true,
+            tapTolerance: 15,
             touchZoom: true,
             doubleClickZoom: true,
-            scrollWheelZoom: true,
+            scrollWheelZoom: 'center',
             boxZoom: false,
             keyboard: true,
             dragging: true,
             maxZoom: 18,
-            minZoom: 3
+            minZoom: 3,
+            // Mobile performance options
+            preferCanvas: false,
+            renderer: L.svg(),
+            // Touch interaction improvements
+            bounceAtZoomLimits: false,
+            worldCopyJump: false
         });
 
             // Add OpenStreetMap tiles
@@ -321,6 +342,11 @@ class VibeVoyageApp {
                 if (this.map) {
                     this.map.invalidateSize();
                     console.log('🗺️ Map final resize completed');
+
+                    // Mobile-specific fixes
+                    if (this.isMobileDevice()) {
+                        this.fixMobileMapDisplay();
+                    }
                 }
             }, 500);
 
@@ -2397,6 +2423,55 @@ class VibeVoyageApp {
         if (startBtn) startBtn.style.display = 'none';
         if (resumeBtn) resumeBtn.style.display = 'none';
         if (pauseBtn) pauseBtn.style.display = 'flex';
+    }
+
+    // Mobile device detection
+    isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               (window.innerWidth <= 768) ||
+               ('ontouchstart' in window);
+    }
+
+    // Fix mobile map display issues
+    fixMobileMapDisplay() {
+        console.log('📱 Applying mobile map fixes...');
+
+        if (!this.map) return;
+
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) return;
+
+        // Force container dimensions
+        const containerRect = mapContainer.getBoundingClientRect();
+        console.log('📱 Mobile map container:', {
+            width: containerRect.width,
+            height: containerRect.height,
+            visible: containerRect.width > 0 && containerRect.height > 0
+        });
+
+        // If container is not visible, force dimensions
+        if (containerRect.width === 0 || containerRect.height === 0) {
+            console.log('📱 Forcing mobile map container dimensions');
+            mapContainer.style.width = '100vw';
+            mapContainer.style.height = '60vh';
+            mapContainer.style.minHeight = '300px';
+            mapContainer.style.display = 'block';
+            mapContainer.style.position = 'relative';
+        }
+
+        // Force map to recalculate size
+        setTimeout(() => {
+            if (this.map) {
+                this.map.invalidateSize(true);
+                console.log('📱 Mobile map size invalidated');
+            }
+        }, 100);
+
+        // Additional mobile-specific map settings
+        if (this.map._container) {
+            this.map._container.style.background = '#1a1a1a';
+            this.map._container.style.cursor = 'grab';
+        }
     }
 
     // Distance formatting for voice with user units
