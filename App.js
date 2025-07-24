@@ -2399,6 +2399,41 @@ class VibeVoyageApp {
         if (pauseBtn) pauseBtn.style.display = 'flex';
     }
 
+    // Distance formatting for voice with user units
+    formatDistanceForVoice(distanceInMeters) {
+        const units = this.userUnits || 'metric';
+
+        if (units === 'imperial') {
+            // Convert to feet/yards/miles
+            const feet = distanceInMeters * 3.28084;
+            if (feet < 100) {
+                return `${Math.round(feet)} feet`;
+            } else if (feet < 1760) {
+                const yards = Math.round(feet / 3);
+                return `${yards} yards`;
+            } else {
+                const miles = (feet / 5280).toFixed(1);
+                return `${miles} miles`;
+            }
+        } else if (units === 'nautical') {
+            // Convert to nautical miles
+            const nauticalMiles = (distanceInMeters / 1852).toFixed(2);
+            if (distanceInMeters < 1852) {
+                return `${Math.round(distanceInMeters)} meters`;
+            } else {
+                return `${nauticalMiles} nautical miles`;
+            }
+        } else {
+            // Metric (default)
+            if (distanceInMeters < 1000) {
+                return `${Math.round(distanceInMeters)} meters`;
+            } else {
+                const km = (distanceInMeters / 1000).toFixed(1);
+                return `${km} kilometers`;
+            }
+        }
+    }
+
     // Voice Log Functions
     initializeVoiceLog() {
         const voiceLogContent = document.getElementById('voiceLogContent');
@@ -2538,9 +2573,10 @@ class VibeVoyageApp {
             }, 10000);
         }
 
-        // Voice alert
-        this.speakInstruction(`${hazard.name} ahead in ${Math.round(hazard.distance)} meters`, 'high');
-        this.addVoiceLogEntry(`Alert: ${hazard.name} in ${Math.round(hazard.distance)}m`);
+        // Voice alert with proper units
+        const distanceText = this.formatDistanceForVoice(hazard.distance);
+        this.speakInstruction(`${hazard.name} ahead in ${distanceText}`, 'high');
+        this.addVoiceLogEntry(`Alert: ${hazard.name} in ${distanceText}`);
     }
 
     // Hazard Marker Functions
