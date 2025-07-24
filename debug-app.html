@@ -125,7 +125,14 @@
         // Debug functions
         function checkAppStatus() {
             const status = document.getElementById('appStatus');
-            
+
+            // Debug information
+            console.log('=== DEBUG INFO ===');
+            console.log('window.app:', typeof window.app, window.app);
+            console.log('VibeVoyageApp:', typeof VibeVoyageApp);
+            console.log('window.initializeVibeVoyage:', typeof window.initializeVibeVoyage);
+            console.log('==================');
+
             if (typeof window.app !== 'undefined' && window.app) {
                 status.className = 'status success';
                 status.innerHTML = `
@@ -136,7 +143,13 @@
                 `;
             } else {
                 status.className = 'status error';
-                status.innerHTML = '❌ App not loaded or not accessible via window.app';
+                status.innerHTML = `
+                    ❌ App not loaded or not accessible via window.app<br>
+                    🔍 Debug info:<br>
+                    - window.app: ${typeof window.app}<br>
+                    - VibeVoyageApp: ${typeof VibeVoyageApp}<br>
+                    - initializeVibeVoyage: ${typeof window.initializeVibeVoyage}
+                `;
             }
         }
 
@@ -144,10 +157,18 @@
             const status = document.getElementById('appStatus');
             status.className = 'status info';
             status.innerHTML = '🔄 Initializing app...';
-            
+
             try {
                 if (!window.app) {
-                    window.app = new VibeVoyageApp();
+                    // Try using the manual initialization function
+                    if (typeof window.initializeVibeVoyage === 'function') {
+                        window.initializeVibeVoyage();
+                    } else if (typeof VibeVoyageApp !== 'undefined') {
+                        window.app = new VibeVoyageApp();
+                    } else {
+                        throw new Error('VibeVoyageApp class not found');
+                    }
+
                     setTimeout(() => {
                         checkAppStatus();
                     }, 2000);
@@ -158,6 +179,7 @@
             } catch (error) {
                 status.className = 'status error';
                 status.innerHTML = '❌ Failed to initialize: ' + error.message;
+                console.error('Initialization error:', error);
             }
         }
 

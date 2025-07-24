@@ -4449,47 +4449,83 @@ function handleSearchKeypress(event) {
 }
 
 // Initialize app when DOM is loaded
-let app;
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM loaded, initializing VibeVoyage...');
+function initializeVibeVoyage() {
+    console.log('🚀 Initializing VibeVoyage...');
 
-    // Small delay to ensure all resources are loaded
-    setTimeout(() => {
-        try {
-            window.app = new VibeVoyageApp();
-        } catch (error) {
-            console.error('❌ Failed to initialize app:', error);
-
-            // Show error message to user
-            const errorDiv = document.createElement('div');
-            errorDiv.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: #FF6B6B;
-                color: white;
-                padding: 20px;
-                border-radius: 8px;
-                text-align: center;
-                z-index: 10000;
-            `;
-            errorDiv.innerHTML = `
-                <h3>⚠️ App Initialization Failed</h3>
-                <p>Please refresh the page to try again.</p>
-                <button onclick="window.location.reload()" style="
-                    background: white;
-                    color: #FF6B6B;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    margin-top: 10px;
-                ">Refresh Page</button>
-            `;
-            document.body.appendChild(errorDiv);
+    try {
+        // Check if class is available
+        if (typeof VibeVoyageApp === 'undefined') {
+            throw new Error('VibeVoyageApp class not found');
         }
-    }, 500);
+
+        // Initialize the app
+        window.app = new VibeVoyageApp();
+        console.log('✅ VibeVoyage app initialized successfully');
+
+        // Verify app is accessible
+        if (window.app) {
+            console.log('✅ App is accessible via window.app');
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to initialize app:', error);
+
+        // Show error message to user
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #FF6B6B;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        errorDiv.innerHTML = `
+            <h3>⚠️ App Initialization Failed</h3>
+            <p>Error: ${error.message}</p>
+            <button onclick="window.location.reload()" style="
+                background: white;
+                color: #FF6B6B;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-top: 10px;
+            ">Refresh Page</button>
+        `;
+        document.body.appendChild(errorDiv);
+    }
+}
+
+// Try multiple initialization methods
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🌟 DOM loaded');
+
+    // Try immediate initialization
+    initializeVibeVoyage();
+
+    // If that fails, try after a delay
+    if (!window.app) {
+        setTimeout(() => {
+            if (!window.app) {
+                console.log('🔄 Retrying app initialization...');
+                initializeVibeVoyage();
+            }
+        }, 1000);
+    }
+});
+
+// Also try when window loads (fallback)
+window.addEventListener('load', () => {
+    if (!window.app) {
+        console.log('🔄 Window loaded, trying app initialization...');
+        setTimeout(initializeVibeVoyage, 500);
+    }
 });
 
 // PWA Install prompt
@@ -4511,5 +4547,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
         }
     }, 5000);
 });
+
+// Manual initialization function for debugging
+window.initializeVibeVoyage = initializeVibeVoyage;
 
 console.log('🚀 VibeVoyage PWA Loaded!');
