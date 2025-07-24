@@ -4080,8 +4080,8 @@ function proceedWithRoute() {
 }
 
 function getCurrentLocation() {
-    if (app && app.getCurrentLocation) {
-        app.getCurrentLocation();
+    if (window.app && window.app.getCurrentLocation) {
+        window.app.getCurrentLocation();
     } else {
         console.error('❌ App not ready yet');
     }
@@ -4120,29 +4120,29 @@ function toggleHazardSettings() {
                     </div>
                 `;
             }
-            if (app) {
-                app.showNotification('Hazard settings opened', 'info');
+            if (window.app) {
+                window.app.showNotification('Hazard settings opened', 'info');
             }
         } else {
             container.style.display = 'none';
-            if (app) {
-                app.showNotification('Hazard settings closed', 'info');
+            if (window.app) {
+                window.app.showNotification('Hazard settings closed', 'info');
             }
         }
     }
 }
 
 function startNavigation() {
-    if (app && app.startNavigation) {
-        app.startNavigation();
+    if (window.app && window.app.startNavigation) {
+        window.app.startNavigation();
     } else {
         console.error('❌ App not ready yet');
     }
 }
 
 function stopNavigation() {
-    if (app && app.stopNavigation) {
-        app.stopNavigation();
+    if (window.app && window.app.stopNavigation) {
+        window.app.stopNavigation();
     } else {
         console.error('❌ App not ready yet');
     }
@@ -4243,8 +4243,8 @@ function selectRouteForJourney() {
 }
 
 function startJourney() {
-    if (app && app.startJourney) {
-        app.startJourney();
+    if (window.app && window.app.startJourney) {
+        window.app.startJourney();
     }
 }
 
@@ -4456,7 +4456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Small delay to ensure all resources are loaded
     setTimeout(() => {
         try {
-            app = new VibeVoyageApp();
+            window.app = new VibeVoyageApp();
         } catch (error) {
             console.error('❌ Failed to initialize app:', error);
 

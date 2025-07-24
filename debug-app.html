@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage - Debug</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #1a1a1a; 
+            color: #fff; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .debug-panel {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .test-button:hover {
+            background: #00CC66;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: rgba(0, 255, 136, 0.2); border: 1px solid #00FF88; }
+        .error { background: rgba(255, 107, 107, 0.2); border: 1px solid #FF6B6B; }
+        .info { background: rgba(135, 206, 235, 0.2); border: 1px solid #87CEEB; }
+        #map { 
+            height: 300px; 
+            background: #f0f0f0; 
+            border: 1px solid #333; 
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-size: 18px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #555;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        .btn:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧭 VibeVoyage Debug Mode</h1>
+    
+    <div class="debug-panel">
+        <h3>🔍 App Status</h3>
+        <div id="appStatus" class="status info">Checking app status...</div>
+        <button class="test-button" onclick="checkAppStatus()">Check App Status</button>
+        <button class="test-button" onclick="initializeApp()">Initialize App</button>
+    </div>
+
+    <div class="debug-panel">
+        <h3>🧪 Button Tests</h3>
+        <button class="test-button" onclick="testSettings()">Test Settings</button>
+        <button class="test-button" onclick="testLocation()">Test Location</button>
+        <button class="test-button" onclick="testHazards()">Test Hazards</button>
+        <button class="test-button" onclick="testNavigation()">Test Navigation</button>
+        <div id="buttonStatus" class="status info">Click buttons to test functionality</div>
+    </div>
+
+    <!-- Simplified Header -->
+    <div class="header">
+        <div>🧭 VibeVoyage</div>
+        <div>
+            <button class="btn" onclick="toggleHazardSettings()">🚨</button>
+            <button class="btn" onclick="toggleSettings()">⚙️</button>
+            <button class="btn" onclick="getCurrentLocation()">📍</button>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map">🗺️ Map Loading...</div>
+
+    <!-- Navigation Button -->
+    <div style="text-align: center; margin: 20px 0;">
+        <button class="test-button" onclick="startNavigation()" id="navigateBtn">🚗 Start Navigation</button>
+        <button class="test-button" onclick="startJourney()">🚀 Start Journey</button>
+    </div>
+
+    <!-- Hazard Container -->
+    <div id="hazardAvoidanceContainer" style="display: none;"></div>
+
+    <!-- Load Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Load Main App -->
+    <script src="App.js"></script>
+
+    <script>
+        // Debug functions
+        function checkAppStatus() {
+            const status = document.getElementById('appStatus');
+            
+            if (typeof window.app !== 'undefined' && window.app) {
+                status.className = 'status success';
+                status.innerHTML = `
+                    ✅ App loaded successfully!<br>
+                    📍 Current location: ${window.app.currentLocation ? 'Available' : 'Not set'}<br>
+                    🗺️ Map: ${window.app.map ? 'Leaflet loaded' : window.app.isUsingBackupMap ? 'Backup map' : 'Not loaded'}<br>
+                    🎯 Destination: ${window.app.destination ? 'Set' : 'Not set'}
+                `;
+            } else {
+                status.className = 'status error';
+                status.innerHTML = '❌ App not loaded or not accessible via window.app';
+            }
+        }
+
+        function initializeApp() {
+            const status = document.getElementById('appStatus');
+            status.className = 'status info';
+            status.innerHTML = '🔄 Initializing app...';
+            
+            try {
+                if (!window.app) {
+                    window.app = new VibeVoyageApp();
+                    setTimeout(() => {
+                        checkAppStatus();
+                    }, 2000);
+                } else {
+                    status.className = 'status success';
+                    status.innerHTML = '✅ App already initialized';
+                }
+            } catch (error) {
+                status.className = 'status error';
+                status.innerHTML = '❌ Failed to initialize: ' + error.message;
+            }
+        }
+
+        function testSettings() {
+            const status = document.getElementById('buttonStatus');
+            try {
+                toggleSettings();
+                status.className = 'status success';
+                status.innerHTML = '✅ Settings button working';
+            } catch (error) {
+                status.className = 'status error';
+                status.innerHTML = '❌ Settings failed: ' + error.message;
+            }
+        }
+
+        function testLocation() {
+            const status = document.getElementById('buttonStatus');
+            try {
+                getCurrentLocation();
+                status.className = 'status info';
+                status.innerHTML = '🔄 Location request sent...';
+            } catch (error) {
+                status.className = 'status error';
+                status.innerHTML = '❌ Location failed: ' + error.message;
+            }
+        }
+
+        function testHazards() {
+            const status = document.getElementById('buttonStatus');
+            try {
+                toggleHazardSettings();
+                status.className = 'status success';
+                status.innerHTML = '✅ Hazard settings working';
+            } catch (error) {
+                status.className = 'status error';
+                status.innerHTML = '❌ Hazards failed: ' + error.message;
+            }
+        }
+
+        function testNavigation() {
+            const status = document.getElementById('buttonStatus');
+            try {
+                startNavigation();
+                status.className = 'status info';
+                status.innerHTML = '🔄 Navigation test sent...';
+            } catch (error) {
+                status.className = 'status error';
+                status.innerHTML = '❌ Navigation failed: ' + error.message;
+            }
+        }
+
+        // Auto-check status when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                checkAppStatus();
+            }, 3000);
+        });
+
+        // Global functions (fallback if not defined in App.js)
+        if (typeof toggleSettings === 'undefined') {
+            window.toggleSettings = function() {
+                console.log('Settings toggle fallback');
+                alert('Settings function called');
+            };
+        }
+
+        if (typeof getCurrentLocation === 'undefined') {
+            window.getCurrentLocation = function() {
+                console.log('Location function fallback');
+                alert('Location function called');
+            };
+        }
+
+        if (typeof toggleHazardSettings === 'undefined') {
+            window.toggleHazardSettings = function() {
+                console.log('Hazard settings fallback');
+                alert('Hazard settings function called');
+            };
+        }
+
+        if (typeof startNavigation === 'undefined') {
+            window.startNavigation = function() {
+                console.log('Navigation function fallback');
+                alert('Navigation function called');
+            };
+        }
+
+        if (typeof startJourney === 'undefined') {
+            window.startJourney = function() {
+                console.log('Journey function fallback');
+                alert('Journey function called');
+            };
+        }
+    </script>
+</body>
+</html>
