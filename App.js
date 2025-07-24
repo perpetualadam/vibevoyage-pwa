@@ -1,23 +1,74 @@
-// VibeVoyage PWA - Main Application Logic
+/**
+ * VibeVoyage PWA - Smart Navigation Application
+ * TypeScript-inspired JavaScript implementation for better type safety and reduced issues
+ */
 class VibeVoyageApp {
     constructor() {
+        console.log('🌟 VibeVoyage PWA Initializing...');
+
+        // Core properties with JSDoc typing for better IDE support
+        /** @type {any} */
         this.map = null;
+        /** @type {{lat: number, lng: number} | null} */
         this.currentLocation = null;
+        /** @type {{lat: number, lng: number} | null} */
         this.destination = null;
+        /** @type {boolean} */
         this.isNavigating = false;
+        /** @type {string} */
         this.journeyState = 'idle'; // idle, route-selected, navigating, paused
+        /** @type {number | null} */
         this.watchId = null;
+        /** @type {any} */
         this.route = null;
+        /** @type {{lat: number, lng: number} | null} */
         this.lastKnownNavigationPosition = null;
+        /** @type {number | null} */
         this.journeyStartTime = null;
+        /** @type {number | null} */
         this.pausedTime = null;
+        /** @type {any} */
         this.routeData = null;
+        /** @type {any} */
+        this.currentRoute = null;
+        /** @type {Array} */
         this.routeSteps = [];
+        /** @type {number} */
         this.currentStepIndex = 0;
+        /** @type {any} */
         this.carMarker = null;
+        /** @type {any} */
         this.currentLocationMarker = null;
+        /** @type {any} */
         this.destinationMarker = null;
+        /** @type {any} */
         this.routeLine = null;
+
+        // Map layers for better organization
+        /** @type {any} */
+        this.tileLayer = null;
+        /** @type {any} */
+        this.markersLayer = null;
+        /** @type {any} */
+        this.routeLayer = null;
+        /** @type {any} */
+        this.hazardsLayer = null;
+        /** @type {any} */
+        this.vehicleLayer = null;
+        /** @type {any} */
+        this.vehicleMarker = null;
+        /** @type {any} */
+        this.currentRouteLine = null;
+
+        // Navigation properties
+        /** @type {any} */
+        this.routeProgress = null;
+        /** @type {number | null} */
+        this.offRouteTimeout = null;
+        /** @type {boolean} */
+        this.followMode = true;
+        /** @type {string} */
+        this.currentMapType = 'street';
         this.routeOutline = null;
         this.followingCar = true;
         this.poiMarkers = [];

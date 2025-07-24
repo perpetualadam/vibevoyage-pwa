@@ -19,7 +19,11 @@
     "optimize:pwa": "workbox generateSW workbox-config.js",
     "analyze:bundle": "npx webpack-bundle-analyzer build/static/js/*.js",
     "cost:report": "node scripts/generate-cost-report.js",
-    "free:check": "node scripts/check-free-tier-usage.js"
+    "free:check": "node scripts/check-free-tier-usage.js",
+    "build:ts": "tsc",
+    "watch:ts": "tsc --watch",
+    "dev:ts": "tsc --watch",
+    "clean:ts": "rm -rf dist"
   },
   "dependencies": {
     "react": "18.2.0",
@@ -87,9 +91,10 @@
     "metro-react-native-babel-preset": "0.76.8",
     "prettier": "^2.4.1",
     "react-test-renderer": "18.2.0",
-    "typescript": "4.8.4",
+    "typescript": "^5.0.0",
     "@types/lodash": "^4.14.199",
-    "@types/react-native-vector-icons": "^6.4.14"
+    "@types/react-native-vector-icons": "^6.4.14",
+    "@types/leaflet": "^1.9.0"
   },
   "engines": {
     "node": ">=16"
