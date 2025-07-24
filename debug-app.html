@@ -81,7 +81,8 @@
         <div id="appStatus" class="status info">Checking app status...</div>
         <button class="test-button" onclick="checkAppStatus()">Check App Status</button>
         <button class="test-button" onclick="testSimpleSyntax()">Test Simple Syntax</button>
-        <button class="test-button" onclick="testMinimalApp()">Test Minimal App</button>
+        <button class="test-button" onclick="testSyntaxStructure()">Test Syntax Structure</button>
+        <button class="test-button" onclick="loadFullApp()">Load Full App</button>
         <button class="test-button" onclick="initializeApp()">Initialize App</button>
     </div>
 
@@ -120,14 +121,11 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Test Simple Syntax First (commented out to avoid duplicate) -->
-    <!-- <script src="test-syntax.js"></script> -->
+    <!-- Test Syntax Structure -->
+    <script src="syntax-test.js"></script>
 
-    <!-- Test Minimal App (commented out to avoid duplicate) -->
-    <!-- <script src="minimal-app.js"></script> -->
-
-    <!-- Load Main App -->
-    <script src="App.js"></script>
+    <!-- Load Main App (commented out for testing) -->
+    <!-- <script src="App.js"></script> -->
 
     <script>
         // Debug functions
@@ -179,6 +177,52 @@
                     📝 Check browser console for errors
                 `;
             }
+        }
+
+        function testSyntaxStructure() {
+            const status = document.getElementById('appStatus');
+
+            console.log('=== SYNTAX STRUCTURE TEST ===');
+            console.log('window.syntaxTest:', typeof window.syntaxTest, window.syntaxTest);
+            console.log('=============================');
+
+            if (typeof window.syntaxTest !== 'undefined' && window.syntaxTest) {
+                status.className = 'status success';
+                status.innerHTML = `
+                    ✅ Syntax structure test PASSED!<br>
+                    🔧 Basic class structure works<br>
+                    📝 Ready to test full App.js<br>
+                    🔍 Click "Load Full App" to test
+                `;
+            } else {
+                status.className = 'status error';
+                status.innerHTML = `
+                    ❌ Syntax structure test FAILED!<br>
+                    🔧 Basic class structure has issues<br>
+                    📝 Check browser console for errors
+                `;
+            }
+        }
+
+        function loadFullApp() {
+            const status = document.getElementById('appStatus');
+            status.className = 'status info';
+            status.innerHTML = '🔄 Loading full App.js...';
+
+            // Dynamically load the full App.js
+            const script = document.createElement('script');
+            script.src = 'App.js';
+            script.onload = () => {
+                setTimeout(() => {
+                    checkAppStatus();
+                }, 1000);
+            };
+            script.onerror = (error) => {
+                status.className = 'status error';
+                status.innerHTML = '❌ Failed to load App.js - check console for syntax errors';
+                console.error('App.js loading error:', error);
+            };
+            document.head.appendChild(script);
         }
 
         function checkAppStatus() {
