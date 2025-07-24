@@ -1823,6 +1823,7 @@ class VibeVoyageApp {
 
     formatDistance(meters) {
         const converted = this.convertDistance(meters);
+        console.log('📏 formatDistance:', meters, 'meters →', converted, 'units:', this.units.distance);
         return `${converted.value} ${converted.unit}`;
     }
 
@@ -3814,12 +3815,16 @@ class VibeVoyageApp {
         }
 
         if (remainingElement) {
-            remainingElement.textContent = `${this.formatDistance(remainingDistance)} remaining`;
+            const formattedRemaining = this.formatDistance(remainingDistance);
+            console.log('🔄 Updating remaining distance:', remainingDistance, 'meters →', formattedRemaining);
+            remainingElement.textContent = `${formattedRemaining} remaining`;
         }
 
         if (totalElement && this.routeData) {
             const totalDistance = this.routeData.distance;
-            totalElement.textContent = `Total: ${this.formatDistance(totalDistance)}`;
+            const formattedTotal = this.formatDistance(totalDistance);
+            console.log('🔄 Updating total distance:', totalDistance, 'meters →', formattedTotal);
+            totalElement.textContent = `Total: ${formattedTotal}`;
         }
     }
 
@@ -4156,6 +4161,14 @@ class VibeVoyageApp {
 
         // Update navigation UI
         this.updateNavigationUI();
+    }
+
+    updateNavigationUI() {
+        // Update navigation progress displays
+        this.updateNavigationProgress();
+
+        // Update any other navigation-specific UI elements
+        console.log('🗺️ Navigation UI updated');
     }
 
     calculateRemainingDistance(currentIndex) {
