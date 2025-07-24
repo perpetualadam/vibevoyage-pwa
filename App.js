@@ -4512,16 +4512,33 @@ window.addEventListener('load', () => {
     }
 });
 
-// PWA Install prompt
-let deferredPrompt;
+// PWA Install prompt - disabled to prevent errors
+let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    console.log('PWA install prompt available');
+    console.log('PWA install prompt available (stored for manual use)');
 
-    // Don't show automatic prompt - wait for user interaction
-    // The prompt will be available when user clicks a button
+    // Never automatically show prompt - only on explicit user action
+    // This prevents NotAllowedError from automatic prompts
 });
+
+// Function to manually trigger install (must be called from user interaction)
+function showInstallPrompt() {
+    if (deferredPrompt) {
+        try {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                console.log('User choice:', choiceResult.outcome);
+                deferredPrompt = null;
+            });
+        } catch (error) {
+            console.log('Install prompt error (expected if not user-initiated):', error.message);
+        }
+    } else {
+        console.log('Install prompt not available');
+    }
+}
 
 // Manual initialization function for debugging
 window.initializeVibeVoyage = initializeVibeVoyage;
