@@ -4072,15 +4072,48 @@ function toggleHazardSettings() {
                             <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
                             <button onclick="toggleHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
                         </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                 <input type="checkbox" checked> 📷 Speed Cameras
                             </label>
-                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                 <input type="checkbox" checked> 🚦 Red Light Cameras
                             </label>
-                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" checked> 🚨 Police Reports
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                 <input type="checkbox"> 🚧 Road Works
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" checked> 🚂 Railway Crossings
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" checked> 🛣️ Complex Junctions
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" checked> 🏫 School Zones
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" checked> 🏥 Hospital Zones
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox"> 💰 Toll Booths
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox"> 🌉 Bridges/Tunnels
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" checked> 💥 Accident Reports
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox"> 🌧️ Weather Alerts
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox"> ⛰️ Steep Grades
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox"> 🛤️ Narrow Roads
                             </label>
                         </div>
                         <div style="margin-top: 15px;">
