@@ -4104,7 +4104,9 @@ function toggleHazardSettings() {
     console.log('🚨 Toggling hazard settings...');
     const container = document.getElementById('hazardAvoidanceContainer');
     if (container) {
+        console.log('Container current display:', container.style.display);
         if (container.style.display === 'none' || !container.style.display) {
+            console.log('Opening hazard settings...');
             container.style.display = 'block';
             // Always refresh hazard panel content to ensure latest version
             container.innerHTML = '';
@@ -4112,7 +4114,7 @@ function toggleHazardSettings() {
                     <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
-                            <button onclick="toggleHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
+                            <button onclick="closeHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
                         </div>
                         <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -4170,12 +4172,28 @@ function toggleHazardSettings() {
                 window.app.showNotification('Hazard settings opened', 'info');
             }
         } else {
+            console.log('Closing hazard settings...');
             container.style.display = 'none';
+            console.log('Container display set to none');
             if (window.app) {
                 window.app.showNotification('Hazard settings closed', 'info');
             }
         }
     }
+
+function closeHazardSettings() {
+    console.log('🚨 Closing hazard settings...');
+    const container = document.getElementById('hazardAvoidanceContainer');
+    if (container) {
+        container.style.display = 'none';
+        console.log('Hazard settings closed');
+        if (window.app) {
+            window.app.showNotification('Hazard settings closed', 'info');
+        }
+    } else {
+        console.log('Hazard container not found');
+    }
+}
 
 // Fallback simple settings function
 function showSimpleSettings() {
