@@ -80,6 +80,7 @@
         <h3>🔍 App Status</h3>
         <div id="appStatus" class="status info">Checking app status...</div>
         <button class="test-button" onclick="checkAppStatus()">Check App Status</button>
+        <button class="test-button" onclick="testSimpleSyntax()">Test Simple Syntax</button>
         <button class="test-button" onclick="initializeApp()">Initialize App</button>
     </div>
 
@@ -118,11 +119,39 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
+    <!-- Test Simple Syntax First -->
+    <script src="test-syntax.js"></script>
+
     <!-- Load Main App -->
     <script src="App.js"></script>
 
     <script>
         // Debug functions
+        function testSimpleSyntax() {
+            const status = document.getElementById('appStatus');
+
+            console.log('=== SIMPLE SYNTAX TEST ===');
+            console.log('window.testApp:', typeof window.testApp, window.testApp);
+            console.log('==========================');
+
+            if (typeof window.testApp !== 'undefined' && window.testApp) {
+                status.className = 'status success';
+                status.innerHTML = `
+                    ✅ Simple syntax test PASSED!<br>
+                    🔧 Basic class definition works<br>
+                    📝 The issue is in the main App.js file<br>
+                    🔍 Need to find extra closing braces
+                `;
+            } else {
+                status.className = 'status error';
+                status.innerHTML = `
+                    ❌ Simple syntax test FAILED!<br>
+                    🔧 Even basic class definition doesn't work<br>
+                    📝 Check browser console for errors
+                `;
+            }
+        }
+
         function checkAppStatus() {
             const status = document.getElementById('appStatus');
 
