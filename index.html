@@ -203,34 +203,14 @@
         .map-section {
             flex: 1;
             position: relative;
-            min-height: 60vh;
-            height: 60vh;
+            min-height: 70vh;
+            height: 70vh;
             background: #1a1a1a;
-        }
-
-        .map-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
-            background: rgba(0, 0, 0, 0.8);
-            border-bottom: 1px solid #333;
-        }
-
-        .map-controls {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-sm {
-            padding: 8px 12px;
-            font-size: 12px;
-            min-height: 32px;
         }
 
         .interactive-map {
             width: 100%;
-            height: calc(100% - 45px);
+            height: 100%;
             position: relative;
             background: #1a1a1a;
         }
@@ -246,7 +226,7 @@
         /* Map Overlay Controls */
         .map-overlay-controls {
             position: absolute;
-            top: 60px;
+            top: 15px;
             right: 15px;
             display: flex;
             flex-direction: column;
@@ -1900,15 +1880,45 @@
             </div>
         </header>
 
-        <!-- Map Section - Moved back under header -->
-        <section class="map-section">
-            <div class="map-header">
-                <h3 style="color: #00FF88; margin: 0; font-size: 16px;">🗺️ Live Navigation Map</h3>
-                <div class="map-controls">
-                    <button class="btn btn-secondary btn-sm" onclick="centerOnLocation()" title="Center on current location">📍</button>
-                    <button class="btn btn-secondary btn-sm" onclick="toggleMapType()" title="Toggle map type">🛰️</button>
+        <!-- Journey Planning Section - Moved to top of map -->
+        <section class="journey-planning-section">
+            <div class="planning-container">
+                <div class="mobile-input-container">
+                    <div class="input-row">
+                        <div class="input-wrapper">
+                            <input type="text" id="fromInput" class="search-input mobile-input"
+                                   placeholder="From: Address, company, postcode..."
+                                   onkeypress="handleFromSearchKeypress(event)"
+                                   oninput="handleAddressInput('from', this.value)">
+                            <button class="btn btn-secondary search-btn" onclick="searchFromLocation(document.getElementById('fromInput').value)">🔍</button>
+                            <div class="address-suggestions" id="fromSuggestions"></div>
+                        </div>
+                    </div>
+
+                    <div class="swap-row">
+                        <button class="swap-btn-mobile" onclick="swapLocations()" title="Swap locations">⇅</button>
+                    </div>
+
+                    <div class="input-row">
+                        <div class="input-wrapper">
+                            <input type="text" id="toInput" class="search-input mobile-input"
+                                   placeholder="To: Address, company, postcode..."
+                                   onkeypress="handleToSearchKeypress(event)"
+                                   oninput="handleAddressInput('to', this.value)">
+                            <button class="btn btn-secondary search-btn" onclick="searchToLocation(document.getElementById('toInput').value)">🔍</button>
+                            <div class="address-suggestions" id="toSuggestions"></div>
+                        </div>
+                    </div>
                 </div>
+
+                <button class="navigate-btn mobile-navigate-btn" id="navigateBtn" onclick="startNavigation()" disabled>
+                    🚗 Start Navigation
+                </button>
             </div>
+        </section>
+
+        <!-- Map Section -->
+        <section class="map-section">
             <div id="map" class="interactive-map">
                 <div class="map-placeholder" id="mapPlaceholder">
                     <div class="icon">🗺️</div>
@@ -1927,6 +1937,9 @@
                 </button>
                 <button class="map-control-btn" id="zoomOutBtn" onclick="zoomOut()" title="Zoom out">
                     <span class="control-icon">➖</span>
+                </button>
+                <button class="map-control-btn" onclick="toggleMapType()" title="Toggle map type">
+                    <span class="control-icon">🛰️</span>
                 </button>
             </div>
         </section>
@@ -2057,44 +2070,7 @@
             </div>
         </div>
         
-        <!-- Journey Planning Section -->
-        <section class="journey-planning-section">
-            <div class="planning-container">
-                <h2 style="color: #00FF88; margin: 0 0 8px 0; font-size: 15px; text-align: center;">🗺️ Plan Your Journey</h2>
 
-                <div class="mobile-input-container">
-                    <div class="input-row">
-                        <div class="input-wrapper">
-                            <input type="text" id="fromInput" class="search-input mobile-input"
-                                   placeholder="From: Address, company, postcode..."
-                                   onkeypress="handleFromSearchKeypress(event)"
-                                   oninput="handleAddressInput('from', this.value)">
-                            <button class="btn btn-secondary search-btn" onclick="searchFromLocation(document.getElementById('fromInput').value)">🔍</button>
-                            <div class="address-suggestions" id="fromSuggestions"></div>
-                        </div>
-                    </div>
-
-                    <div class="swap-row">
-                        <button class="swap-btn-mobile" onclick="swapLocations()" title="Swap locations">⇅</button>
-                    </div>
-
-                    <div class="input-row">
-                        <div class="input-wrapper">
-                            <input type="text" id="toInput" class="search-input mobile-input"
-                                   placeholder="To: Address, company, postcode..."
-                                   onkeypress="handleToSearchKeypress(event)"
-                                   oninput="handleAddressInput('to', this.value)">
-                            <button class="btn btn-secondary search-btn" onclick="searchToLocation(document.getElementById('toInput').value)">🔍</button>
-                            <div class="address-suggestions" id="toSuggestions"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <button class="navigate-btn mobile-navigate-btn" id="navigateBtn" onclick="startNavigation()" disabled>
-                    🚗 Start Navigation
-                </button>
-            </div>
-        </section>
 
         <!-- Route Hazards Section -->
         <section class="route-hazards-section" id="routeHazardsSection" style="display: none;">
@@ -2162,15 +2138,24 @@
         console.log('Geolocation available:', 'geolocation' in navigator);
         console.log('ServiceWorker available:', 'serviceWorker' in navigator);
 
-        // Check if map container exists
+        // Check if map container exists and initialize app
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded');
-            console.log('Map container found:', !!document.getElementById('map'));
+            console.log('🌟 DOM loaded');
+            console.log('📍 Map container found:', !!document.getElementById('map'));
+            console.log('🗺️ Leaflet available:', typeof L !== 'undefined');
 
             // Initialize app after a short delay to ensure everything is ready
             setTimeout(() => {
                 console.log('🚀 Initializing VibeVoyage App...');
                 window.app = new VibeVoyageApp();
+
+                // Additional map check after app initialization
+                setTimeout(() => {
+                    if (window.app && !window.app.map) {
+                        console.log('⚠️ Map not initialized, showing placeholder...');
+                        window.app.showMapPlaceholder();
+                    }
+                }, 1000);
             }, 200);
         });
     </script>

@@ -117,6 +117,41 @@ class VibeVoyageApp {
         
         this.init();
     }
+
+    /**
+     * Load Leaflet library dynamically if not available
+     */
+    loadLeafletLibrary() {
+        console.log('📦 Loading Leaflet library...');
+
+        // Load Leaflet CSS
+        const cssLink = document.createElement('link');
+        cssLink.rel = 'stylesheet';
+        cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        cssLink.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+        cssLink.crossOrigin = '';
+        document.head.appendChild(cssLink);
+
+        // Load Leaflet JS
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+        script.crossOrigin = '';
+
+        script.onload = () => {
+            console.log('✅ Leaflet loaded successfully');
+            setTimeout(() => {
+                this.initMap();
+            }, 100);
+        };
+
+        script.onerror = () => {
+            console.error('❌ Failed to load Leaflet');
+            this.showMapPlaceholder();
+        };
+
+        document.head.appendChild(script);
+    }
     
     async init() {
         console.log('🌟 VibeVoyage PWA Starting...');
@@ -148,6 +183,14 @@ class VibeVoyageApp {
 
         console.log('✅ VibeVoyage PWA Ready!');
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
+
+        // Force map initialization after a delay
+        setTimeout(() => {
+            if (!this.map) {
+                console.log('🔄 Map not initialized, retrying...');
+                this.initMap();
+            }
+        }, 1000);
     }
     
     initMap() {
@@ -158,7 +201,17 @@ class VibeVoyageApp {
             console.error('❌ Leaflet library not loaded');
             console.log('🔍 Checking if Leaflet script is in DOM...');
             const leafletScript = document.querySelector('script[src*="leaflet"]');
+            const leafletCSS = document.querySelector('link[href*="leaflet"]');
             console.log('📜 Leaflet script found:', !!leafletScript);
+            console.log('🎨 Leaflet CSS found:', !!leafletCSS);
+
+            // Try to load Leaflet if not available
+            if (!leafletScript) {
+                console.log('🔄 Attempting to load Leaflet...');
+                this.loadLeafletLibrary();
+                return;
+            }
+
             this.showMapPlaceholder();
             return;
         }
@@ -249,10 +302,18 @@ class VibeVoyageApp {
                 <div class="map-placeholder">
                     <div class="icon">🗺️</div>
                     <div>Map Loading...</div>
-                    <small>Click to retry if map doesn't load</small>
-                    <button onclick="app.initMap()" class="btn btn-secondary" style="margin-top: 10px;">
-                        🔄 Retry Map Load
-                    </button>
+                    <small>Initializing map components...</small>
+                    <div style="margin-top: 15px;">
+                        <button onclick="app.initMap()" class="btn btn-secondary" style="margin-right: 10px;">
+                            🔄 Retry Map
+                        </button>
+                        <button onclick="app.loadLeafletLibrary()" class="btn btn-secondary">
+                            📦 Load Leaflet
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 11px; color: #888;">
+                        Leaflet: ${typeof L !== 'undefined' ? '✅ Loaded' : '❌ Missing'}
+                    </div>
                 </div>
             `;
         }
