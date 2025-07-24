@@ -223,7 +223,8 @@ class VibeVoyageApp {
         this.loadUnitsFromStorage();
         this.initializeUnitSelectors();
 
-        console.log('✅ VibeVoyage PWA Ready!');
+        console.log('✅ VibeVoyage PWA Ready! v2025.15 - Units Restructured');
+        console.log('📏 Current units structure:', this.units);
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
 
         // Force map initialization after a delay
@@ -4322,7 +4323,7 @@ function toggleSettings() {
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <div class="settings-column">
-                    <h4 style="color: #00FF88; margin: 0 0 15px 0; font-size: 14px;">📏 Units & Measurements</h4>
+                    <h4 style="color: #00FF88; margin: 0 0 15px 0; font-size: 14px;">📏 Units & Measurements (v2025.15)</h4>
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Units System:</label>
                         <select id="unitsSystem" onchange="updateUnitsSystem(this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
