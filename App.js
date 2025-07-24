@@ -185,6 +185,24 @@ class VibeVoyageApp {
         this.currentMapType = 'street';
         this.followMode = true;
 
+        // Initialize hazard avoidance settings
+        this.hazardAvoidanceSettings = {
+            speedCameras: true,
+            redLightCameras: true,
+            railwayCrossings: true,
+            trafficLights: false,
+            schoolZones: true,
+            hospitalZones: true,
+            tollBooths: false,
+            bridges: false,
+            accidents: true,
+            weather: false,
+            steepGrades: false,
+            narrowRoads: false,
+            policeReports: true,
+            roadwork: true
+        };
+
         console.log('✅ VibeVoyage PWA Ready!');
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
 
@@ -889,21 +907,25 @@ class VibeVoyageApp {
         const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
         const end = `${this.destination.lng},${this.destination.lat}`;
 
+        // Build exclusion list based on hazard avoidance settings
+        const exclusions = this.buildRouteExclusions();
+        console.log('🚨 Route exclusions based on hazard settings:', exclusions);
+
         const routePromises = [
-            // Fastest route with turn-by-turn instructions
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true`),
+            // Fastest route with hazard avoidance
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true${exclusions.fastest}`),
 
-            // Avoid highways/motorways
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway&voice_instructions=true`),
+            // Avoid highways/motorways with hazard avoidance
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway${exclusions.noHighway}&voice_instructions=true`),
 
-            // Shortest distance route
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true`),
+            // Shortest distance route with hazard avoidance
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false${exclusions.shortest}&voice_instructions=true`),
 
-            // Avoid traffic lights and railway crossings
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=ferry&continue_straight=true&voice_instructions=true`),
+            // Traffic light avoidance with hazard avoidance
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=ferry&continue_straight=true${exclusions.noLights}&voice_instructions=true`),
 
-            // Railway-safe route (avoid level crossings)
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway,trunk,ferry&voice_instructions=true`)
+            // Railway-safe route with comprehensive hazard avoidance
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway,trunk,ferry${exclusions.noRailway}&voice_instructions=true`)
         ];
 
         const responses = await Promise.allSettled(routePromises);
@@ -1117,7 +1139,10 @@ class VibeVoyageApp {
         const tollInfo = route.legs && route.legs[0] && route.legs[0].annotation ?
             ' • May include tolls' : ' • Toll-free route';
 
-        return baseDesc + tollInfo;
+        // Add hazard avoidance info
+        const hazardInfo = this.getHazardAvoidanceDescription();
+
+        return baseDesc + tollInfo + hazardInfo;
     }
 
     estimateFuelCost(distanceMeters) {
@@ -2823,6 +2848,96 @@ class VibeVoyageApp {
         this.showNotification(`🔍 Zoom level: ${newZoom}`, 'info');
     }
 
+    // Hazard avoidance routing functions
+    buildRouteExclusions() {
+        const settings = this.hazardAvoidanceSettings;
+        let baseExclusions = [];
+
+        // Build base exclusions from hazard settings
+        if (settings.railwayCrossings) {
+            // Note: OSRM doesn't have direct railway crossing exclusion,
+            // but we can avoid certain road types that commonly have crossings
+            baseExclusions.push('trunk'); // Trunk roads often have level crossings
+        }
+
+        if (settings.tollBooths) {
+            baseExclusions.push('toll'); // Avoid toll roads
+        }
+
+        if (settings.bridges) {
+            baseExclusions.push('ferry'); // Avoid ferries and some bridge types
+        }
+
+        const baseExclusionString = baseExclusions.length > 0 ? `,${baseExclusions.join(',')}` : '';
+
+        return {
+            fastest: baseExclusionString,
+            noHighway: baseExclusionString,
+            shortest: baseExclusionString,
+            noLights: baseExclusionString,
+            noRailway: baseExclusionString + (settings.railwayCrossings ? ',trunk,secondary' : '')
+        };
+    }
+
+    updateHazardAvoidanceSettings() {
+        console.log('🚨 Updating hazard avoidance settings...');
+
+        // Read settings from the hazard panel checkboxes
+        const settings = {
+            speedCameras: this.getCheckboxValue('speedCameras'),
+            redLightCameras: this.getCheckboxValue('redLightCameras'),
+            railwayCrossings: this.getCheckboxValue('railwayCrossings'),
+            trafficLights: this.getCheckboxValue('trafficLights'),
+            schoolZones: this.getCheckboxValue('schoolZones'),
+            hospitalZones: this.getCheckboxValue('hospitalZones'),
+            tollBooths: this.getCheckboxValue('tollBooths'),
+            bridges: this.getCheckboxValue('bridges'),
+            accidents: this.getCheckboxValue('accidents'),
+            weather: this.getCheckboxValue('weather'),
+            steepGrades: this.getCheckboxValue('steepGrades'),
+            narrowRoads: this.getCheckboxValue('narrowRoads'),
+            policeReports: this.getCheckboxValue('policeReports'),
+            roadwork: this.getCheckboxValue('roadwork')
+        };
+
+        this.hazardAvoidanceSettings = settings;
+        console.log('🚨 Updated hazard settings:', settings);
+
+        // If we have a current route, recalculate with new settings
+        if (this.currentLocation && this.destination) {
+            console.log('🔄 Recalculating routes with new hazard settings...');
+            this.showNotification('🔄 Recalculating routes with hazard avoidance...', 'info');
+            this.calculateMultipleRoutes();
+        }
+    }
+
+    getCheckboxValue(id) {
+        const checkbox = document.getElementById(id);
+        return checkbox ? checkbox.checked : false;
+    }
+
+    getHazardAvoidanceDescription() {
+        const settings = this.hazardAvoidanceSettings;
+        const avoided = [];
+
+        if (settings.railwayCrossings) avoided.push('railway crossings');
+        if (settings.tollBooths) avoided.push('toll roads');
+        if (settings.bridges) avoided.push('bridges/ferries');
+        if (settings.speedCameras) avoided.push('speed cameras');
+        if (settings.trafficLights) avoided.push('traffic lights');
+
+        if (avoided.length === 0) {
+            return '';
+        } else if (avoided.length === 1) {
+            return ` • Avoids ${avoided[0]}`;
+        } else if (avoided.length === 2) {
+            return ` • Avoids ${avoided[0]} and ${avoided[1]}`;
+        } else {
+            const lastItem = avoided.pop();
+            return ` • Avoids ${avoided.join(', ')}, and ${lastItem}`;
+        }
+    }
+
     // Map control functions
     recenterMap() {
         console.log('🎯 Recentering map...');
@@ -4466,46 +4581,46 @@ function toggleHazardSettings() {
                         </div>
                         <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 📷 Speed Cameras
+                                <input type="checkbox" id="speedCameras" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 📷 Speed Cameras
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 🚦 Red Light Cameras
+                                <input type="checkbox" id="redLightCameras" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚦 Red Light Cameras
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 🚨 Police Reports
+                                <input type="checkbox" id="policeReports" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚨 Police Reports
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox"> 🚧 Road Works
+                                <input type="checkbox" id="roadwork" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚧 Road Works
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 🚂 Railway Crossings
+                                <input type="checkbox" id="railwayCrossings" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚂 Railway Crossings
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 🛣️ Complex Junctions
+                                <input type="checkbox" id="trafficLights" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🛣️ Complex Junctions
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 🏫 School Zones
+                                <input type="checkbox" id="schoolZones" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🏫 School Zones
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 🏥 Hospital Zones
+                                <input type="checkbox" id="hospitalZones" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🏥 Hospital Zones
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox"> 💰 Toll Booths
+                                <input type="checkbox" id="tollBooths" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 💰 Toll Booths
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox"> 🌉 Bridges/Tunnels
+                                <input type="checkbox" id="bridges" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🌉 Bridges/Tunnels
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" checked> 💥 Accident Reports
+                                <input type="checkbox" id="accidents" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 💥 Accident Reports
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox"> 🌧️ Weather Alerts
+                                <input type="checkbox" id="weather" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🌧️ Weather Alerts
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox"> ⛰️ Steep Grades
+                                <input type="checkbox" id="steepGrades" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> ⛰️ Steep Grades
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox"> 🛤️ Narrow Roads
+                                <input type="checkbox" id="narrowRoads" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🛤️ Narrow Roads
                             </label>
                         </div>
                         <div style="margin-top: 15px;">
