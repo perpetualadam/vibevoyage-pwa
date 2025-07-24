@@ -259,10 +259,11 @@ class VibeVoyageApp {
             display: getComputedStyle(mapContainer).display
         });
 
-        // Clear any existing content
-        mapContainer.innerHTML = '';
+        try {
+            // Clear any existing content
+            mapContainer.innerHTML = '';
 
-        // Initialize Leaflet map with better options
+            // Initialize Leaflet map with better options
         this.map = L.map('map', {
             center: [40.7128, -74.0060], // Default to NYC
             zoom: 13,
