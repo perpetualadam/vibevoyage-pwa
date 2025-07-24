@@ -81,6 +81,7 @@
         <div id="appStatus" class="status info">Checking app status...</div>
         <button class="test-button" onclick="checkAppStatus()">Check App Status</button>
         <button class="test-button" onclick="testSimpleSyntax()">Test Simple Syntax</button>
+        <button class="test-button" onclick="testMinimalApp()">Test Minimal App</button>
         <button class="test-button" onclick="initializeApp()">Initialize App</button>
     </div>
 
@@ -122,8 +123,11 @@
     <!-- Test Simple Syntax First -->
     <script src="test-syntax.js"></script>
 
-    <!-- Load Main App -->
-    <script src="App.js"></script>
+    <!-- Test Minimal App -->
+    <script src="minimal-app.js"></script>
+
+    <!-- Load Main App (commented out for testing) -->
+    <!-- <script src="App.js"></script> -->
 
     <script>
         // Debug functions
@@ -147,6 +151,31 @@
                 status.innerHTML = `
                     ❌ Simple syntax test FAILED!<br>
                     🔧 Even basic class definition doesn't work<br>
+                    📝 Check browser console for errors
+                `;
+            }
+        }
+
+        function testMinimalApp() {
+            const status = document.getElementById('appStatus');
+
+            console.log('=== MINIMAL APP TEST ===');
+            console.log('window.minimalApp:', typeof window.minimalApp, window.minimalApp);
+            console.log('========================');
+
+            if (typeof window.minimalApp !== 'undefined' && window.minimalApp) {
+                status.className = 'status success';
+                status.innerHTML = `
+                    ✅ Minimal app test PASSED!<br>
+                    🔧 Class definition works perfectly<br>
+                    📝 The issue is definitely in the full App.js file<br>
+                    🔍 Need to find the syntax error in App.js
+                `;
+            } else {
+                status.className = 'status error';
+                status.innerHTML = `
+                    ❌ Minimal app test FAILED!<br>
+                    🔧 Even minimal class definition doesn't work<br>
                     📝 Check browser console for errors
                 `;
             }
