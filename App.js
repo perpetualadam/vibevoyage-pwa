@@ -184,6 +184,21 @@ class VibeVoyageApp {
         // Initialize map type
         this.currentMapType = 'street';
         this.followMode = true;
+        this.satelliteProviders = [
+            {
+                name: 'Esri World Imagery',
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '© Esri, Maxar, Earthstar Geographics',
+                maxZoom: 20
+            },
+            {
+                name: 'Google Satellite',
+                url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+                attribution: '© Google',
+                maxZoom: 22
+            }
+        ];
+        this.currentSatelliteProvider = 0;
 
         // Initialize hazard avoidance settings
         this.hazardAvoidanceSettings = {
@@ -309,7 +324,7 @@ class VibeVoyageApp {
             boxZoom: false,
             keyboard: true,
             dragging: true,
-            maxZoom: 18,
+            maxZoom: 22,
             minZoom: 3,
             // Mobile performance options
             preferCanvas: false,
@@ -322,7 +337,7 @@ class VibeVoyageApp {
             // Add OpenStreetMap tiles
             this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
-                maxZoom: 19,
+                maxZoom: 20,
                 crossOrigin: true
             }).addTo(this.map);
 
@@ -2816,7 +2831,7 @@ class VibeVoyageApp {
         }
 
         const currentZoom = this.map.getZoom();
-        const newZoom = Math.min(currentZoom + 1, 18); // Max zoom 18
+        const newZoom = Math.min(currentZoom + 1, 22); // Max zoom 22
 
         this.map.setZoom(newZoom, {
             animate: true,
@@ -4505,18 +4520,21 @@ function toggleMapType() {
         app.map.removeLayer(app.tileLayer);
 
         if (app.currentMapType === 'street') {
-            // Switch to satellite
-            app.tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: '© Esri',
-                maxZoom: 19
+            // Switch to high-resolution satellite (Google for max zoom)
+            const provider = app.satelliteProviders[1]; // Google satellite for higher zoom
+            app.tileLayer = L.tileLayer(provider.url, {
+                attribution: provider.attribution,
+                maxZoom: provider.maxZoom,
+                tileSize: 256,
+                zoomOffset: 0
             }).addTo(app.map);
             app.currentMapType = 'satellite';
-            app.showNotification('🛰️ Switched to satellite view', 'info');
+            app.showNotification(`🛰️ Switched to ${provider.name} (max zoom ${provider.maxZoom})`, 'info');
         } else {
             // Switch back to street
             app.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
+                maxZoom: 20
             }).addTo(app.map);
             app.currentMapType = 'street';
             app.showNotification('🗺️ Switched to street view', 'info');
