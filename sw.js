@@ -1,10 +1,10 @@
 // VibeVoyage Service Worker
 // Provides offline functionality and caching for PWA
 
-const CACHE_NAME = 'vibevoyage-v1.0.0';
-const STATIC_CACHE = 'vibevoyage-static-v1.0.0';
-const DYNAMIC_CACHE = 'vibevoyage-dynamic-v1.0.0';
-const MAP_CACHE = 'vibevoyage-maps-v1.0.0';
+const CACHE_NAME = 'vibevoyage-v1.0.1';
+const STATIC_CACHE = 'vibevoyage-static-v1.0.1';
+const DYNAMIC_CACHE = 'vibevoyage-dynamic-v1.0.1';
+const MAP_CACHE = 'vibevoyage-maps-v1.0.1';
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
@@ -236,8 +236,15 @@ function isMapTileRequest(url) {
 }
 
 function isAPIRequest(url) {
+  // Exclude problematic APIs that cause CORS issues
+  if (url.hostname.includes('ipapi.co') ||
+      url.hostname.includes('country.is') ||
+      url.hostname.includes('ip-api.com')) {
+    return false;
+  }
+
   return url.pathname.startsWith('/api/') ||
-         url.hostname.includes('api.') ||
+         (url.hostname.includes('api.') && !url.hostname.includes('ipapi.co')) ||
          url.pathname.includes('/routing/') ||
          url.pathname.includes('/traffic/') ||
          url.pathname.includes('/poi/');

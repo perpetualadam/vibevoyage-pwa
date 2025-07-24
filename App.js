@@ -4517,19 +4517,10 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    
-    // Show custom install prompt
-    setTimeout(() => {
-        if (confirm('Install VibeVoyage as an app for the best experience?')) {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('User accepted the install prompt');
-                }
-                deferredPrompt = null;
-            });
-        }
-    }, 5000);
+    console.log('PWA install prompt available');
+
+    // Don't show automatic prompt - wait for user interaction
+    // The prompt will be available when user clicks a button
 });
 
 // Manual initialization function for debugging
