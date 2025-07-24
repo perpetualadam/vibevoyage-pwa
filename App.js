@@ -4176,7 +4176,6 @@ function toggleHazardSettings() {
             }
         }
     }
-}
 
 // Fallback simple settings function
 function showSimpleSettings() {
