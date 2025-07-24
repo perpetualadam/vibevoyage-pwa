@@ -98,11 +98,12 @@ class VibeVoyageApp {
 
         // Unit measurement system
         this.units = {
-            distance: 'metric', // metric, imperial, nautical
-            speed: 'kmh', // kmh, mph, ms, knots
+            system: 'metric',   // metric, imperial, nautical (overall system)
+            distance: 'km',     // km, miles, nautical (specific distance unit)
+            speed: 'kmh',       // kmh, mph, ms, knots
             temperature: 'celsius', // celsius, fahrenheit, kelvin
-            fuel: 'liters', // liters, gallons_us, gallons_uk
-            pressure: 'bar' // bar, psi, kpa
+            fuel: 'liters',     // liters, gallons_us, gallons_uk
+            pressure: 'bar'     // bar, psi, kpa
         };
 
         // Currency and location system
@@ -1769,7 +1770,7 @@ class VibeVoyageApp {
         const unit = targetUnit || this.units.distance;
 
         switch (unit) {
-            case 'imperial':
+            case 'miles':
                 if (meters < 1609) {
                     return { value: Math.round(meters * 3.28084), unit: 'ft' };
                 } else {
@@ -1777,7 +1778,7 @@ class VibeVoyageApp {
                 }
             case 'nautical':
                 return { value: (meters / 1852).toFixed(2), unit: 'nm' };
-            case 'metric':
+            case 'km':
             default:
                 if (meters < 1000) {
                     return { value: Math.round(meters), unit: 'm' };
@@ -2129,10 +2130,12 @@ class VibeVoyageApp {
 
     initializeUnitSelectors() {
         // Set unit selectors to saved values
+        const unitsSystemSelect = document.getElementById('unitsSystem');
         const distanceSelect = document.getElementById('distanceUnit');
         const speedSelect = document.getElementById('speedUnit');
         const fuelSelect = document.getElementById('fuelUnit');
 
+        if (unitsSystemSelect) unitsSystemSelect.value = this.units.system;
         if (distanceSelect) distanceSelect.value = this.units.distance;
         if (speedSelect) speedSelect.value = this.units.speed;
         if (fuelSelect) fuelSelect.value = this.units.fuel;
@@ -2536,9 +2539,9 @@ class VibeVoyageApp {
 
     // Distance formatting for voice with user units
     formatDistanceForVoice(distanceInMeters) {
-        const units = this.units.distance || 'metric';
+        const units = this.units.distance || 'km';
 
-        if (units === 'imperial') {
+        if (units === 'miles') {
             // Convert to feet/yards/miles
             const feet = distanceInMeters * 3.28084;
             if (feet < 100) {
@@ -4321,11 +4324,19 @@ function toggleSettings() {
                 <div class="settings-column">
                     <h4 style="color: #00FF88; margin: 0 0 15px 0; font-size: 14px;">📏 Units & Measurements</h4>
                     <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Units System:</label>
+                        <select id="unitsSystem" onchange="updateUnitsSystem(this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
+                            <option value="metric">Metric System</option>
+                            <option value="imperial">Imperial System</option>
+                            <option value="nautical">Nautical System</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Distance:</label>
                         <select id="distanceUnit" onchange="updateUnits('distance', this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
-                            <option value="metric">Metric (km, m)</option>
-                            <option value="imperial">Imperial (mi, ft)</option>
-                            <option value="nautical">Nautical (nm)</option>
+                            <option value="km">Kilometers (km)</option>
+                            <option value="miles">Miles (mi)</option>
+                            <option value="nautical">Nautical Miles (nm)</option>
                         </select>
                     </div>
                     <div style="margin-bottom: 15px;">
@@ -4930,6 +4941,56 @@ function toggleBatteryOptimization() {
 function handleAddressInput(inputType, query) {
     if (app && app.handleAddressInput) {
         app.handleAddressInput(inputType, query);
+    }
+}
+
+function updateUnitsSystem(systemValue) {
+    if (app && app.units) {
+        app.units.system = systemValue;
+
+        // Auto-update related units based on system
+        if (systemValue === 'metric') {
+            app.units.distance = 'km';
+            app.units.speed = 'kmh';
+            app.units.fuel = 'liters';
+        } else if (systemValue === 'imperial') {
+            app.units.distance = 'miles';
+            app.units.speed = 'mph';
+            app.units.fuel = 'gallons_us';
+        } else if (systemValue === 'nautical') {
+            app.units.distance = 'nautical';
+            app.units.speed = 'knots';
+            app.units.fuel = 'liters';
+        }
+
+        // Update the individual selectors to match
+        const distanceSelect = document.getElementById('distanceUnit');
+        const speedSelect = document.getElementById('speedUnit');
+        const fuelSelect = document.getElementById('fuelUnit');
+
+        if (distanceSelect) distanceSelect.value = app.units.distance;
+        if (speedSelect) speedSelect.value = app.units.speed;
+        if (fuelSelect) fuelSelect.value = app.units.fuel;
+
+        // Save to localStorage
+        localStorage.setItem('vibeVoyageUnits', JSON.stringify(app.units));
+
+        // Update all displays
+        app.updateUnitDisplays();
+
+        // Force refresh route displays if routes exist
+        if (app.availableRoutes && app.availableRoutes.length > 0) {
+            console.log('🔄 Refreshing route displays with new unit system...');
+            app.displayRouteOptions(app.availableRoutes);
+        }
+
+        // Update fuel price display
+        app.updateFuelPriceDisplay();
+
+        // Update header displays with new units
+        app.updateHeaderUnits();
+
+        app.showNotification(`📏 Units system updated to ${systemValue} - all units refreshed`, 'success');
     }
 }
 
