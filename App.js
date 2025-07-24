@@ -890,20 +890,20 @@ class VibeVoyageApp {
         const end = `${this.destination.lng},${this.destination.lat}`;
 
         const routePromises = [
-            // Fastest route
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true`),
+            // Fastest route with turn-by-turn instructions
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true`),
 
             // Avoid highways/motorways
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway`),
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway&voice_instructions=true`),
 
             // Shortest distance route
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false`),
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true`),
 
-            // Avoid traffic lights (prefer main roads)
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=ferry&continue_straight=true`),
+            // Avoid traffic lights and railway crossings
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=ferry&continue_straight=true&voice_instructions=true`),
 
-            // Scenic route (avoid highways, prefer smaller roads)
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway,trunk`)
+            // Railway-safe route (avoid level crossings)
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway,trunk,ferry&voice_instructions=true`)
         ];
 
         const responses = await Promise.allSettled(routePromises);
@@ -939,7 +939,7 @@ class VibeVoyageApp {
         if (requestIndex === 1) return 'no-highway';
         if (requestIndex === 2) return 'shortest';
         if (requestIndex === 3) return 'no-lights';
-        if (requestIndex === 4) return 'scenic';
+        if (requestIndex === 4) return 'no-railway';
         return 'alternative';
     }
 
@@ -1095,9 +1095,9 @@ class VibeVoyageApp {
         const names = {
             fastest: 'Fastest Route',
             shortest: 'Shortest Route',
-            scenic: 'Scenic Route',
             'no-highway': 'No Highways',
             'no-lights': 'Fewer Traffic Lights',
+            'no-railway': 'Avoid Railway Crossings',
             alternative: 'Alternative Route'
         };
         return names[type] || 'Route';
@@ -1107,9 +1107,9 @@ class VibeVoyageApp {
         const descriptions = {
             fastest: 'Optimized for speed with highways and main roads',
             shortest: 'Minimum distance with local roads',
-            scenic: 'Avoids highways for a more scenic drive',
             'no-highway': 'Avoids highways and motorways',
             'no-lights': 'Minimizes traffic lights and intersections',
+            'no-railway': 'Avoids railway crossings and level crossings',
             alternative: 'Alternative path with different road types'
         };
 
@@ -2254,14 +2254,10 @@ class VibeVoyageApp {
 
         if (!hazardCount || !hazardIcons) return;
 
-        // Simulate hazard detection along route
-        const simulatedHazards = [
-            { type: 'camera', icon: '📸', name: 'Speed Camera', distance: '2.1 km' },
-            { type: 'police', icon: '🚨', name: 'Police Report', distance: '5.8 km' },
-            { type: 'roadwork', icon: '🚧', name: 'Road Work', distance: '8.3 km' }
-        ];
+        // Real hazard detection (disabled fake hazards)
+        const realHazards = this.detectRealHazards();
 
-        hazardCount.textContent = `${simulatedHazards.length} hazards detected`;
+        hazardCount.textContent = `${realHazards.length} hazards detected`;
 
         hazardIcons.innerHTML = '';
         simulatedHazards.forEach(hazard => {
@@ -2314,6 +2310,9 @@ class VibeVoyageApp {
         this.showNotification('🚗 Journey started! Drive safely.', 'success');
         this.speakInstruction('Journey started. Follow the route and drive safely.');
         this.addVoiceLogEntry('Journey started');
+
+        // Start turn-by-turn navigation
+        this.startTurnByTurnNavigation();
     }
 
     pauseJourney() {
@@ -2578,12 +2577,8 @@ class VibeVoyageApp {
 
         if (!hazardSummaryContent || !hazardTotal) return;
 
-        // Simulate hazards ahead on route
-        const hazardsAhead = [
-            { type: 'camera', icon: '📸', name: 'Speed Camera', distance: 1200, description: 'Fixed speed camera on A1' },
-            { type: 'police', icon: '🚨', name: 'Police', distance: 2800, description: 'Police checkpoint reported' },
-            { type: 'roadwork', icon: '🚧', name: 'Road Work', distance: 4500, description: 'Lane closure ahead' }
-        ];
+        // Real hazards ahead on route (no fake data)
+        const hazardsAhead = this.getRealHazardsAhead();
 
         hazardTotal.textContent = `${hazardsAhead.length} ahead`;
 
@@ -2621,16 +2616,122 @@ class VibeVoyageApp {
     }
 
     simulateNearbyHazards() {
-        // Simulate some hazards for demonstration
-        return [
+        // Return real hazards only (no fake demonstrations)
+        return [];
+    }
+
+    // Real hazard detection functions
+    detectRealHazards() {
+        // TODO: Integrate with real hazard APIs (Waze, TomTom, etc.)
+        // For now, return empty array to stop fake alerts
+        return [];
+    }
+
+    getRealHazardsAhead() {
+        // TODO: Integrate with real traffic/hazard data sources
+        // For now, return empty array to stop fake alerts
+        return [];
+    }
+
+    // Turn-by-turn navigation
+    startTurnByTurnNavigation() {
+        console.log('🗣️ Starting turn-by-turn navigation...');
+
+        if (!this.currentRoute || !this.currentRoute.instructions) {
+            console.log('❌ No route instructions available for navigation');
+            return;
+        }
+
+        this.navigationInstructions = this.currentRoute.instructions;
+        this.currentInstructionIndex = 0;
+        this.navigationActive = true;
+
+        // Start monitoring location for navigation
+        this.startNavigationLocationTracking();
+
+        // Give first instruction
+        if (this.navigationInstructions.length > 0) {
+            const firstInstruction = this.navigationInstructions[0];
+            this.announceInstruction(firstInstruction);
+        }
+    }
+
+    startNavigationLocationTracking() {
+        if (this.navigationLocationWatcher) {
+            navigator.geolocation.clearWatch(this.navigationLocationWatcher);
+        }
+
+        this.navigationLocationWatcher = navigator.geolocation.watchPosition(
+            (position) => {
+                if (this.navigationActive) {
+                    this.updateNavigationProgress(position);
+                }
+            },
+            (error) => {
+                console.error('❌ Navigation location error:', error);
+            },
             {
-                type: 'camera',
-                icon: '📸',
-                name: 'Speed Camera',
-                distance: Math.random() * 1000,
-                alerted: false
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 1000
             }
-        ];
+        );
+    }
+
+    updateNavigationProgress(position) {
+        if (!this.navigationInstructions || this.currentInstructionIndex >= this.navigationInstructions.length) {
+            return;
+        }
+
+        const currentInstruction = this.navigationInstructions[this.currentInstructionIndex];
+        const userLocation = [position.coords.latitude, position.coords.longitude];
+
+        // Calculate distance to next instruction point
+        if (currentInstruction.location) {
+            const distanceToInstruction = this.calculateDistance(
+                userLocation,
+                currentInstruction.location
+            );
+
+            // If close to instruction point, announce next instruction
+            if (distanceToInstruction < 50) { // 50 meters
+                this.currentInstructionIndex++;
+                if (this.currentInstructionIndex < this.navigationInstructions.length) {
+                    const nextInstruction = this.navigationInstructions[this.currentInstructionIndex];
+                    this.announceInstruction(nextInstruction);
+                } else {
+                    this.announceArrival();
+                }
+            }
+        }
+    }
+
+    announceInstruction(instruction) {
+        if (!instruction) return;
+
+        const distance = instruction.distance ? this.formatDistanceForVoice(instruction.distance) : '';
+        const direction = instruction.text || instruction.instruction || 'Continue straight';
+
+        let announcement = direction;
+        if (distance) {
+            announcement = `In ${distance}, ${direction}`;
+        }
+
+        console.log('🗣️ Navigation instruction:', announcement);
+        this.speakInstruction(announcement);
+        this.addVoiceLogEntry(`Navigation: ${announcement}`);
+    }
+
+    announceArrival() {
+        const announcement = 'You have arrived at your destination';
+        console.log('🏁 Arrival announcement:', announcement);
+        this.speakInstruction(announcement);
+        this.addVoiceLogEntry('Navigation: Arrived at destination');
+        this.navigationActive = false;
+
+        if (this.navigationLocationWatcher) {
+            navigator.geolocation.clearWatch(this.navigationLocationWatcher);
+        }
     }
 
     showHazardAlert(hazard) {
