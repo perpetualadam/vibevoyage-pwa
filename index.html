@@ -13,8 +13,8 @@
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossorigin=""/>
 
-    <!-- TypeScript Application (compiled) -->
-    <script type="module" src="./dist/VibeVoyageApp.js" defer></script>
+    <!-- Main Application -->
+    <script src="./App.js" defer></script>
     
     <style>
         * {
@@ -2132,53 +2132,62 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Debug script to check if everything loads -->
-    <script>
-        console.log('🌟 VibeVoyage PWA Loading...');
-        console.log('Leaflet available:', typeof L !== 'undefined');
-        console.log('Geolocation available:', 'geolocation' in navigator);
-        console.log('ServiceWorker available:', 'serviceWorker' in navigator);
-
-        // Check if map container exists and initialize app
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🌟 DOM loaded');
-            console.log('📍 Map container found:', !!document.getElementById('map'));
-            console.log('🗺️ Leaflet available:', typeof L !== 'undefined');
-
-            // Initialize app after a short delay to ensure everything is ready
-            setTimeout(() => {
-                console.log('🚀 Initializing VibeVoyage App...');
-                window.app = new VibeVoyageApp();
-
-                // Additional map check after app initialization
-                setTimeout(() => {
-                    if (window.app && !window.app.map) {
-                        console.log('⚠️ Map not initialized, showing placeholder...');
-                        window.app.showMapPlaceholder();
-                    }
-                }, 1000);
-            }, 200);
-        });
-    </script>
-
+    <!-- Main Application with all fixes integrated -->
     <script src="./App.js"></script>
 
     <script>
-        // Global functions for backward compatibility and new features
+        // Global functions that work with the main App.js
         function toggleHazardSettings() {
-            const container = document.getElementById('hazardAvoidanceContainer');
-            if (container) {
-                container.style.display = container.style.display === 'none' ? 'block' : 'none';
+            if (window.app && window.app.toggleHazardSettings) {
+                window.app.toggleHazardSettings();
+            } else {
+                // Fallback implementation
+                const container = document.getElementById('hazardAvoidanceContainer');
+                if (container) {
+                    if (container.style.display === 'none' || !container.style.display) {
+                        container.style.display = 'block';
+                        if (!container.innerHTML.trim()) {
+                            container.innerHTML = `
+                                <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                        <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
+                                        <button onclick="toggleHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
+                                    </div>
+                                    <div style="margin-bottom: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                            <input type="checkbox" checked> 📷 Speed Cameras
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                            <input type="checkbox" checked> 🚦 Red Light Cameras
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                            <input type="checkbox"> 🚧 Road Works
+                                        </label>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        container.style.display = 'none';
+                    }
+                }
             }
         }
 
         function toggleSettings() {
-            // Legacy settings toggle
-            console.log('Settings toggle');
+            if (window.app && window.app.toggleSettings) {
+                window.app.toggleSettings();
+            } else {
+                console.log('Settings toggle - app not ready');
+            }
         }
 
         function getCurrentLocation() {
-            // Legacy location function
-            console.log('Get current location');
+            if (window.app && window.app.getCurrentLocation) {
+                window.app.getCurrentLocation();
+            } else {
+                console.log('Get current location - app not ready');
+            }
         }
     </script>
 </body>
