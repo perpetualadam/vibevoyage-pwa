@@ -1768,10 +1768,10 @@ class VibeVoyageApp {
 
     // Unit Conversion Functions
     convertDistance(meters, targetUnit = null) {
-        const unit = targetUnit || this.units.distance;
+        const system = targetUnit || this.units.system;
 
-        switch (unit) {
-            case 'miles':
+        switch (system) {
+            case 'imperial':
                 if (meters < 1609) {
                     return { value: Math.round(meters * 3.28084), unit: 'ft' };
                 } else {
@@ -1779,7 +1779,7 @@ class VibeVoyageApp {
                 }
             case 'nautical':
                 return { value: (meters / 1852).toFixed(2), unit: 'nm' };
-            case 'km':
+            case 'metric':
             default:
                 if (meters < 1000) {
                     return { value: Math.round(meters), unit: 'm' };
@@ -1825,7 +1825,7 @@ class VibeVoyageApp {
 
     formatDistance(meters) {
         const converted = this.convertDistance(meters);
-        console.log('📏 formatDistance:', meters, 'meters →', converted, 'units:', this.units.distance);
+        console.log('📏 formatDistance:', meters, 'meters →', converted, 'system:', this.units.system);
         return `${converted.value} ${converted.unit}`;
     }
 
@@ -2117,6 +2117,36 @@ class VibeVoyageApp {
         console.log('✅ Unit displays updated');
     }
 
+    refreshAllDistanceDisplays() {
+        console.log('🔄 Refreshing ALL distance displays with current units system...');
+
+        // Update any visible distance text on the page
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(element => {
+            if (element.textContent && element.textContent.includes('km') && !element.textContent.includes('km/h')) {
+                // This is a distance display that might need updating
+                console.log('Found potential distance display:', element.textContent);
+            }
+        });
+
+        // Force update of specific known distance displays
+        const routeStats = document.querySelectorAll('.route-stat-value');
+        routeStats.forEach(stat => {
+            const icon = stat.parentElement.querySelector('.route-stat-icon');
+            if (icon && icon.textContent === '📏') {
+                // This is a distance stat, force refresh if we have route data
+                if (this.availableRoutes) {
+                    const routeIndex = Array.from(stat.parentElement.parentElement.parentElement.children).indexOf(stat.parentElement.parentElement);
+                    if (this.availableRoutes[routeIndex]) {
+                        stat.textContent = this.formatDistance(this.availableRoutes[routeIndex].distance);
+                    }
+                }
+            }
+        });
+
+        console.log('✅ All distance displays refreshed');
+    }
+
     loadUnitsFromStorage() {
         const savedUnits = localStorage.getItem('vibeVoyageUnits');
         if (savedUnits) {
@@ -2132,14 +2162,26 @@ class VibeVoyageApp {
     initializeUnitSelectors() {
         // Set unit selectors to saved values
         const unitsSystemSelect = document.getElementById('unitsSystem');
-        const distanceSelect = document.getElementById('distanceUnit');
+        const distanceDisplay = document.getElementById('distanceDisplay');
         const speedSelect = document.getElementById('speedUnit');
         const fuelSelect = document.getElementById('fuelUnit');
 
         if (unitsSystemSelect) unitsSystemSelect.value = this.units.system;
-        if (distanceSelect) distanceSelect.value = this.units.distance;
         if (speedSelect) speedSelect.value = this.units.speed;
         if (fuelSelect) fuelSelect.value = this.units.fuel;
+
+        // Update distance display based on system
+        if (distanceDisplay) {
+            let distanceText = 'Auto-set by Units System';
+            if (this.units.system === 'metric') {
+                distanceText = 'Kilometers (km) and Meters (m)';
+            } else if (this.units.system === 'imperial') {
+                distanceText = 'Miles (mi) and Feet (ft)';
+            } else if (this.units.system === 'nautical') {
+                distanceText = 'Nautical Miles (nm)';
+            }
+            distanceDisplay.textContent = distanceText;
+        }
 
         // Update fuel price display
         this.updateFuelPriceDisplay();
@@ -2540,9 +2582,9 @@ class VibeVoyageApp {
 
     // Distance formatting for voice with user units
     formatDistanceForVoice(distanceInMeters) {
-        const units = this.units.distance || 'km';
+        const system = this.units.system || 'metric';
 
-        if (units === 'miles') {
+        if (system === 'imperial') {
             // Convert to feet/yards/miles
             const feet = distanceInMeters * 3.28084;
             if (feet < 100) {
@@ -4333,12 +4375,11 @@ function toggleSettings() {
                         </select>
                     </div>
                     <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Distance:</label>
-                        <select id="distanceUnit" onchange="updateUnits('distance', this.value)" style="width: 100%; padding: 8px; border-radius: 4px; background: #333; color: #fff; border: 1px solid #555; font-size: 12px;">
-                            <option value="km">Kilometers (km)</option>
-                            <option value="miles">Miles (mi)</option>
-                            <option value="nautical">Nautical Miles (nm)</option>
-                        </select>
+                        <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Distance Display:</label>
+                        <div id="distanceDisplay" style="width: 100%; padding: 8px; border-radius: 4px; background: #222; color: #00FF88; border: 1px solid #555; font-size: 12px;">
+                            Auto-set by Units System
+                        </div>
+                        <small style="color: #888; font-size: 10px;">Controlled by Units System setting above</small>
                     </div>
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; color: #ccc; font-size: 12px;">Speed:</label>
@@ -4965,18 +5006,30 @@ function updateUnitsSystem(systemValue) {
         }
 
         // Update the individual selectors to match
-        const distanceSelect = document.getElementById('distanceUnit');
+        const distanceDisplay = document.getElementById('distanceDisplay');
         const speedSelect = document.getElementById('speedUnit');
         const fuelSelect = document.getElementById('fuelUnit');
 
-        if (distanceSelect) distanceSelect.value = app.units.distance;
         if (speedSelect) speedSelect.value = app.units.speed;
         if (fuelSelect) fuelSelect.value = app.units.fuel;
+
+        // Update distance display based on system
+        if (distanceDisplay) {
+            let distanceText = 'Auto-set by Units System';
+            if (systemValue === 'metric') {
+                distanceText = 'Kilometers (km) and Meters (m)';
+            } else if (systemValue === 'imperial') {
+                distanceText = 'Miles (mi) and Feet (ft)';
+            } else if (systemValue === 'nautical') {
+                distanceText = 'Nautical Miles (nm)';
+            }
+            distanceDisplay.textContent = distanceText;
+        }
 
         // Save to localStorage
         localStorage.setItem('vibeVoyageUnits', JSON.stringify(app.units));
 
-        // Update all displays
+        // Update all displays immediately
         app.updateUnitDisplays();
 
         // Force refresh route displays if routes exist
@@ -4991,7 +5044,15 @@ function updateUnitsSystem(systemValue) {
         // Update header displays with new units
         app.updateHeaderUnits();
 
-        app.showNotification(`📏 Units system updated to ${systemValue} - all units refreshed`, 'success');
+        // Force update navigation progress if active
+        if (app.isNavigating) {
+            app.updateNavigationProgress();
+        }
+
+        // Update any existing distance displays on the page
+        app.refreshAllDistanceDisplays();
+
+        app.showNotification(`📏 Units system updated to ${systemValue} - all displays refreshed`, 'success');
     }
 }
 
