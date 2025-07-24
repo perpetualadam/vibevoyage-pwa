@@ -2117,34 +2117,9 @@ class VibeVoyageApp {
     }
 
     async detectCountryByIP() {
-        try {
-            // Use a free IP geolocation service
-            const response = await fetch('https://ipapi.co/json/', {
-                timeout: 5000
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                return data.country_code;
-            }
-        } catch (error) {
-            console.log('IP-based country detection failed:', error);
-        }
-
-        try {
-            // Fallback to another service
-            const response = await fetch('https://api.country.is/', {
-                timeout: 5000
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                return data.country;
-            }
-        } catch (error) {
-            console.log('Fallback IP detection failed:', error);
-        }
-
+        // Skip IP-based detection to avoid CORS issues in browser
+        // Use other detection methods (timezone, language, coordinates) instead
+        console.log('Skipping IP-based country detection (CORS limitations)');
         return null;
     }
 

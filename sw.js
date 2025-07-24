@@ -8,18 +8,11 @@ const MAP_CACHE = 'vibevoyage-maps-v1.0.0';
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/app.html',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/sounds/police_siren.mp3',
-  '/sounds/camera_beep.mp3',
-  '/sounds/speed_alert.mp3',
-  '/sounds/railway_bell.mp3',
-  '/sounds/toll_chime.mp3',
+  './',
+  './index.html',
+  './App.js',
+  './manifest.json',
+  './icons/icon.svg',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
