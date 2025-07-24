@@ -53,60 +53,7 @@
     "utilities"
   ],
   
-  "shortcuts": [
-    {
-      "name": "Start Navigation",
-      "short_name": "Navigate",
-      "description": "Start turn-by-turn navigation",
-      "url": "/navigate",
-      "icons": [
-        {
-          "src": "/icons/shortcut-navigate.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Report Hazard",
-      "short_name": "Report",
-      "description": "Report traffic hazard or police",
-      "url": "/report",
-      "icons": [
-        {
-          "src": "/icons/shortcut-report.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "AR Navigation",
-      "short_name": "AR Mode",
-      "description": "Start augmented reality navigation",
-      "url": "/ar-navigation",
-      "icons": [
-        {
-          "src": "/icons/shortcut-ar.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Eco Routes",
-      "short_name": "Eco Mode",
-      "description": "Find eco-friendly routes",
-      "url": "/eco-routes",
-      "icons": [
-        {
-          "src": "/icons/shortcut-eco.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    }
-  ],
+
   
   "related_applications": [
     {

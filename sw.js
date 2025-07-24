@@ -31,9 +31,21 @@ self.addEventListener('install', (event) => {
   
   event.waitUntil(
     Promise.all([
-      caches.open(STATIC_CACHE).then((cache) => {
+      caches.open(STATIC_CACHE).then(async (cache) => {
         console.log('VibeVoyage SW: Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
+        try {
+          return await cache.addAll(STATIC_ASSETS);
+        } catch (error) {
+          console.warn('VibeVoyage SW: Some assets failed to cache:', error);
+          // Try to cache assets individually to avoid complete failure
+          for (const asset of STATIC_ASSETS) {
+            try {
+              await cache.add(asset);
+            } catch (assetError) {
+              console.warn(`VibeVoyage SW: Failed to cache ${asset}:`, assetError);
+            }
+          }
+        }
       }),
       self.skipWaiting()
     ])
