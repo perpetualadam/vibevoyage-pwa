@@ -17,7 +17,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Main Application -->
-    <script src="App.js?v=2025.3" defer></script>
+    <script src="App.js?v=2025.4&t=1737734400" defer></script>
     
     <style>
         * {
@@ -1880,7 +1880,14 @@
         </header>
 
         <!-- Hazard Avoidance Panel (Hidden by default) -->
-        <div id="hazardAvoidanceContainer" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 10000; background: rgba(0,0,0,0.9); padding: 20px; max-height: 80vh; overflow-y: auto;">
+        <div id="hazardAvoidanceContainer" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 10000; background: rgba(0,0,0,0.9); padding: 20px; max-height: 80vh; overflow-y: auto;" onclick="if(event.target === this) this.style.display='none';">
+            <!-- Emergency close button -->
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 10001;">
+                <button onclick="document.getElementById('hazardAvoidanceContainer').style.display='none'; event.stopPropagation();"
+                        style="background: #FF4444; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">
+                    ✕ CLOSE
+                </button>
+            </div>
         </div>
 
         <!-- Journey Planning Section - Moved to top of map -->
