@@ -22,7 +22,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Main Application -->
-    <script src="App.js?v=2025.7&navigation=real" defer></script>
+    <script src="App.js?v=2025.8&controls=added" defer></script>
     
     <style>
         * {
@@ -2231,6 +2231,33 @@
                         container.style.display = 'none';
                     }
                 }
+            }
+        }
+
+        function recenterMap() {
+            console.log('🎯 Recenter map button clicked');
+            if (window.app && window.app.recenterMap) {
+                window.app.recenterMap();
+            } else {
+                console.log('App not ready for recenter');
+            }
+        }
+
+        function zoomIn() {
+            console.log('➕ Zoom in button clicked');
+            if (window.app && window.app.zoomIn) {
+                window.app.zoomIn();
+            } else {
+                console.log('App not ready for zoom in');
+            }
+        }
+
+        function zoomOut() {
+            console.log('➖ Zoom out button clicked');
+            if (window.app && window.app.zoomOut) {
+                window.app.zoomOut();
+            } else {
+                console.log('App not ready for zoom out');
             }
         }
 

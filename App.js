@@ -2734,6 +2734,142 @@ class VibeVoyageApp {
         }
     }
 
+    // Map control functions
+    recenterMap() {
+        console.log('🎯 Recentering map...');
+
+        if (!this.map) {
+            console.log('❌ Map not initialized');
+            this.showNotification('Map not ready', 'warning');
+            return;
+        }
+
+        // If we have a current location, center on it
+        if (this.currentLocation) {
+            console.log('📍 Centering on current location:', this.currentLocation);
+            this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15, {
+                animate: true,
+                duration: 0.5
+            });
+            this.showNotification('🎯 Map recentered on your location', 'success');
+            this.addVoiceLogEntry('Map recentered on current location');
+        }
+        // If we have a destination but no current location, center on destination
+        else if (this.destination) {
+            console.log('🎯 Centering on destination:', this.destination);
+            this.map.setView([this.destination.lat, this.destination.lng], 15, {
+                animate: true,
+                duration: 0.5
+            });
+            this.showNotification('🎯 Map centered on destination', 'info');
+        }
+        // If we have a route, fit the route bounds
+        else if (this.currentRoute && this.currentRoute.coordinates) {
+            console.log('🗺️ Fitting route bounds');
+            const bounds = L.latLngBounds(this.currentRoute.coordinates);
+            this.map.fitBounds(bounds, { padding: [20, 20] });
+            this.showNotification('🎯 Map centered on route', 'info');
+        }
+        // Default to a general location (London)
+        else {
+            console.log('🌍 Centering on default location');
+            this.map.setView([51.5074, -0.1278], 10, {
+                animate: true,
+                duration: 0.5
+            });
+            this.showNotification('🎯 Map recentered', 'info');
+        }
+    }
+
+    zoomIn() {
+        console.log('➕ Zooming in...');
+
+        if (!this.map) {
+            console.log('❌ Map not initialized');
+            this.showNotification('Map not ready', 'warning');
+            return;
+        }
+
+        const currentZoom = this.map.getZoom();
+        const newZoom = Math.min(currentZoom + 1, 18); // Max zoom 18
+
+        this.map.setZoom(newZoom, {
+            animate: true,
+            duration: 0.3
+        });
+
+        console.log(`🔍 Zoomed in to level ${newZoom}`);
+        this.showNotification(`🔍 Zoom level: ${newZoom}`, 'info');
+    }
+
+    zoomOut() {
+        console.log('➖ Zooming out...');
+
+        if (!this.map) {
+            console.log('❌ Map not initialized');
+            this.showNotification('Map not ready', 'warning');
+            return;
+        }
+
+        const currentZoom = this.map.getZoom();
+        const newZoom = Math.max(currentZoom - 1, 3); // Min zoom 3
+
+        this.map.setZoom(newZoom, {
+            animate: true,
+            duration: 0.3
+        });
+
+        console.log(`🔍 Zoomed out to level ${newZoom}`);
+        this.showNotification(`🔍 Zoom level: ${newZoom}`, 'info');
+    }
+
+    // Map control functions
+    recenterMap() {
+        console.log('🎯 Recentering map...');
+
+        if (!this.map) {
+            console.log('❌ Map not initialized');
+            this.showNotification('Map not ready', 'warning');
+            return;
+        }
+
+        // If we have a current location, center on it
+        if (this.currentLocation) {
+            console.log('📍 Centering on current location:', this.currentLocation);
+            this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15, {
+                animate: true,
+                duration: 0.5
+            });
+            this.showNotification('🎯 Map recentered on your location', 'success');
+            this.addVoiceLogEntry('Map recentered on current location');
+        }
+        // If we have a destination but no current location, center on destination
+        else if (this.destination) {
+            console.log('🎯 Centering on destination:', this.destination);
+            this.map.setView([this.destination.lat, this.destination.lng], 15, {
+                animate: true,
+                duration: 0.5
+            });
+            this.showNotification('🎯 Map centered on destination', 'info');
+        }
+        // If we have a route, fit the route bounds
+        else if (this.currentRoute && this.currentRoute.coordinates) {
+            console.log('🗺️ Fitting route bounds');
+            const bounds = L.latLngBounds(this.currentRoute.coordinates);
+            this.map.fitBounds(bounds, { padding: [20, 20] });
+            this.showNotification('🎯 Map centered on route', 'info');
+        }
+        // Default to a general location (London)
+        else {
+            console.log('🌍 Centering on default location');
+            this.map.setView([51.5074, -0.1278], 10, {
+                animate: true,
+                duration: 0.5
+            });
+            this.showNotification('🎯 Map recentered', 'info');
+        }
+    }
+
     showHazardAlert(hazard) {
         const alertElement = document.getElementById('navHazardAlert');
         if (alertElement) {
