@@ -1458,7 +1458,6 @@ class VibeVoyageApp {
 
     updateFollowModeUI(isFollowing) {
         const followBtn = document.getElementById('followModeBtn');
-        const recenterBtn = document.getElementById('recenterBtn');
 
         if (followBtn) {
             if (isFollowing) {
@@ -1468,10 +1467,6 @@ class VibeVoyageApp {
                 followBtn.classList.remove('follow-active');
                 followBtn.title = 'Enable Follow Mode';
             }
-        }
-
-        if (recenterBtn) {
-            recenterBtn.style.display = isFollowing ? 'none' : 'flex';
         }
     }
 
@@ -1492,12 +1487,6 @@ class VibeVoyageApp {
             // Check if user moved significantly or is off-screen
             if (this.shouldRecenterMap(previousLocation, newLocation)) {
                 this.smoothPanToLocation(newLocation);
-            }
-        } else if (this.isNavigating) {
-            // If not in follow mode, check if user is completely off-screen
-            if (this.checkIfUserOffScreen()) {
-                // Show re-center button with pulse animation
-                this.showRecenterPrompt();
             }
         }
     }
@@ -1655,15 +1644,7 @@ class VibeVoyageApp {
         return zoom;
     }
 
-    showRecenterPrompt() {
-        const recenterBtn = document.getElementById('recenterBtn');
-        if (recenterBtn && !recenterBtn.classList.contains('recenter-pulse')) {
-            recenterBtn.classList.add('recenter-pulse');
-            setTimeout(() => {
-                recenterBtn.classList.remove('recenter-pulse');
-            }, 500);
-        }
-    }
+
 
     calculateDistance(lat1, lng1, lat2, lng2) {
         const R = 6371000; // Earth's radius in meters
@@ -2564,7 +2545,17 @@ class VibeVoyageApp {
             { type: 'camera', icon: '📸', name: 'Speed Camera', color: '#FFA500' },
             { type: 'police', icon: '🚨', name: 'Police Report', color: '#FF6B6B' },
             { type: 'roadwork', icon: '🚧', name: 'Road Work', color: '#FFD700' },
-            { type: 'traffic-light', icon: '🚦', name: 'Traffic Light', color: '#87CEEB' }
+            { type: 'traffic-light', icon: '🚦', name: 'Red Light Camera', color: '#87CEEB' },
+            { type: 'railway', icon: '🚂', name: 'Railway Crossing', color: '#8B4513' },
+            { type: 'crossroad', icon: '🛣️', name: 'Complex Junction', color: '#9370DB' },
+            { type: 'school-zone', icon: '🏫', name: 'School Zone', color: '#32CD32' },
+            { type: 'hospital', icon: '🏥', name: 'Hospital Zone', color: '#FF69B4' },
+            { type: 'toll', icon: '💰', name: 'Toll Booth', color: '#DAA520' },
+            { type: 'bridge', icon: '🌉', name: 'Bridge/Tunnel', color: '#708090' },
+            { type: 'accident', icon: '💥', name: 'Accident Report', color: '#DC143C' },
+            { type: 'weather', icon: '🌧️', name: 'Weather Alert', color: '#4682B4' },
+            { type: 'steep-hill', icon: '⛰️', name: 'Steep Grade', color: '#8B4513' },
+            { type: 'narrow-road', icon: '🛤️', name: 'Narrow Road', color: '#696969' }
         ];
 
         // Add hazards at random points along route
@@ -4028,11 +4019,7 @@ function toggleMapType() {
     }
 }
 
-function recenterMap() {
-    if (app && app.currentLocation && app.map) {
-        app.map.setView([app.currentLocation.lat, app.currentLocation.lng], app.map.getZoom(), { animate: true });
-    }
-}
+
 
 function zoomIn() {
     if (app && app.map) {
@@ -4307,27 +4294,7 @@ function toggleFollowMode() {
     }
 }
 
-function recenterMap() {
-    if (!app || !app.currentLocation) {
-        app.showNotification('❌ Location not available', 'error');
-        return;
-    }
 
-    console.log('🎯 Re-centering map on user location');
-
-    // Re-center and enable follow mode
-    app.enableFollowMode();
-    app.showNotification('🎯 Map re-centered', 'success');
-
-    // Add pulse animation to button
-    const recenterBtn = document.getElementById('recenterBtn');
-    if (recenterBtn) {
-        recenterBtn.classList.add('recenter-pulse');
-        setTimeout(() => {
-            recenterBtn.classList.remove('recenter-pulse');
-        }, 500);
-    }
-}
 
 function toggleNavigationView() {
     if (!app || !app.map) return;
