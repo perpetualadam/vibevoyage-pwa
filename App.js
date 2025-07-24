@@ -263,12 +263,21 @@ class VibeVoyageApp {
             // Clear any existing content
             mapContainer.innerHTML = '';
 
-            // Initialize Leaflet map with better options
+            // Initialize Leaflet map with mobile-optimized options
         this.map = L.map('map', {
             center: [40.7128, -74.0060], // Default to NYC
             zoom: 13,
             zoomControl: false,
-            attributionControl: false
+            attributionControl: false,
+            tap: true,
+            touchZoom: true,
+            doubleClickZoom: true,
+            scrollWheelZoom: true,
+            boxZoom: false,
+            keyboard: true,
+            dragging: true,
+            maxZoom: 18,
+            minZoom: 3
         });
 
             // Add OpenStreetMap tiles
@@ -858,11 +867,17 @@ class VibeVoyageApp {
             // Fastest route
             fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true`),
 
-            // Alternative routes with different parameters
+            // Avoid highways/motorways
             fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway`),
 
             // Shortest distance route
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false`)
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false`),
+
+            // Avoid traffic lights (prefer main roads)
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=ferry&continue_straight=true`),
+
+            // Scenic route (avoid highways, prefer smaller roads)
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway,trunk`)
         ];
 
         const responses = await Promise.allSettled(routePromises);
@@ -895,8 +910,10 @@ class VibeVoyageApp {
 
     getRouteType(requestIndex, routeIndex) {
         if (requestIndex === 0 && routeIndex === 0) return 'fastest';
-        if (requestIndex === 1) return 'scenic';
+        if (requestIndex === 1) return 'no-highway';
         if (requestIndex === 2) return 'shortest';
+        if (requestIndex === 3) return 'no-lights';
+        if (requestIndex === 4) return 'scenic';
         return 'alternative';
     }
 
@@ -1053,6 +1070,8 @@ class VibeVoyageApp {
             fastest: 'Fastest Route',
             shortest: 'Shortest Route',
             scenic: 'Scenic Route',
+            'no-highway': 'No Highways',
+            'no-lights': 'Fewer Traffic Lights',
             alternative: 'Alternative Route'
         };
         return names[type] || 'Route';
@@ -1063,6 +1082,8 @@ class VibeVoyageApp {
             fastest: 'Optimized for speed with highways and main roads',
             shortest: 'Minimum distance with local roads',
             scenic: 'Avoids highways for a more scenic drive',
+            'no-highway': 'Avoids highways and motorways',
+            'no-lights': 'Minimizes traffic lights and intersections',
             alternative: 'Alternative path with different road types'
         };
 
@@ -4064,8 +4085,8 @@ function toggleHazardSettings() {
     if (container) {
         if (container.style.display === 'none' || !container.style.display) {
             container.style.display = 'block';
-            // Initialize hazard panel content if empty
-            if (!container.innerHTML.trim()) {
+            // Always refresh hazard panel content to ensure latest version
+            container.innerHTML = '';
                 container.innerHTML = `
                     <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
