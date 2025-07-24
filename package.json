@@ -20,9 +20,11 @@
     "analyze:bundle": "npx webpack-bundle-analyzer build/static/js/*.js",
     "cost:report": "node scripts/generate-cost-report.js",
     "free:check": "node scripts/check-free-tier-usage.js",
-    "build:ts": "tsc",
+    "build:ts": "node build-typescript.js",
     "watch:ts": "tsc --watch",
     "dev:ts": "tsc --watch",
+    "dev:server": "node dev-server.js",
+    "dev": "npm run build:ts && npm run dev:server",
     "clean:ts": "rm -rf dist"
   },
   "dependencies": {

@@ -1,0 +1,223 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "speed_camera_001",
+        "type": "speed_camera",
+        "name": "Fixed Speed Camera",
+        "description": "Speed limit enforcement camera",
+        "speed_limit": 30,
+        "direction": "both",
+        "severity": "high",
+        "verified": true,
+        "last_updated": "2024-01-15T10:30:00Z",
+        "source": "government_data",
+        "avoidance_radius": 100
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1276, 51.5074]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "speed_camera_002",
+        "type": "speed_camera",
+        "name": "Mobile Speed Camera Zone",
+        "description": "Frequent mobile speed camera location",
+        "speed_limit": 40,
+        "direction": "northbound",
+        "severity": "medium",
+        "verified": true,
+        "last_updated": "2024-01-10T14:20:00Z",
+        "source": "community_reports",
+        "avoidance_radius": 150
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1234, 51.5123]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "red_light_camera_001",
+        "type": "red_light_camera",
+        "name": "Traffic Light Camera",
+        "description": "Red light enforcement camera at intersection",
+        "intersection": "Main St & High St",
+        "direction": "all_directions",
+        "severity": "high",
+        "verified": true,
+        "last_updated": "2024-01-12T09:15:00Z",
+        "source": "government_data",
+        "avoidance_radius": 50
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1189, 51.5033]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "red_light_camera_002",
+        "type": "red_light_camera",
+        "name": "Junction Camera",
+        "description": "Red light and speed camera combination",
+        "intersection": "Park Lane & Oxford St",
+        "direction": "all_directions",
+        "severity": "high",
+        "verified": true,
+        "last_updated": "2024-01-08T16:45:00Z",
+        "source": "government_data",
+        "avoidance_radius": 75
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1467, 51.5134]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "roadwork_001",
+        "type": "roadwork",
+        "name": "Road Construction",
+        "description": "Major road construction - lane closures",
+        "start_date": "2024-01-01T00:00:00Z",
+        "end_date": "2024-03-31T23:59:59Z",
+        "severity": "high",
+        "lanes_affected": 2,
+        "total_lanes": 3,
+        "verified": true,
+        "last_updated": "2024-01-14T11:30:00Z",
+        "source": "government_data",
+        "avoidance_radius": 200
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-0.1345, 51.5089],
+          [-0.1356, 51.5095],
+          [-0.1367, 51.5101]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "roadwork_002",
+        "type": "roadwork",
+        "name": "Bridge Maintenance",
+        "description": "Bridge repair work - temporary traffic lights",
+        "start_date": "2024-01-15T06:00:00Z",
+        "end_date": "2024-02-15T18:00:00Z",
+        "severity": "medium",
+        "lanes_affected": 1,
+        "total_lanes": 2,
+        "verified": true,
+        "last_updated": "2024-01-15T08:00:00Z",
+        "source": "local_authority",
+        "avoidance_radius": 100
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1423, 51.5067]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "speed_camera_003",
+        "type": "speed_camera",
+        "name": "School Zone Camera",
+        "description": "Speed camera in school zone",
+        "speed_limit": 20,
+        "direction": "both",
+        "severity": "high",
+        "school_hours_only": true,
+        "active_times": "07:30-09:00,15:00-16:30",
+        "verified": true,
+        "last_updated": "2024-01-13T12:00:00Z",
+        "source": "government_data",
+        "avoidance_radius": 120
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1298, 51.5156]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "average_speed_camera_001",
+        "type": "average_speed_camera",
+        "name": "Average Speed Check Zone",
+        "description": "Average speed enforcement zone",
+        "speed_limit": 50,
+        "zone_length": 2.5,
+        "direction": "both",
+        "severity": "high",
+        "verified": true,
+        "last_updated": "2024-01-11T10:15:00Z",
+        "source": "government_data",
+        "avoidance_radius": 300
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-0.1567, 51.5201],
+          [-0.1578, 51.5215],
+          [-0.1589, 51.5229],
+          [-0.1601, 51.5243]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "roadwork_003",
+        "type": "roadwork",
+        "name": "Utility Work",
+        "description": "Gas pipe replacement - single lane closure",
+        "start_date": "2024-01-20T09:00:00Z",
+        "end_date": "2024-01-25T17:00:00Z",
+        "severity": "low",
+        "lanes_affected": 1,
+        "total_lanes": 3,
+        "verified": true,
+        "last_updated": "2024-01-19T14:30:00Z",
+        "source": "utility_company",
+        "avoidance_radius": 50
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1512, 51.5178]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "red_light_camera_003",
+        "type": "red_light_camera",
+        "name": "Pedestrian Crossing Camera",
+        "description": "Camera at pedestrian crossing",
+        "intersection": "Victoria St Crossing",
+        "direction": "both",
+        "severity": "medium",
+        "verified": true,
+        "last_updated": "2024-01-09T13:20:00Z",
+        "source": "government_data",
+        "avoidance_radius": 40
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1387, 51.4987]
+      }
+    }
+  ]
+}
