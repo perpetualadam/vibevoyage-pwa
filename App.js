@@ -2049,6 +2049,7 @@ class VibeVoyageApp {
             const priceDisplay = this.getFuelPriceDisplay();
             fuelPriceDisplay.innerHTML = `Current fuel price: ${priceDisplay}`;
         }
+    }
 
     updateHeaderUnits() {
         // Update any header elements that display units
