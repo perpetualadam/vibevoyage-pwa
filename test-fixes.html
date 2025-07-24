@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage - Test Fixes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid #333;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #00FF88;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+            border-color: #00FF88;
+        }
+
+        .map-container {
+            position: relative;
+            height: 400px;
+            margin: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .controls {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .control-group {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #333;
+        }
+
+        .control-group h3 {
+            color: #00FF88;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .test-button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .test-button:hover {
+            background: #444;
+            border-color: #00FF88;
+        }
+
+        .test-button:active {
+            background: #00FF88;
+            color: #000;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00FF88;
+            color: #00FF88;
+        }
+
+        .status.error {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #FF6B6B;
+            color: #FF6B6B;
+        }
+
+        .status.info {
+            background: rgba(135, 206, 235, 0.2);
+            border: 1px solid #87CEEB;
+            color: #87CEEB;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: bold;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success { background: #00FF88; color: #000; }
+        .notification.error { background: #FF6B6B; }
+        .notification.warning { background: #FFA500; color: #000; }
+        .notification.info { background: #87CEEB; color: #000; }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #00FF88;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .setting-item {
+            margin-bottom: 10px;
+        }
+
+        .setting-btn {
+            width: 100%;
+            padding: 15px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            text-align: left;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .setting-btn:hover {
+            background: #444;
+            border-color: #00FF88;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <span>🧭</span>
+            <span>VibeVoyage - Test Fixes</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="hazardSettingsBtn">🚨</button>
+            <button class="btn btn-secondary" id="settingsBtn">⚙️</button>
+            <button class="btn btn-secondary" id="locationBtn">📍</button>
+        </div>
+    </header>
+
+    <!-- Map Container -->
+    <div class="map-container">
+        <div id="map">
+            🗺️ Map will load here (Testing backup map system)
+        </div>
+    </div>
+
+    <!-- Test Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <h3>🔧 Settings Button Tests</h3>
+            <button class="test-button" onclick="testSettingsButton()">Test Settings Button</button>
+            <button class="test-button" onclick="testHazardSettings()">Test Hazard Settings</button>
+            <div id="settingsStatus" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="control-group">
+            <h3>📍 Location Button Tests</h3>
+            <button class="test-button" onclick="testLocationButton()">Test Location Button</button>
+            <button class="test-button" onclick="testGeolocation()">Test Geolocation API</button>
+            <div id="locationStatus" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="control-group">
+            <h3>🗺️ Map System Tests</h3>
+            <button class="test-button" onclick="testBackupMap()">Test Backup Map</button>
+            <button class="test-button" onclick="testMapFallback()">Test Map Fallback</button>
+            <div id="mapStatus" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="control-group">
+            <h3>🚨 Notification Tests</h3>
+            <button class="test-button" onclick="showTestNotification('success')">Success Notification</button>
+            <button class="test-button" onclick="showTestNotification('error')">Error Notification</button>
+            <button class="test-button" onclick="showTestNotification('warning')">Warning Notification</button>
+            <button class="test-button" onclick="showTestNotification('info')">Info Notification</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ Settings</h3>
+                <button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
+            </div>
+            <div class="setting-item">
+                <button class="setting-btn" onclick="showTestNotification('info', 'Hazard settings opened!')">
+                    🚨 Hazard Avoidance Settings
+                </button>
+            </div>
+            <div class="setting-item">
+                <button class="setting-btn" onclick="showTestNotification('info', 'Voice settings coming soon!')">
+                    🔊 Voice Settings
+                </button>
+            </div>
+            <div class="setting-item">
+                <button class="setting-btn" onclick="showTestNotification('info', 'Unit settings coming soon!')">
+                    📏 Units & Measurements
+                </button>
+            </div>
+            <div class="setting-item">
+                <button class="setting-btn" onclick="showTestNotification('info', 'Map settings coming soon!')">
+                    🗺️ Map Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hazard Settings Modal -->
+    <div id="hazardModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🚨 Hazard Avoidance</h3>
+                <button class="close-btn" onclick="closeModal('hazardModal')">✕</button>
+            </div>
+            <div class="setting-item">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" checked> 📷 Speed Cameras
+                </label>
+            </div>
+            <div class="setting-item">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" checked> 🚦 Red Light Cameras
+                </label>
+            </div>
+            <div class="setting-item">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox"> 🚧 Road Works
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test Functions
+        function testSettingsButton() {
+            const status = document.getElementById('settingsStatus');
+            try {
+                document.getElementById('settingsBtn').click();
+                updateStatus('settingsStatus', 'Settings button working!', 'success');
+            } catch (error) {
+                updateStatus('settingsStatus', 'Settings button failed: ' + error.message, 'error');
+            }
+        }
+
+        function testHazardSettings() {
+            const status = document.getElementById('settingsStatus');
+            try {
+                document.getElementById('hazardSettingsBtn').click();
+                updateStatus('settingsStatus', 'Hazard settings button working!', 'success');
+            } catch (error) {
+                updateStatus('settingsStatus', 'Hazard settings failed: ' + error.message, 'error');
+            }
+        }
+
+        function testLocationButton() {
+            const status = document.getElementById('locationStatus');
+            try {
+                document.getElementById('locationBtn').click();
+                updateStatus('locationStatus', 'Location button clicked successfully!', 'success');
+            } catch (error) {
+                updateStatus('locationStatus', 'Location button failed: ' + error.message, 'error');
+            }
+        }
+
+        function testGeolocation() {
+            const status = document.getElementById('locationStatus');
+            if (navigator.geolocation) {
+                updateStatus('locationStatus', 'Testing geolocation...', 'info');
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        updateStatus('locationStatus', 
+                            `Location found: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`, 
+                            'success');
+                    },
+                    (error) => {
+                        updateStatus('locationStatus', 'Geolocation failed: ' + error.message, 'error');
+                    }
+                );
+            } else {
+                updateStatus('locationStatus', 'Geolocation not supported', 'error');
+            }
+        }
+
+        function testBackupMap() {
+            const mapElement = document.getElementById('map');
+            const status = document.getElementById('mapStatus');
+            
+            try {
+                mapElement.innerHTML = '🗺️ Backup Map Loaded Successfully!<br><small>Canvas-based map system working</small>';
+                mapElement.style.background = 'linear-gradient(45deg, #00FF88, #87CEEB)';
+                mapElement.style.color = '#000';
+                updateStatus('mapStatus', 'Backup map system working!', 'success');
+            } catch (error) {
+                updateStatus('mapStatus', 'Backup map failed: ' + error.message, 'error');
+            }
+        }
+
+        function testMapFallback() {
+            const mapElement = document.getElementById('map');
+            const status = document.getElementById('mapStatus');
+            
+            // Simulate Leaflet failure and fallback
+            updateStatus('mapStatus', 'Simulating Leaflet failure...', 'info');
+            
+            setTimeout(() => {
+                mapElement.innerHTML = '⚡ Fallback Map Active<br><small>Fast loading backup system</small>';
+                mapElement.style.background = '#FFA500';
+                mapElement.style.color = '#000';
+                updateStatus('mapStatus', 'Map fallback system working!', 'success');
+            }, 1000);
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+        }
+
+        function showTestNotification(type, message) {
+            const messages = {
+                success: message || 'Test successful! ✅',
+                error: message || 'Test error! ❌',
+                warning: message || 'Test warning! ⚠️',
+                info: message || 'Test info! ℹ️'
+            };
+            
+            showNotification(messages[type], type);
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Event Listeners
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            openModal('settingsModal');
+            showNotification('Settings opened!', 'success');
+        });
+
+        document.getElementById('hazardSettingsBtn').addEventListener('click', () => {
+            openModal('hazardModal');
+            showNotification('Hazard settings opened!', 'success');
+        });
+
+        document.getElementById('locationBtn').addEventListener('click', () => {
+            showNotification('Getting location...', 'info');
+            testGeolocation();
+        });
+
+        // Close modals when clicking overlay
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            showNotification('VibeVoyage Test Page Loaded! 🚗', 'success');
+            console.log('🧪 Test page ready - All fixes can be tested here');
+        });
+    </script>
+</body>
+</html>

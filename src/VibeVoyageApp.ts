@@ -9,6 +9,7 @@ import HazardDetectionService from './services/HazardDetectionService';
 import VoiceNavigationService from './services/VoiceNavigationService';
 import NavigationService from './services/NavigationService';
 import UnitsAndCostService from './services/UnitsAndCostService';
+import BackupMapService from './services/BackupMapService';
 import HazardAvoidancePanel from './components/HazardAvoidancePanel';
 
 import type { SearchSuggestion } from './services/GeocodingService';
@@ -22,6 +23,8 @@ interface AppState {
   destination: Coordinates | null;
   isNavigating: boolean;
   map: any;
+  backupMap: BackupMapService | null;
+  isUsingBackupMap: boolean;
   route: any;
   hazardAlerts: HazardAlert[];
 }
@@ -48,6 +51,8 @@ class VibeVoyageApp {
       destination: null,
       isNavigating: false,
       map: null,
+      backupMap: null,
+      isUsingBackupMap: false,
       route: null,
       hazardAlerts: []
     };
@@ -75,16 +80,7 @@ class VibeVoyageApp {
       // Show loading state
       this.showLoadingState('Initializing application...');
 
-      // Load Leaflet library
-      await this.initializeLeaflet();
-
-      // Initialize map
-      await this.initializeMap();
-
-      // Initialize location services
-      await this.initializeLocation();
-
-      // Initialize UI components
+      // Initialize UI components first for better UX
       this.initializeComponents();
 
       // Setup event listeners
@@ -92,6 +88,30 @@ class VibeVoyageApp {
 
       // Setup service listeners
       this.setupServiceListeners();
+
+      try {
+        // Load Leaflet library with timeout
+        await this.initializeLeaflet();
+      } catch (error) {
+        console.warn('Leaflet initialization failed, will use backup map:', error);
+        this.state.isUsingBackupMap = true;
+      }
+
+      try {
+        // Initialize map (will use backup if needed)
+        await this.initializeMap();
+      } catch (error) {
+        console.error('Map initialization failed:', error);
+        this.showNotification('Map loading failed. Using simplified interface.', 'warning');
+      }
+
+      try {
+        // Initialize location services
+        await this.initializeLocation();
+      } catch (error) {
+        console.warn('Location services failed:', error);
+        this.showNotification('Location access denied. Some features may be limited.', 'warning');
+      }
 
       this.state.isInitialized = true;
       this.hideLoadingState();
@@ -101,25 +121,36 @@ class VibeVoyageApp {
 
     } catch (error) {
       console.error('Failed to initialize VibeVoyage:', error);
-      this.showError('Failed to initialize application. Please refresh and try again.');
+      this.showError('Failed to initialize application. Using limited functionality.');
+
+      // Still mark as initialized to allow basic functionality
+      this.state.isInitialized = true;
+      this.hideLoadingState();
     }
   }
 
   private async initializeLeaflet(): Promise<void> {
     this.showLoadingState('Loading map library...');
-    
+
     try {
-      await this.services.leafletLoader.loadLeaflet({
-        version: '1.9.4',
-        timeout: 10000,
-        fallbackToLocal: true,
-        retryAttempts: 3
-      });
-      
+      // Try to load Leaflet with a shorter timeout
+      await Promise.race([
+        this.services.leafletLoader.loadLeaflet({
+          version: '1.9.4',
+          timeout: 5000, // Reduced timeout
+          fallbackToLocal: true,
+          retryAttempts: 2 // Reduced retry attempts
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Leaflet loading timeout')), 8000)
+        )
+      ]);
+
       console.log('Leaflet loaded successfully');
     } catch (error) {
-      console.error('Failed to load Leaflet:', error);
-      throw new Error('Map library failed to load');
+      console.warn('Failed to load Leaflet, will use backup map:', error);
+      this.state.isUsingBackupMap = true;
+      // Don't throw error, continue with backup map
     }
   }
 
@@ -131,8 +162,29 @@ class VibeVoyageApp {
       throw new Error('Map container not found');
     }
 
-    // Initialize Leaflet map
+    if (this.state.isUsingBackupMap) {
+      // Use backup map
+      await this.initializeBackupMap();
+    } else {
+      // Try to use Leaflet
+      try {
+        await this.initializeLeafletMap();
+      } catch (error) {
+        console.warn('Leaflet map initialization failed, falling back to backup map:', error);
+        this.state.isUsingBackupMap = true;
+        await this.initializeBackupMap();
+      }
+    }
+
+    console.log(`Map initialized (${this.state.isUsingBackupMap ? 'backup' : 'Leaflet'})`);
+  }
+
+  private async initializeLeafletMap(): Promise<void> {
     const L = (window as any).L;
+    if (!L) {
+      throw new Error('Leaflet not available');
+    }
+
     this.state.map = L.map('map', {
       center: [51.5074, -0.1278], // London default
       zoom: 13,
@@ -140,16 +192,47 @@ class VibeVoyageApp {
       attributionControl: true
     });
 
-    // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Add tile layer with timeout
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(this.state.map);
+      maxZoom: 19,
+      timeout: 5000
+    });
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Tile loading timeout'));
+      }, 10000);
+
+      tileLayer.on('load', () => {
+        clearTimeout(timeout);
+        resolve(void 0);
+      });
+
+      tileLayer.on('tileerror', () => {
+        console.warn('Some tiles failed to load');
+        // Don't reject, just continue
+      });
+
+      tileLayer.addTo(this.state.map);
+
+      // Resolve after a short delay even if not all tiles loaded
+      setTimeout(() => {
+        clearTimeout(timeout);
+        resolve(void 0);
+      }, 3000);
+    });
 
     // Add custom controls
     this.addMapControls();
+  }
 
-    console.log('Map initialized');
+  private async initializeBackupMap(): Promise<void> {
+    this.state.backupMap = BackupMapService.getInstance();
+    await this.state.backupMap.initializeBackupMap('map');
+
+    // Show backup map notification
+    this.showNotification('Using lightweight map mode for faster loading', 'info');
   }
 
   private async initializeLocation(): Promise<void> {
@@ -163,16 +246,8 @@ class VibeVoyageApp {
       };
 
       // Center map on user location
-      if (this.state.map) {
-        const L = (window as any).L;
-        this.state.map.setView([this.state.currentLocation.lat, this.state.currentLocation.lng], 15);
-        
-        // Add user location marker
-        L.marker([this.state.currentLocation.lat, this.state.currentLocation.lng])
-          .addTo(this.state.map)
-          .bindPopup('Your location')
-          .openPopup();
-      }
+      this.centerMapOnLocation(this.state.currentLocation, 15);
+      this.addUserLocationMarker(this.state.currentLocation);
 
       // Start watching position
       this.startLocationTracking();
@@ -306,34 +381,6 @@ class VibeVoyageApp {
     }
   }
 
-  private addDestinationMarker(coordinates: Coordinates): void {
-    if (!this.state.map) return;
-
-    const L = (window as any).L;
-    
-    // Remove existing destination marker
-    this.state.map.eachLayer((layer: any) => {
-      if (layer.options && layer.options.isDestination) {
-        this.state.map.removeLayer(layer);
-      }
-    });
-
-    // Add new destination marker
-    L.marker([coordinates.lat, coordinates.lng], { isDestination: true })
-      .addTo(this.state.map)
-      .bindPopup('Destination')
-      .openPopup();
-
-    // Fit map to show both current location and destination
-    if (this.state.currentLocation) {
-      const bounds = L.latLngBounds([
-        [this.state.currentLocation.lat, this.state.currentLocation.lng],
-        [coordinates.lat, coordinates.lng]
-      ]);
-      this.state.map.fitBounds(bounds, { padding: [20, 20] });
-    }
-  }
-
   private enableNavigationButton(): void {
     const navButton = document.getElementById('navigateBtn') as HTMLButtonElement;
     if (navButton) {
@@ -355,10 +402,25 @@ class VibeVoyageApp {
       recenterBtn.addEventListener('click', () => this.recenterMap());
     }
 
+    // Location button
+    const locationBtn = document.querySelector('[onclick="getCurrentLocation()"]');
+    if (locationBtn) {
+      locationBtn.removeAttribute('onclick');
+      locationBtn.addEventListener('click', () => this.handleLocationButtonClick());
+    }
+
     // Settings button
     const settingsBtn = document.querySelector('[onclick="toggleSettings()"]');
     if (settingsBtn) {
+      settingsBtn.removeAttribute('onclick');
       settingsBtn.addEventListener('click', () => this.toggleSettings());
+    }
+
+    // Hazard settings button
+    const hazardBtn = document.getElementById('hazardSettingsBtn');
+    if (hazardBtn) {
+      hazardBtn.removeAttribute('onclick');
+      hazardBtn.addEventListener('click', () => this.toggleHazardSettings());
     }
   }
 
@@ -507,16 +569,265 @@ class VibeVoyageApp {
     });
   }
 
+  private centerMapOnLocation(location: Coordinates, zoom: number = 15): void {
+    if (this.state.isUsingBackupMap && this.state.backupMap) {
+      this.state.backupMap.setCenter(location.lat, location.lng);
+      this.state.backupMap.setZoom(zoom);
+    } else if (this.state.map) {
+      this.state.map.setView([location.lat, location.lng], zoom);
+    }
+  }
+
+  private addUserLocationMarker(location: Coordinates): void {
+    if (this.state.isUsingBackupMap && this.state.backupMap) {
+      this.state.backupMap.setUserLocation(location.lat, location.lng);
+    } else if (this.state.map) {
+      const L = (window as any).L;
+
+      // Remove existing user markers
+      this.state.map.eachLayer((layer: any) => {
+        if (layer.options && layer.options.isUserLocation) {
+          this.state.map.removeLayer(layer);
+        }
+      });
+
+      // Add new user location marker
+      L.marker([location.lat, location.lng], { isUserLocation: true })
+        .addTo(this.state.map)
+        .bindPopup('Your current location')
+        .openPopup();
+    }
+  }
+
+  private addDestinationMarker(coordinates: Coordinates): void {
+    if (this.state.isUsingBackupMap && this.state.backupMap) {
+      this.state.backupMap.setDestination(coordinates.lat, coordinates.lng);
+    } else if (this.state.map) {
+      const L = (window as any).L;
+
+      // Remove existing destination marker
+      this.state.map.eachLayer((layer: any) => {
+        if (layer.options && layer.options.isDestination) {
+          this.state.map.removeLayer(layer);
+        }
+      });
+
+      // Add new destination marker
+      L.marker([coordinates.lat, coordinates.lng], { isDestination: true })
+        .addTo(this.state.map)
+        .bindPopup('Destination')
+        .openPopup();
+    }
+
+    // Fit map to show both current location and destination
+    if (this.state.currentLocation) {
+      this.fitMapToBounds(this.state.currentLocation, coordinates);
+    }
+  }
+
+  private fitMapToBounds(location1: Coordinates, location2: Coordinates): void {
+    if (this.state.isUsingBackupMap && this.state.backupMap) {
+      // For backup map, just center between the two points
+      const centerLat = (location1.lat + location2.lat) / 2;
+      const centerLng = (location1.lng + location2.lng) / 2;
+      this.state.backupMap.setCenter(centerLat, centerLng);
+
+      // Calculate appropriate zoom based on distance
+      const distance = this.calculateDistance(location1, location2);
+      let zoom = 13;
+      if (distance < 1000) zoom = 15;
+      else if (distance < 5000) zoom = 13;
+      else if (distance < 20000) zoom = 11;
+      else zoom = 9;
+
+      this.state.backupMap.setZoom(zoom);
+    } else if (this.state.map) {
+      const L = (window as any).L;
+      const bounds = L.latLngBounds([
+        [location1.lat, location1.lng],
+        [location2.lat, location2.lng]
+      ]);
+      this.state.map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  }
+
+  private calculateDistance(point1: Coordinates, point2: Coordinates): number {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = this.toRadians(point2.lat - point1.lat);
+    const dLng = this.toRadians(point2.lng - point1.lng);
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(this.toRadians(point1.lat)) * Math.cos(this.toRadians(point2.lat)) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRadians(degrees: number): number {
+    return degrees * (Math.PI / 180);
+  }
+
   private recenterMap(): void {
-    if (this.state.map && this.state.currentLocation) {
-      this.state.map.setView([this.state.currentLocation.lat, this.state.currentLocation.lng], 15);
+    if (this.state.currentLocation) {
+      this.centerMapOnLocation(this.state.currentLocation, 15);
+    }
+  }
+
+  private async handleLocationButtonClick(): Promise<void> {
+    try {
+      this.showNotification('Getting your location...', 'info');
+
+      const position = await this.getCurrentPosition();
+      this.state.currentLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+
+      // Update map if available
+      this.centerMapOnLocation(this.state.currentLocation, 15);
+      this.addUserLocationMarker(this.state.currentLocation);
+
+      this.showNotification('Location updated!', 'success');
+    } catch (error) {
+      console.error('Failed to get location:', error);
+      this.showNotification('Failed to get location. Please check permissions.', 'error');
     }
   }
 
   private toggleSettings(): void {
+    // Create a general settings panel
+    this.showGeneralSettings();
+  }
+
+  private toggleHazardSettings(): void {
     if (this.components.hazardPanel) {
       this.components.hazardPanel.toggle();
+    } else {
+      // Initialize hazard panel if not already done
+      const container = document.getElementById('hazardAvoidanceContainer');
+      if (container) {
+        this.components.hazardPanel = new HazardAvoidancePanel('hazardAvoidanceContainer');
+        this.components.hazardPanel.show();
+
+        // Setup listener for settings changes
+        this.components.hazardPanel.onSettingsChange((settings) => {
+          this.services.hazardDetection.updateSettings(settings);
+        });
+      }
     }
+  }
+
+  private showGeneralSettings(): void {
+    // Create a simple settings modal
+    const existingModal = document.getElementById('generalSettingsModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'generalSettingsModal';
+    modal.innerHTML = `
+      <div class="settings-modal-overlay" onclick="this.parentElement.remove()">
+        <div class="settings-modal-content" onclick="event.stopPropagation()">
+          <div class="settings-header">
+            <h3>⚙️ Settings</h3>
+            <button class="close-btn" onclick="this.closest('.settings-modal-overlay').parentElement.remove()">✕</button>
+          </div>
+          <div class="settings-body">
+            <div class="setting-item">
+              <button class="setting-btn" onclick="document.getElementById('hazardAvoidanceContainer').style.display='block'">
+                🚨 Hazard Avoidance Settings
+              </button>
+            </div>
+            <div class="setting-item">
+              <button class="setting-btn" onclick="alert('Voice settings coming soon!')">
+                🔊 Voice Settings
+              </button>
+            </div>
+            <div class="setting-item">
+              <button class="setting-btn" onclick="alert('Unit settings coming soon!')">
+                📏 Units & Measurements
+              </button>
+            </div>
+            <div class="setting-item">
+              <button class="setting-btn" onclick="alert('Map settings coming soon!')">
+                🗺️ Map Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add styles
+    const styles = `
+      <style>
+        .settings-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2000;
+        }
+        .settings-modal-content {
+          background: #1a1a1a;
+          border-radius: 12px;
+          padding: 20px;
+          max-width: 400px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+          border: 1px solid #333;
+        }
+        .settings-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          color: #00FF88;
+        }
+        .close-btn {
+          background: none;
+          border: none;
+          color: #ccc;
+          font-size: 20px;
+          cursor: pointer;
+          padding: 5px;
+          border-radius: 50%;
+        }
+        .close-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        .setting-item {
+          margin-bottom: 10px;
+        }
+        .setting-btn {
+          width: 100%;
+          padding: 15px;
+          background: #333;
+          border: 1px solid #555;
+          border-radius: 8px;
+          color: #fff;
+          cursor: pointer;
+          text-align: left;
+          font-size: 14px;
+          transition: all 0.2s;
+        }
+        .setting-btn:hover {
+          background: #444;
+          border-color: #00FF88;
+        }
+      </style>
+    `;
+
+    modal.innerHTML = styles + modal.innerHTML;
+    document.body.appendChild(modal);
   }
 
   private addMapControls(): void {
