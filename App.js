@@ -218,6 +218,10 @@ class VibeVoyageApp {
             roadwork: true
         };
 
+        // Load saved units from storage
+        this.loadUnitsFromStorage();
+        this.initializeUnitSelectors();
+
         console.log('✅ VibeVoyage PWA Ready!');
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
 
@@ -1108,11 +1112,11 @@ class VibeVoyageApp {
                     </div>
                     <div class="route-stat">
                         <span class="route-stat-icon">📏</span>
-                        <span class="route-stat-value">${distance} km</span>
+                        <span class="route-stat-value">${this.formatDistance(route.distance)}</span>
                     </div>
                     <div class="route-stat">
                         <span class="route-stat-icon">⚡</span>
-                        <span class="route-stat-value">${avgSpeed} km/h</span>
+                        <span class="route-stat-value">${this.formatSpeed(avgSpeed)}</span>
                     </div>
                     <div class="route-stat">
                         <span class="route-stat-icon">⛽</span>
@@ -2274,7 +2278,7 @@ class VibeVoyageApp {
 
         routeInfo.innerHTML = `
             <span class="route-name">${this.getRouteName(route.type)}</span>
-            <span class="route-stats">${distance} km • ${timeText}</span>
+            <span class="route-stats">${this.formatDistance(route.distance)} • ${timeText}</span>
         `;
 
         // Detect and display hazards
@@ -2515,7 +2519,7 @@ class VibeVoyageApp {
 
     // Distance formatting for voice with user units
     formatDistanceForVoice(distanceInMeters) {
-        const units = this.userUnits || 'metric';
+        const units = this.units.distance || 'metric';
 
         if (units === 'imperial') {
             // Convert to feet/yards/miles
@@ -3676,11 +3680,8 @@ class VibeVoyageApp {
     }
 
     formatDistance(meters) {
-        if (meters < 1000) {
-            return `${Math.round(meters)} m`;
-        } else {
-            return `${(meters / 1000).toFixed(1)} km`;
-        }
+        const converted = this.convertDistance(meters);
+        return `${converted.value} ${converted.unit}`;
     }
     
     stopNavigation() {
