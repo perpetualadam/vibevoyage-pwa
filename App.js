@@ -991,7 +991,7 @@ class VibeVoyageApp {
 
     removeDuplicateRoutes(routes) {
         const unique = [];
-        const tolerance = 1000; // 1km tolerance for considering routes different
+        const tolerance = 1000; // 1000m tolerance for considering routes different
 
         routes.forEach(route => {
             const isDuplicate = unique.some(existing =>
@@ -1166,7 +1166,7 @@ class VibeVoyageApp {
 
     estimateFuelCost(distanceMeters) {
         const distanceKm = distanceMeters / 1000;
-        const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km average consumption
+        const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km average consumption (internal calculation)
 
         // Get country-specific fuel pricing
         const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
@@ -1651,7 +1651,7 @@ class VibeVoyageApp {
     predictFutureLocation(currentLocation, bearing, timeSeconds) {
         if (this.currentSpeed <= 0) return null;
 
-        // Distance = speed * time (convert km/h to m/s)
+        // Distance = speed * time (convert internal km/h to m/s)
         const speedMs = this.currentSpeed / 3.6;
         const distanceMeters = speedMs * timeSeconds;
 
@@ -1760,7 +1760,7 @@ class VibeVoyageApp {
 
         if (timeDiff <= 0) return 0;
 
-        // Speed in km/h
+        // Speed in km/h (internal calculation, will be converted for display)
         return (distance / 1000) / (timeDiff / 3600);
     }
 
@@ -1813,7 +1813,7 @@ class VibeVoyageApp {
                 return { value: mpgUs.toFixed(1), unit: 'MPG (US)' };
             case 'gallons_uk':
                 // Convert to LPM (Litres Per Mile)
-                const lpmUk = litersPerKm * 1.60934; // Convert km to miles
+                const lpmUk = litersPerKm * 1.60934; // Convert internal km to miles
                 return { value: lpmUk.toFixed(2), unit: 'LPM (Litres Per Mile)' };
             case 'liters':
             default:
@@ -2074,6 +2074,8 @@ class VibeVoyageApp {
     }
 
     updateUnitDisplays() {
+        console.log('🔄 Updating all unit displays...');
+
         // Update any existing distance/speed displays with new units
         if (this.routeData) {
             // Update route information displays
@@ -2092,10 +2094,24 @@ class VibeVoyageApp {
             }
         }
 
+        // Update route options if they exist
+        const routeOptions = document.querySelectorAll('.route-option');
+        routeOptions.forEach((option, index) => {
+            if (this.availableRoutes && this.availableRoutes[index]) {
+                const route = this.availableRoutes[index];
+                const distanceSpan = option.querySelector('.route-stat-value');
+                if (distanceSpan && distanceSpan.parentElement.querySelector('.route-stat-icon')?.textContent === '📏') {
+                    distanceSpan.textContent = this.formatDistance(route.distance);
+                }
+            }
+        });
+
         // Update navigation panel if active
         if (this.isNavigating) {
             this.updateNavigationProgress();
         }
+
+        console.log('✅ Unit displays updated');
     }
 
     loadUnitsFromStorage() {
@@ -2543,11 +2559,11 @@ class VibeVoyageApp {
             }
         } else {
             // Metric (default)
-            if (distanceInMeters < 1000) {
-                return `${Math.round(distanceInMeters)} meters`;
+            const converted = this.convertDistance(distanceInMeters);
+            if (converted.unit === 'm') {
+                return `${converted.value} meters`;
             } else {
-                const km = (distanceInMeters / 1000).toFixed(1);
-                return `${km} kilometers`;
+                return `${converted.value} kilometers`;
             }
         }
     }
@@ -3733,7 +3749,7 @@ class VibeVoyageApp {
 
                 // Use GPS speed if available, otherwise use calculated speed
                 this.currentSpeed = position.coords.speed ?
-                    position.coords.speed * 3.6 : // Convert m/s to km/h
+                    position.coords.speed * 3.6 : // Convert m/s to km/h (internal)
                     speed;
 
                 this.currentLocation = newLocation;
@@ -3826,8 +3842,13 @@ class VibeVoyageApp {
     }
 
     calculateETA(remainingDistance) {
-        // Assume average speed of 50 km/h for ETA calculation
-        const averageSpeed = 50 * 1000 / 3600; // m/s
+        // Use appropriate average speed based on user's speed unit
+        let averageSpeedKmh = 50; // Default 50 km/h
+        if (this.units.speed === 'mph') {
+            averageSpeedKmh = 31; // ~50 km/h in mph equivalent
+        }
+
+        const averageSpeed = averageSpeedKmh * 1000 / 3600; // Convert to m/s
         const remainingTime = remainingDistance / averageSpeed;
         const eta = new Date(Date.now() + remainingTime * 1000);
 
@@ -4129,7 +4150,7 @@ class VibeVoyageApp {
         };
 
         // Check if off route (more than 50 meters away)
-        if (minDistance > 0.05) { // 50 meters in km
+        if (minDistance > 50) { // 50 meters
             this.handleOffRoute();
         }
 
@@ -4151,9 +4172,16 @@ class VibeVoyageApp {
     }
 
     calculateRemainingTime(currentIndex) {
-        const remainingDistance = this.calculateRemainingDistance(currentIndex);
-        const averageSpeed = 50; // km/h assumption
-        return (remainingDistance / averageSpeed) * 60; // minutes
+        const remainingDistanceMeters = this.calculateRemainingDistance(currentIndex);
+        const remainingDistanceKm = remainingDistanceMeters / 1000;
+
+        // Use appropriate average speed based on user's speed unit
+        let averageSpeedKmh = 50; // Default 50 km/h
+        if (this.units.speed === 'mph') {
+            averageSpeedKmh = 31; // ~50 km/h equivalent
+        }
+
+        return (remainingDistanceKm / averageSpeedKmh) * 60; // minutes
     }
 
     handleOffRoute() {
@@ -4902,6 +4930,12 @@ function updateUnits(unitType, value) {
         // Update UI elements that display units
         app.updateUnitDisplays();
 
+        // Force refresh route displays if routes exist
+        if (app.availableRoutes && app.availableRoutes.length > 0) {
+            console.log('🔄 Refreshing route displays with new units...');
+            app.displayRouteOptions(app.availableRoutes);
+        }
+
         // Update fuel price display if fuel unit changed
         if (unitType === 'fuel') {
             app.updateFuelPriceDisplay();
@@ -4910,7 +4944,7 @@ function updateUnits(unitType, value) {
         // Update header displays with new units
         app.updateHeaderUnits();
 
-        app.showNotification(`📏 ${unitType} units updated to ${value}`, 'success');
+        app.showNotification(`📏 ${unitType} units updated to ${value} - displays refreshed`, 'success');
     }
 }
 
