@@ -207,22 +207,12 @@
         function loadFullApp() {
             const status = document.getElementById('appStatus');
             status.className = 'status info';
-            status.innerHTML = '🔄 Loading full App.js...';
+            status.innerHTML = '🔄 App.js already loaded - checking status...';
 
-            // Dynamically load the full App.js
-            const script = document.createElement('script');
-            script.src = 'App.js';
-            script.onload = () => {
-                setTimeout(() => {
-                    checkAppStatus();
-                }, 1000);
-            };
-            script.onerror = (error) => {
-                status.className = 'status error';
-                status.innerHTML = '❌ Failed to load App.js - check console for syntax errors';
-                console.error('App.js loading error:', error);
-            };
-            document.head.appendChild(script);
+            // App.js is already loaded, just check status
+            setTimeout(() => {
+                checkAppStatus();
+            }, 500);
         }
 
         function checkAppStatus() {

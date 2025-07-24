@@ -634,14 +634,18 @@ class VibeVoyageApp {
 
         if (!navigator.geolocation) {
             console.error('❌ Geolocation not supported');
-            statusElement.textContent = 'Location not supported';
-            statusElement.className = 'status-offline';
+            if (statusElement) {
+                statusElement.textContent = 'Location not supported';
+                statusElement.className = 'status-offline';
+            }
             this.showNotification('Location services not available', 'error');
             return;
         }
 
-        statusElement.textContent = 'Getting location...';
-        statusElement.className = 'status-warning';
+        if (statusElement) {
+            statusElement.textContent = 'Getting location...';
+            statusElement.className = 'status-warning';
+        }
 
         try {
             console.log('📍 Requesting location permission...');
@@ -673,8 +677,10 @@ class VibeVoyageApp {
             // Update UI
             document.getElementById('fromInput').value = 'Current Location';
             document.getElementById('fromInput').placeholder = 'From: Current Location';
-            statusElement.textContent = 'Location found';
-            statusElement.className = 'status-online';
+            if (statusElement) {
+                statusElement.textContent = 'Location found';
+                statusElement.className = 'status-online';
+            }
             
             console.log('📍 Location found:', this.currentLocation);
             
@@ -696,8 +702,10 @@ class VibeVoyageApp {
                 notificationMessage = 'Location request timed out. Please try again.';
             }
 
-            statusElement.textContent = errorMessage;
-            statusElement.className = 'status-offline';
+            if (statusElement) {
+                statusElement.textContent = errorMessage;
+                statusElement.className = 'status-offline';
+            }
             this.showNotification(notificationMessage, 'error');
 
             // Set a default location (NYC) for demo purposes
