@@ -2076,7 +2076,6 @@ class VibeVoyageApp {
             this.updateNavigationProgress();
         }
     }
-    }
 
     async detectUserCountry() {
         try {
