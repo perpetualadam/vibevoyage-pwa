@@ -256,6 +256,9 @@ class VibeVoyageApp {
         // Initialize language system
         this.initLanguageSystem();
 
+        // Initialize hazard avoidance settings
+        this.initHazardAvoidanceSettings();
+
         // Reset hazards counter on app start
         this.resetHazardsCounter();
 
@@ -5873,6 +5876,9 @@ class VibeVoyageApp {
             hazardTotal.textContent = count === 0 ? 'None detected' :
                                      count === 1 ? '1 ahead' :
                                      `${count} ahead`;
+
+            // Add hazard avoidance button if there are avoidable hazards
+            setTimeout(() => this.addHazardAvoidanceButton(), 100);
         }
     }
 
@@ -5904,7 +5910,18 @@ class VibeVoyageApp {
     clearAllHazards() {
         this.currentHazards = [];
         this.updateHazardsDisplay();
+        this.clearHazardMarkers();
         console.log('🧹 All hazards cleared');
+    }
+
+    clearHazardMarkers() {
+        if (this.hazardMarkers && this.map) {
+            this.hazardMarkers.forEach(hazardMarker => {
+                this.map.removeLayer(hazardMarker.marker);
+            });
+            this.hazardMarkers = [];
+            console.log('🗑️ Hazard markers cleared from map');
+        }
     }
 
     simulateRouteHazards(route) {
@@ -5923,20 +5940,35 @@ class VibeVoyageApp {
         const hazardCount = Math.floor(Math.random() * 4); // 0-3 hazards
 
         const hazardTypes = [
-            { type: 'speedCamera', icon: '📷', description: 'Speed Camera' },
-            { type: 'roadwork', icon: '🚧', description: 'Road Work' },
-            { type: 'accident', icon: '🚗💥', description: 'Accident Reported' },
-            { type: 'police', icon: '👮', description: 'Police Activity' },
-            { type: 'schoolZone', icon: '🏫', description: 'School Zone' }
+            { type: 'speedCameras', icon: '📷', description: 'Speed Camera', color: '#FF6B6B', avoidable: true },
+            { type: 'roadwork', icon: '🚧', description: 'Road Work', color: '#FFB347', avoidable: true },
+            { type: 'accidents', icon: '🚗💥', description: 'Accident Reported', color: '#FF4444', avoidable: true },
+            { type: 'policeReports', icon: '👮', description: 'Police Activity', color: '#4ECDC4', avoidable: true },
+            { type: 'schoolZones', icon: '🏫', description: 'School Zone', color: '#45B7D1', avoidable: true },
+            { type: 'railwayCrossings', icon: '🚂', description: 'Railway Crossing', color: '#96CEB4', avoidable: true },
+            { type: 'tollBooths', icon: '💰', description: 'Toll Booth', color: '#DDA0DD', avoidable: true }
         ];
 
+        // Filter hazard types based on avoidance settings
+        const availableHazardTypes = hazardTypes.filter(hazardType => {
+            // If this hazard type is set to be avoided, don't include it in the route
+            return !this.shouldAvoidHazard(hazardType.type);
+        });
+
+        if (availableHazardTypes.length === 0) {
+            console.log('✅ All hazard types are being avoided - clean route generated');
+            return;
+        }
+
         for (let i = 0; i < hazardCount; i++) {
-            // Pick a random point along the route
-            const randomIndex = Math.floor(Math.random() * routeLength);
+            // Pick a random point along the route (avoid first and last 10% of route)
+            const startIndex = Math.floor(routeLength * 0.1);
+            const endIndex = Math.floor(routeLength * 0.9);
+            const randomIndex = startIndex + Math.floor(Math.random() * (endIndex - startIndex));
             const coord = coordinates[randomIndex];
 
-            // Pick a random hazard type
-            const hazardType = hazardTypes[Math.floor(Math.random() * hazardTypes.length)];
+            // Pick a random hazard type from available (non-avoided) types
+            const hazardType = availableHazardTypes[Math.floor(Math.random() * availableHazardTypes.length)];
 
             const hazard = {
                 id: `hazard_${Date.now()}_${i}`,
@@ -5945,14 +5977,284 @@ class VibeVoyageApp {
                 lng: coord[0],
                 icon: hazardType.icon,
                 description: hazardType.description,
-                distance: Math.floor(Math.random() * 2000) + 100, // 100-2100m ahead
-                timestamp: Date.now()
+                color: hazardType.color,
+                avoidable: hazardType.avoidable,
+                distance: this.calculateDistanceAlongRoute(coordinates, randomIndex),
+                routeIndex: randomIndex,
+                timestamp: Date.now(),
+                avoided: false // This hazard appears because it's not being avoided
             };
 
             this.addHazard(hazard);
+            this.addHazardToMap(hazard);
         }
 
         console.log(`🎯 Simulated ${hazardCount} hazards for route`);
+    }
+
+    calculateDistanceAlongRoute(coordinates, targetIndex) {
+        let distance = 0;
+        for (let i = 0; i < targetIndex && i < coordinates.length - 1; i++) {
+            const from = coordinates[i];
+            const to = coordinates[i + 1];
+            distance += this.calculateDistance(
+                { lat: from[1], lng: from[0] },
+                { lat: to[1], lng: to[0] }
+            );
+        }
+        return Math.round(distance);
+    }
+
+    addHazardToMap(hazard) {
+        if (!this.map) return;
+
+        // Create custom hazard icon
+        const hazardIcon = L.divIcon({
+            className: 'hazard-marker',
+            html: `
+                <div style="
+                    background: ${hazard.color};
+                    color: white;
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    animation: pulse 2s infinite;
+                ">${hazard.icon}</div>
+                <style>
+                    @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.1); }
+                        100% { transform: scale(1); }
+                    }
+                </style>
+            `,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        // Add marker to map
+        const marker = L.marker([hazard.lat, hazard.lng], { icon: hazardIcon })
+            .addTo(this.map)
+            .bindPopup(`
+                <div style="text-align: center;">
+                    <strong>${hazard.icon} ${hazard.description}</strong><br>
+                    <small>Distance: ${hazard.distance}m ahead</small><br>
+                    <small>${hazard.avoidable ? '⚠️ Route can avoid this' : 'ℹ️ Informational only'}</small>
+                </div>
+            `);
+
+        // Store marker reference for cleanup
+        if (!this.hazardMarkers) this.hazardMarkers = [];
+        this.hazardMarkers.push({ id: hazard.id, marker: marker });
+
+        console.log(`📍 Added hazard marker: ${hazard.description} at ${hazard.lat.toFixed(4)}, ${hazard.lng.toFixed(4)}`);
+    }
+
+    // ===== ROUTE AVOIDANCE SYSTEM =====
+
+    calculateAlternativeRoute() {
+        if (!this.currentHazards || this.currentHazards.length === 0) {
+            this.showNotification('ℹ️ No hazards to avoid on current route', 'info');
+            return;
+        }
+
+        const avoidableHazards = this.currentHazards.filter(h => h.avoidable);
+
+        if (avoidableHazards.length === 0) {
+            this.showNotification('ℹ️ Current hazards cannot be avoided', 'info');
+            return;
+        }
+
+        console.log(`🔄 Calculating alternative route to avoid ${avoidableHazards.length} hazards...`);
+
+        // Show user that we're avoiding hazards
+        this.showNotification(`🛣️ Finding route to avoid ${avoidableHazards.length} hazard${avoidableHazards.length > 1 ? 's' : ''}...`, 'info');
+
+        // Simulate alternative route calculation
+        setTimeout(() => {
+            this.generateAlternativeRoute(avoidableHazards);
+        }, 1500);
+    }
+
+    generateAlternativeRoute(avoidableHazards) {
+        // Clear current hazards
+        this.clearAllHazards();
+
+        // Recalculate route (this will generate new hazards)
+        this.calculateRoute().then(() => {
+            const newHazardCount = this.currentHazards ? this.currentHazards.length : 0;
+            const avoided = avoidableHazards.length;
+
+            if (newHazardCount < avoided) {
+                this.showNotification(`✅ Alternative route found! Avoided ${avoided} hazard${avoided > 1 ? 's' : ''}`, 'success');
+                console.log(`✅ Successfully avoided ${avoided} hazards. New route has ${newHazardCount} hazards.`);
+            } else {
+                this.showNotification(`⚠️ Alternative route has ${newHazardCount} hazard${newHazardCount !== 1 ? 's' : ''}`, 'warning');
+                console.log(`⚠️ Alternative route calculated but still has ${newHazardCount} hazards.`);
+            }
+        }).catch(error => {
+            console.error('❌ Failed to calculate alternative route:', error);
+            this.showNotification('❌ Failed to find alternative route', 'error');
+        });
+    }
+
+    // Add button to UI for hazard avoidance
+    addHazardAvoidanceButton() {
+        const hazardTotal = document.getElementById('hazardTotal');
+        if (hazardTotal && this.currentHazards && this.currentHazards.length > 0) {
+            const avoidableCount = this.currentHazards.filter(h => h.avoidable).length;
+
+            if (avoidableCount > 0) {
+                // Remove existing button if present
+                const existingBtn = document.getElementById('avoidHazardsBtn');
+                if (existingBtn) existingBtn.remove();
+
+                // Create avoid hazards button
+                const avoidBtn = document.createElement('button');
+                avoidBtn.id = 'avoidHazardsBtn';
+                avoidBtn.innerHTML = `🛣️ Avoid ${avoidableCount} Hazard${avoidableCount > 1 ? 's' : ''}`;
+                avoidBtn.style.cssText = `
+                    background: #FFB347;
+                    color: black;
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    margin-left: 10px;
+                    transition: all 0.3s ease;
+                `;
+
+                avoidBtn.onmouseover = () => avoidBtn.style.background = '#FF9500';
+                avoidBtn.onmouseout = () => avoidBtn.style.background = '#FFB347';
+                avoidBtn.onclick = () => this.calculateAlternativeRoute();
+
+                hazardTotal.parentNode.appendChild(avoidBtn);
+            }
+        }
+    }
+
+    // Helper function for distance calculation
+    calculateDistance(from, to) {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = from.lat * Math.PI / 180;
+        const φ2 = to.lat * Math.PI / 180;
+        const Δφ = (to.lat - from.lat) * Math.PI / 180;
+        const Δλ = (to.lng - from.lng) * Math.PI / 180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // Distance in meters
+    }
+
+    // ===== HAZARD AVOIDANCE SETTINGS =====
+
+    initHazardAvoidanceSettings() {
+        // Default hazard avoidance settings
+        this.hazardAvoidanceSettings = {
+            speedCameras: true,
+            redLightCameras: true,
+            policeReports: true,
+            roadwork: false,
+            railwayCrossings: true,
+            trafficLights: false,
+            schoolZones: true,
+            hospitalZones: true,
+            tollBooths: false,
+            bridges: false,
+            accidents: true,
+            weather: false,
+            steepGrades: false,
+            narrowRoads: false
+        };
+
+        // Load saved settings
+        this.loadHazardAvoidanceSettings();
+        console.log('🚨 Hazard avoidance settings initialized');
+    }
+
+    loadHazardAvoidanceSettings() {
+        try {
+            const saved = localStorage.getItem('vibeVoyage_hazardAvoidance');
+            if (saved) {
+                const savedSettings = JSON.parse(saved);
+                this.hazardAvoidanceSettings = { ...this.hazardAvoidanceSettings, ...savedSettings };
+                console.log('📋 Hazard avoidance settings loaded from storage');
+            }
+        } catch (error) {
+            console.warn('⚠️ Error loading hazard avoidance settings:', error);
+        }
+    }
+
+    saveHazardAvoidanceSettings() {
+        try {
+            localStorage.setItem('vibeVoyage_hazardAvoidance', JSON.stringify(this.hazardAvoidanceSettings));
+            console.log('💾 Hazard avoidance settings saved');
+        } catch (error) {
+            console.error('❌ Error saving hazard avoidance settings:', error);
+        }
+    }
+
+    updateHazardAvoidanceSetting(hazardType, enabled) {
+        this.hazardAvoidanceSettings[hazardType] = enabled;
+        this.saveHazardAvoidanceSettings();
+        console.log(`🔄 Hazard avoidance updated: ${hazardType} = ${enabled}`);
+
+        // If we have a current route, recalculate to apply new settings
+        if (this.currentLocation && this.destination) {
+            this.showNotification(`🔄 Recalculating route with updated hazard settings...`, 'info');
+            setTimeout(() => {
+                this.calculateRoute();
+            }, 1000);
+        }
+    }
+
+    shouldAvoidHazard(hazardType) {
+        return this.hazardAvoidanceSettings[hazardType] === true;
+    }
+
+    updateHazardAvoidanceSettings() {
+        // Update settings based on checkbox states
+        const hazardTypes = [
+            'speedCameras', 'redLightCameras', 'policeReports', 'roadwork',
+            'railwayCrossings', 'trafficLights', 'schoolZones', 'hospitalZones',
+            'tollBooths', 'bridges', 'accidents', 'weather', 'steepGrades', 'narrowRoads'
+        ];
+
+        let changesDetected = false;
+        hazardTypes.forEach(hazardType => {
+            const checkbox = document.getElementById(hazardType);
+            if (checkbox) {
+                const newValue = checkbox.checked;
+                if (this.hazardAvoidanceSettings[hazardType] !== newValue) {
+                    this.hazardAvoidanceSettings[hazardType] = newValue;
+                    changesDetected = true;
+                    console.log(`🔄 Hazard setting changed: ${hazardType} = ${newValue}`);
+                }
+            }
+        });
+
+        if (changesDetected) {
+            this.saveHazardAvoidanceSettings();
+            this.showNotification('🔄 Hazard avoidance settings updated', 'success');
+
+            // If we have a current route, recalculate to apply new settings
+            if (this.currentLocation && this.destination) {
+                setTimeout(() => {
+                    this.showNotification('🛣️ Recalculating route with new settings...', 'info');
+                    this.calculateRoute();
+                }, 1500);
+            }
+        }
     }
 
     showLanguagePanel() {
@@ -6084,46 +6386,46 @@ class VibeVoyageApp {
                         </div>
                         <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="speedCameras" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 📷 Speed Cameras
+                                <input type="checkbox" id="speedCameras" checked onchange="updateHazardAvoidanceSettings()"> 📷 Speed Cameras
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="redLightCameras" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚦 Red Light Cameras
+                                <input type="checkbox" id="redLightCameras" checked onchange="updateHazardAvoidanceSettings()"> 🚦 Red Light Cameras
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="policeReports" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚨 Police Reports
+                                <input type="checkbox" id="policeReports" checked onchange="updateHazardAvoidanceSettings()"> 🚨 Police Reports
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="roadwork" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚧 Road Works
+                                <input type="checkbox" id="roadwork" onchange="updateHazardAvoidanceSettings()"> 🚧 Road Works
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="railwayCrossings" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚂 Railway Crossings
+                                <input type="checkbox" id="railwayCrossings" checked onchange="updateHazardAvoidanceSettings()"> 🚂 Railway Crossings
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="trafficLights" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚦 Complex Junctions
+                                <input type="checkbox" id="trafficLights" onchange="updateHazardAvoidanceSettings()"> 🚦 Complex Junctions
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="schoolZones" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🏫 School Zones
+                                <input type="checkbox" id="schoolZones" checked onchange="updateHazardAvoidanceSettings()"> 🏫 School Zones
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="hospitalZones" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🏥 Hospital Zones
+                                <input type="checkbox" id="hospitalZones" checked onchange="updateHazardAvoidanceSettings()"> 🏥 Hospital Zones
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="tollBooths" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 💰 Toll Booths
+                                <input type="checkbox" id="tollBooths" onchange="updateHazardAvoidanceSettings()"> 💰 Toll Booths
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="bridges" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🌉 Bridges/Tunnels
+                                <input type="checkbox" id="bridges" onchange="updateHazardAvoidanceSettings()"> 🌉 Bridges/Tunnels
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="accidents" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 💥 Accident Reports
+                                <input type="checkbox" id="accidents" checked onchange="updateHazardAvoidanceSettings()"> 💥 Accident Reports
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="weather" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🌧️ Weather Alerts
+                                <input type="checkbox" id="weather" onchange="updateHazardAvoidanceSettings()"> 🌧️ Weather Alerts
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="steepGrades" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> ⛰️ Steep Grades
+                                <input type="checkbox" id="steepGrades" onchange="updateHazardAvoidanceSettings()"> ⛰️ Steep Grades
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="narrowRoads" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🛤️ Narrow Roads
+                                <input type="checkbox" id="narrowRoads" onchange="updateHazardAvoidanceSettings()"> 🛤️ Narrow Roads
                             </label>
                         </div>
                         <div style="margin-top: 15px;">
@@ -8509,6 +8811,14 @@ function changeLanguage(language) {
 function closeLanguagePanel() {
     const panel = document.getElementById('languagePanel');
     if (panel) panel.remove();
+}
+
+function updateHazardAvoidanceSettings() {
+    if (window.app && window.app.updateHazardAvoidanceSettings) {
+        window.app.updateHazardAvoidanceSettings();
+    } else {
+        console.error('❌ App not ready yet');
+    }
 }
 
 function findNearby(type) {
