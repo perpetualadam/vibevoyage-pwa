@@ -1621,31 +1621,37 @@ class VibeVoyageApp {
             this.showNotification(`🚨 Avoiding: ${activeHazards.join(', ')}`, 'info');
         }
 
+        // Helper function to clean URL parameters
+        const cleanUrlParam = (param) => {
+            if (!param) return '';
+            return param.replace(/:[0-9]+/g, '').replace(/,+/g, ',').replace(/^,|,$/g, '');
+        };
+
         // Multiple routing services for better reliability with hazard avoidance
         const routingServices = [
             {
                 name: 'OSRM Primary (Hazard Avoiding)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${excludeParams.primary}`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${cleanUrlParam(excludeParams.primary)}`,
                 timeout: 10000
             },
             {
                 name: 'OSRM Alternative (No Highway)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=true&voice_instructions=true${excludeParams.noHighway}`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=true&voice_instructions=true${cleanUrlParam(excludeParams.noHighway)}`,
                 timeout: 8000
             },
             {
                 name: 'OSRM Railway Avoiding',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true${excludeParams.noRailway}`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true${cleanUrlParam(excludeParams.noRailway)}`,
                 timeout: 8000
             },
             {
                 name: 'OSRM Shortest (Hazard Aware)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true${excludeParams.shortest}`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true${cleanUrlParam(excludeParams.shortest)}`,
                 timeout: 6000
             },
             {
                 name: 'OSRM Backup (Safe Route)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${excludeParams.fastest}`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${cleanUrlParam(excludeParams.fastest)}`,
                 timeout: 6000
             }
         ];
@@ -1775,8 +1781,11 @@ class VibeVoyageApp {
         console.log('🚨 Single route hazard avoidance applied:', excludeParams.primary);
 
         try {
+            // Clean the exclude parameter before using in URL
+            const cleanParam = excludeParams.primary ? excludeParams.primary.replace(/:[0-9]+/g, '').replace(/,+/g, ',').replace(/^,|,$/g, '') : '';
+
             const response = await fetch(
-                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&voice_instructions=true${excludeParams.primary}`
+                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&voice_instructions=true${cleanParam}`
             );
 
             if (response.ok) {
@@ -2038,9 +2047,16 @@ class VibeVoyageApp {
         // Clear existing route lines
         this.clearRouteLines();
 
-        // Add all routes to map
+        // Add all routes to map with coordinate validation
         routes.forEach((route, index) => {
-            const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            const routeCoords = route.geometry.coordinates
+                .map(coord => [coord[1], coord[0]])
+                .filter(coord => !isNaN(coord[0]) && !isNaN(coord[1])); // Filter out NaN coordinates
+
+            if (routeCoords.length === 0) {
+                console.warn(`⚠️ Route ${index} has no valid coordinates, skipping`);
+                return;
+            }
 
             const routeLine = L.polyline(routeCoords, {
                 color: route.color,
@@ -2143,8 +2159,16 @@ class VibeVoyageApp {
         // Clear all route lines
         this.clearRouteLines();
 
-        // Add only the selected route
-        const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+        // Add only the selected route with coordinate validation
+        const routeCoords = route.geometry.coordinates
+            .map(coord => [coord[1], coord[0]])
+            .filter(coord => !isNaN(coord[0]) && !isNaN(coord[1])); // Filter out NaN coordinates
+
+        if (routeCoords.length === 0) {
+            console.error('❌ No valid coordinates found in route');
+            this.showNotification('❌ Route display failed - invalid coordinates', 'error');
+            return;
+        }
 
         // Create route lines safely
         const routeLine = L.polyline(routeCoords, {
@@ -4378,6 +4402,12 @@ class VibeVoyageApp {
             lat += curve1 + randomOffset;
             lng += curve2 + randomOffset;
 
+            // Validate waypoint coordinates before adding
+            if (isNaN(lat) || isNaN(lng)) {
+                console.warn('⚠️ Invalid waypoint coordinates, skipping:', { lat, lng, ratio });
+                continue;
+            }
+
             waypoints.push([lng, lat]);
             console.log(`🛣️ Waypoint ${i}:`, [lng, lat]);
         }
@@ -4389,9 +4419,19 @@ class VibeVoyageApp {
 
     createDemoRoute(start, end) {
         try {
-            // Parse coordinates
+            // Parse coordinates with validation
             const [startLng, startLat] = start.split(',').map(Number);
             const [endLng, endLat] = end.split(',').map(Number);
+
+            // Validate coordinates
+            if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+                console.error('❌ Invalid coordinates for demo route:', { start, end, startLat, startLng, endLat, endLng });
+                // Use default coordinates (Sheffield to Barnsley)
+                const defaultStartLat = 53.3811, defaultStartLng = -1.4701;
+                const defaultEndLat = 53.5528, defaultEndLng = -1.4797;
+                console.log('🔄 Using default coordinates:', { defaultStartLat, defaultStartLng, defaultEndLat, defaultEndLng });
+                return this.createDemoRoute(`${defaultStartLng},${defaultStartLat}`, `${defaultEndLng},${defaultEndLat}`);
+            }
 
             // Create a more realistic route that approximates road paths
             const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
