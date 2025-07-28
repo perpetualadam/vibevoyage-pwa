@@ -769,11 +769,17 @@ class VibeVoyageApp {
         }
 
         console.log('✅ Map container found:', mapContainer);
-        console.log('📐 Map container dimensions:', {
-            width: mapContainer.offsetWidth,
-            height: mapContainer.offsetHeight,
-            display: getComputedStyle(mapContainer).display
-        });
+
+        // Check if container has dimensions before accessing offsetWidth
+        if (mapContainer && mapContainer.offsetWidth !== undefined) {
+            console.log('📐 Map container dimensions:', {
+                width: mapContainer.offsetWidth,
+                height: mapContainer.offsetHeight,
+                display: getComputedStyle(mapContainer).display
+            });
+        } else {
+            console.warn('⚠️ Map container dimensions not available yet');
+        }
 
         // Mobile-specific container fixes
         if (this.isMobileDevice()) {
@@ -1555,6 +1561,29 @@ class VibeVoyageApp {
             throw new Error('Missing location data for route calculation');
         }
 
+        // Validate location coordinates before using them
+        if (isNaN(this.currentLocation.lat) || isNaN(this.currentLocation.lng) ||
+            isNaN(this.destination.lat) || isNaN(this.destination.lng)) {
+            console.error('❌ Invalid location coordinates detected:', {
+                currentLocation: this.currentLocation,
+                destination: this.destination
+            });
+
+            // Use default coordinates if current ones are invalid
+            const defaultCurrent = { lat: 53.3811, lng: -1.4701 }; // Sheffield
+            const defaultDestination = { lat: 53.5528, lng: -1.4797 }; // Barnsley
+
+            if (isNaN(this.currentLocation.lat) || isNaN(this.currentLocation.lng)) {
+                console.log('🔄 Using default current location:', defaultCurrent);
+                this.currentLocation = defaultCurrent;
+            }
+
+            if (isNaN(this.destination.lat) || isNaN(this.destination.lng)) {
+                console.log('🔄 Using default destination:', defaultDestination);
+                this.destination = defaultDestination;
+            }
+        }
+
         const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
         const end = `${this.destination.lng},${this.destination.lat}`;
 
@@ -1621,10 +1650,25 @@ class VibeVoyageApp {
             this.showNotification(`🚨 Avoiding: ${activeHazards.join(', ')}`, 'info');
         }
 
-        // Helper function to clean URL parameters
+        // Helper function to clean URL parameters aggressively
         const cleanUrlParam = (param) => {
             if (!param) return '';
-            return param.replace(/:[0-9]+/g, '').replace(/,+/g, ',').replace(/^,|,$/g, '');
+            let cleaned = param;
+
+            // Remove all :number patterns (including :1, :2, etc.)
+            cleaned = cleaned.replace(/:[0-9]+/g, '');
+
+            // Remove any trailing numbers that might be appended
+            cleaned = cleaned.replace(/[0-9]+$/g, '');
+
+            // Clean up multiple commas and trailing/leading commas
+            cleaned = cleaned.replace(/,+/g, ',').replace(/^,|,$/g, '');
+
+            // Remove any remaining problematic characters
+            cleaned = cleaned.replace(/[^a-zA-Z,&=]/g, '');
+
+            console.log(`🧹 URL param cleaning: "${param}" → "${cleaned}"`);
+            return cleaned;
         };
 
         // Multiple routing services for better reliability with hazard avoidance
@@ -2249,6 +2293,13 @@ class VibeVoyageApp {
     calculateOptimalPadding() {
         // Calculate padding based on screen size and UI elements
         const mapContainer = this.map.getContainer();
+
+        // Add null checks for container dimensions
+        if (!mapContainer || mapContainer.offsetWidth === undefined) {
+            console.warn('⚠️ Map container not available for padding calculation, using defaults');
+            return [50, 50, 100, 50]; // Default padding
+        }
+
         const containerWidth = mapContainer.offsetWidth;
         const containerHeight = mapContainer.offsetHeight;
 
@@ -4391,7 +4442,15 @@ class VibeVoyageApp {
 
             // Add more realistic and pronounced deviations to simulate road paths
             const baseDeviation = 0.005; // Base deviation amount
-            const distanceFactor = Math.min(distance / 10000, 1); // Scale with distance
+
+            // Handle NaN distance by using a default factor
+            let distanceFactor;
+            if (isNaN(distance) || distance <= 0) {
+                distanceFactor = 0.5; // Default factor for unknown distance
+            } else {
+                distanceFactor = Math.min(distance / 10000, 1); // Scale with distance
+            }
+
             const deviation = baseDeviation * distanceFactor;
 
             // Create curved path with multiple sine waves for more realistic routing
