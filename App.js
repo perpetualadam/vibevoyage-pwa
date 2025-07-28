@@ -250,6 +250,9 @@ class VibeVoyageApp {
         // Get current weather
         setTimeout(() => this.getCurrentWeather(), 2000);
 
+        // Initialize gamification system
+        this.initGamificationSystem();
+
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
@@ -755,8 +758,8 @@ class VibeVoyageApp {
 
         try {
             // Check if map is already initialized
-            if (this.map && this.map._container) {
-                console.log('🗺️ Map already initialized and has container, skipping...');
+            if (this.map && this.map._container && this.map._container === mapContainer) {
+                console.log('🗺️ Map already initialized and has correct container, skipping...');
                 return;
             }
 
@@ -780,6 +783,11 @@ class VibeVoyageApp {
                     const existingMap = mapContainer._leaflet_map;
                     if (existingMap && existingMap.remove) {
                         existingMap.remove();
+                    }
+
+                    // Clear Leaflet's internal registry
+                    if (window.L && window.L.Util && window.L.Util.stamp) {
+                        delete window.L.Util._leafletId;
                     }
                 } catch (e) {
                     console.warn('⚠️ Error removing container map:', e);
@@ -1402,6 +1410,10 @@ class VibeVoyageApp {
         // Start navigation with selected route
         this.isNavigating = true;
         this.showNavigationPanel();
+
+        // Track navigation start time for gamification
+        this.navigationStartTime = Date.now();
+        this.hazardsAvoidedCount = 0;
 
         // Start location tracking
         this.startLocationTracking();
@@ -2677,18 +2689,25 @@ class VibeVoyageApp {
                             }
                         }
                     } else {
-                        // Always use geocodeLocation fallback since searchPlaceName doesn't exist
+                        // Use searchPlaceName function as fallback
                         try {
-                            const result = await this.geocodeLocation(query);
-                            suggestions.push({
-                                type: 'Place',
-                                main: result.name.split(',')[0],
-                                details: result.name.split(',').slice(1).join(',').trim(),
-                                lat: result.lat,
-                                lng: result.lng
-                            });
-                        } catch (geocodeError) {
-                            console.warn('Geocoding failed for place name:', geocodeError);
+                            const results = await this.searchPlaceName(query);
+                            suggestions.push(...results);
+                        } catch (searchError) {
+                            console.warn('searchPlaceName failed, using geocodeLocation:', searchError);
+                            // Final fallback to geocodeLocation
+                            try {
+                                const result = await this.geocodeLocation(query);
+                                suggestions.push({
+                                    type: 'Place',
+                                    main: result.name.split(',')[0],
+                                    details: result.name.split(',').slice(1).join(',').trim(),
+                                    lat: result.lat,
+                                    lng: result.lng
+                                });
+                            } catch (geocodeError) {
+                                console.warn('All search methods failed for place name:', geocodeError);
+                            }
                         }
                     }
                     break;
@@ -5221,6 +5240,376 @@ class VibeVoyageApp {
         return 0;
     }
 
+    // ===== GAMIFICATION SYSTEM =====
+
+    initGamificationSystem() {
+        // Initialize user stats
+        this.userStats = this.loadUserStats();
+        this.achievements = this.loadAchievements();
+        this.updateGamificationDisplay();
+    }
+
+    loadUserStats() {
+        try {
+            const saved = localStorage.getItem('vibeVoyage_userStats');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (error) {
+            console.warn('Error loading user stats:', error);
+        }
+
+        // Default stats
+        return {
+            totalTrips: 0,
+            totalDistance: 0, // in meters
+            totalTime: 0, // in minutes
+            hazardsAvoided: 0,
+            fuelSaved: 0, // in liters
+            co2Saved: 0, // in kg
+            points: 0,
+            level: 1,
+            streakDays: 0,
+            lastTripDate: null,
+            achievements: []
+        };
+    }
+
+    loadAchievements() {
+        return [
+            { id: 'first_trip', name: 'First Journey', description: 'Complete your first trip', icon: '🚗', points: 10, unlocked: false },
+            { id: 'distance_10km', name: 'Explorer', description: 'Travel 10km total', icon: '🗺️', points: 25, unlocked: false },
+            { id: 'distance_100km', name: 'Wanderer', description: 'Travel 100km total', icon: '🌍', points: 50, unlocked: false },
+            { id: 'hazard_avoider', name: 'Safety First', description: 'Avoid 10 hazards', icon: '🛡️', points: 30, unlocked: false },
+            { id: 'eco_warrior', name: 'Eco Warrior', description: 'Save 5L of fuel', icon: '🌱', points: 40, unlocked: false },
+            { id: 'streak_7', name: 'Weekly Traveler', description: 'Use app 7 days in a row', icon: '🔥', points: 60, unlocked: false },
+            { id: 'level_5', name: 'Navigator', description: 'Reach level 5', icon: '⭐', points: 100, unlocked: false },
+            { id: 'speed_demon', name: 'Speed Demon', description: 'Complete 5 fastest routes', icon: '⚡', points: 35, unlocked: false },
+            { id: 'scenic_lover', name: 'Scenic Lover', description: 'Complete 3 scenic routes', icon: '🌄', points: 45, unlocked: false }
+        ];
+    }
+
+    saveUserStats() {
+        try {
+            localStorage.setItem('vibeVoyage_userStats', JSON.stringify(this.userStats));
+        } catch (error) {
+            console.error('Error saving user stats:', error);
+        }
+    }
+
+    addTripStats(distance, duration, routeType, hazardsAvoided = 0) {
+        if (!this.userStats) this.initGamificationSystem();
+
+        // Update stats
+        this.userStats.totalTrips++;
+        this.userStats.totalDistance += distance;
+        this.userStats.totalTime += Math.round(duration / 60); // Convert to minutes
+        this.userStats.hazardsAvoided += hazardsAvoided;
+
+        // Calculate fuel and CO2 savings (estimates)
+        const fuelEfficiency = this.units?.fuelEfficiency || 8; // L/100km
+        const fuelUsed = (distance / 1000) * (fuelEfficiency / 100);
+        const fuelSaved = fuelUsed * 0.1; // Assume 10% savings from route optimization
+        this.userStats.fuelSaved += fuelSaved;
+        this.userStats.co2Saved += fuelSaved * 2.31; // 2.31kg CO2 per liter of fuel
+
+        // Add points based on trip
+        let points = Math.round(distance / 1000) * 2; // 2 points per km
+        if (routeType === 'scenic') points += 5;
+        if (routeType === 'shortest') points += 3;
+        if (hazardsAvoided > 0) points += hazardsAvoided * 2;
+
+        this.userStats.points += points;
+
+        // Update level (every 100 points = 1 level)
+        const newLevel = Math.floor(this.userStats.points / 100) + 1;
+        if (newLevel > this.userStats.level) {
+            this.userStats.level = newLevel;
+            this.showLevelUpNotification(newLevel);
+        }
+
+        // Update streak
+        this.updateStreak();
+
+        // Check achievements
+        this.checkAchievements();
+
+        // Save and update display
+        this.saveUserStats();
+        this.updateGamificationDisplay();
+
+        // Show trip summary
+        this.showTripSummary(distance, duration, points, routeType);
+    }
+
+    updateStreak() {
+        const today = new Date().toDateString();
+        const lastTrip = this.userStats.lastTripDate;
+
+        if (!lastTrip) {
+            this.userStats.streakDays = 1;
+        } else {
+            const lastTripDate = new Date(lastTrip).toDateString();
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+
+            if (lastTripDate === today) {
+                // Same day, no change
+            } else if (lastTripDate === yesterday) {
+                // Consecutive day
+                this.userStats.streakDays++;
+            } else {
+                // Streak broken
+                this.userStats.streakDays = 1;
+            }
+        }
+
+        this.userStats.lastTripDate = Date.now();
+    }
+
+    checkAchievements() {
+        this.achievements.forEach(achievement => {
+            if (achievement.unlocked) return;
+
+            let shouldUnlock = false;
+
+            switch (achievement.id) {
+                case 'first_trip':
+                    shouldUnlock = this.userStats.totalTrips >= 1;
+                    break;
+                case 'distance_10km':
+                    shouldUnlock = this.userStats.totalDistance >= 10000;
+                    break;
+                case 'distance_100km':
+                    shouldUnlock = this.userStats.totalDistance >= 100000;
+                    break;
+                case 'hazard_avoider':
+                    shouldUnlock = this.userStats.hazardsAvoided >= 10;
+                    break;
+                case 'eco_warrior':
+                    shouldUnlock = this.userStats.fuelSaved >= 5;
+                    break;
+                case 'streak_7':
+                    shouldUnlock = this.userStats.streakDays >= 7;
+                    break;
+                case 'level_5':
+                    shouldUnlock = this.userStats.level >= 5;
+                    break;
+            }
+
+            if (shouldUnlock) {
+                achievement.unlocked = true;
+                this.userStats.achievements.push(achievement.id);
+                this.userStats.points += achievement.points;
+                this.showAchievementUnlocked(achievement);
+            }
+        });
+    }
+
+    showLevelUpNotification(level) {
+        this.showNotification(`🎉 Level Up! You're now level ${level}!`, 'success');
+
+        // Create level up animation
+        const levelUpDiv = document.createElement('div');
+        levelUpDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: black;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 10000;
+            animation: levelUpPulse 2s ease-in-out;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        `;
+        levelUpDiv.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+            <div>LEVEL UP!</div>
+            <div style="font-size: 18px; margin-top: 5px;">Level ${level}</div>
+        `;
+
+        document.body.appendChild(levelUpDiv);
+        setTimeout(() => levelUpDiv.remove(), 3000);
+    }
+
+    showAchievementUnlocked(achievement) {
+        this.showNotification(`🏆 Achievement Unlocked: ${achievement.name}!`, 'success');
+
+        // Create achievement animation
+        const achievementDiv = document.createElement('div');
+        achievementDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #FFD700;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #FFD700;
+            z-index: 10000;
+            animation: slideInRight 0.5s ease-out;
+            max-width: 300px;
+        `;
+        achievementDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 32px;">${achievement.icon}</span>
+                <div>
+                    <div style="font-weight: bold;">Achievement Unlocked!</div>
+                    <div style="font-size: 14px;">${achievement.name}</div>
+                    <div style="font-size: 12px; color: #ccc;">${achievement.description}</div>
+                    <div style="font-size: 12px; color: #FFD700;">+${achievement.points} points</div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(achievementDiv);
+        setTimeout(() => achievementDiv.remove(), 5000);
+    }
+
+    showTripSummary(distance, duration, points, routeType) {
+        const distanceKm = (distance / 1000).toFixed(1);
+        const durationMin = Math.round(duration / 60);
+
+        const summaryDiv = document.createElement('div');
+        summaryDiv.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 255, 136, 0.9);
+            color: black;
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 10000;
+            animation: slideInUp 0.5s ease-out;
+            max-width: 250px;
+            font-size: 14px;
+        `;
+        summaryDiv.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 8px;">🎯 Trip Complete!</div>
+            <div>📏 Distance: ${distanceKm} km</div>
+            <div>⏱️ Time: ${durationMin} min</div>
+            <div>🏆 Points: +${points}</div>
+            <div>🚗 Route: ${routeType}</div>
+        `;
+
+        document.body.appendChild(summaryDiv);
+        setTimeout(() => summaryDiv.remove(), 4000);
+    }
+
+    updateGamificationDisplay() {
+        // Update stats in UI if elements exist
+        const levelDisplay = document.getElementById('userLevel');
+        const pointsDisplay = document.getElementById('userPoints');
+        const streakDisplay = document.getElementById('userStreak');
+
+        if (levelDisplay) levelDisplay.textContent = this.userStats.level;
+        if (pointsDisplay) pointsDisplay.textContent = this.userStats.points;
+        if (streakDisplay) streakDisplay.textContent = this.userStats.streakDays;
+    }
+
+    showGamificationPanel() {
+        if (!this.userStats) this.initGamificationSystem();
+
+        const panelHTML = `
+            <div id="gamificationPanel" style="
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                max-width: 500px;
+                max-height: 80vh;
+                background: rgba(0, 0, 0, 0.95);
+                border: 2px solid #FFD700;
+                border-radius: 12px;
+                padding: 20px;
+                color: white;
+                z-index: 10000;
+                overflow-y: auto;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #FFD700; margin: 0;">🏆 Your Stats & Achievements</h3>
+                    <button onclick="closeGamificationPanel()" style="background: #FF6B6B; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+                </div>
+
+                <!-- User Level & Points -->
+                <div style="background: linear-gradient(45deg, #FFD700, #FFA500); color: black; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold;">Level ${this.userStats.level}</div>
+                    <div style="font-size: 16px;">${this.userStats.points} Points</div>
+                    <div style="font-size: 12px; margin-top: 5px;">🔥 ${this.userStats.streakDays} day streak</div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 20px;">🚗</div>
+                        <div style="font-size: 18px; font-weight: bold;">${this.userStats.totalTrips}</div>
+                        <div style="font-size: 12px; color: #ccc;">Total Trips</div>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 20px;">📏</div>
+                        <div style="font-size: 18px; font-weight: bold;">${(this.userStats.totalDistance / 1000).toFixed(1)}km</div>
+                        <div style="font-size: 12px; color: #ccc;">Distance</div>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 20px;">⛽</div>
+                        <div style="font-size: 18px; font-weight: bold;">${this.userStats.fuelSaved.toFixed(1)}L</div>
+                        <div style="font-size: 12px; color: #ccc;">Fuel Saved</div>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 20px;">🌱</div>
+                        <div style="font-size: 18px; font-weight: bold;">${this.userStats.co2Saved.toFixed(1)}kg</div>
+                        <div style="font-size: 12px; color: #ccc;">CO₂ Saved</div>
+                    </div>
+                </div>
+
+                <!-- Achievements -->
+                <div>
+                    <h4 style="color: #FFD700; margin-bottom: 15px;">🏅 Achievements</h4>
+                    <div style="display: grid; gap: 8px;">
+                        ${this.achievements.map(achievement => `
+                            <div style="
+                                display: flex;
+                                align-items: center;
+                                padding: 10px;
+                                background: ${achievement.unlocked ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+                                border: 1px solid ${achievement.unlocked ? '#FFD700' : '#333'};
+                                border-radius: 6px;
+                                ${achievement.unlocked ? '' : 'opacity: 0.6;'}
+                            ">
+                                <span style="font-size: 24px; margin-right: 10px; ${achievement.unlocked ? '' : 'filter: grayscale(100%);'}">${achievement.icon}</span>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: bold; color: ${achievement.unlocked ? '#FFD700' : '#ccc'};">${achievement.name}</div>
+                                    <div style="font-size: 12px; color: #888;">${achievement.description}</div>
+                                </div>
+                                <div style="text-align: right; font-size: 12px; color: ${achievement.unlocked ? '#FFD700' : '#666'};">
+                                    ${achievement.unlocked ? '✅' : `${achievement.points}pts`}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="resetGamificationStats()" style="background: #FF6B6B; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                        🔄 Reset Stats
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Remove existing panel
+        const existingPanel = document.getElementById('gamificationPanel');
+        if (existingPanel) existingPanel.remove();
+
+        // Add new panel
+        document.body.insertAdjacentHTML('beforeend', panelHTML);
+    }
+
     updateHazardAvoidanceSettings() {
         console.log('🚨 Updating hazard avoidance settings...');
 
@@ -6104,6 +6493,16 @@ class VibeVoyageApp {
     }
     
     stopNavigation() {
+        // Record trip stats before stopping
+        if (this.routeData && this.navigationStartTime) {
+            const tripDuration = Date.now() - this.navigationStartTime;
+            const tripDistance = this.routeData.distance || 0;
+            const routeType = this.routeData.type || 'standard';
+            const hazardsAvoided = this.hazardsAvoidedCount || 0;
+
+            this.addTripStats(tripDistance, tripDuration, routeType, hazardsAvoided);
+        }
+
         this.isNavigating = false;
 
         // Hide navigation panel
@@ -6125,6 +6524,10 @@ class VibeVoyageApp {
         const navBtn = document.getElementById('navigateBtn');
         navBtn.innerHTML = '🚗 Start Navigation';
         navBtn.onclick = () => this.startNavigation();
+
+        // Reset trip tracking
+        this.navigationStartTime = null;
+        this.hazardsAvoidedCount = 0;
 
         this.showNotification('Navigation stopped', 'warning');
         this.speakInstruction('Navigation stopped.');
@@ -7645,6 +8048,28 @@ function selectBestRoute() {
         window.app.selectRoute(bestRoute, bestIndex);
         closeRouteComparison();
         window.app.showNotification(`🏆 Best route selected (Score: ${bestScore}%)`, 'success');
+    }
+}
+
+function showGamificationStats() {
+    if (window.app && window.app.showGamificationPanel) {
+        window.app.showGamificationPanel();
+    } else {
+        console.error('❌ App not ready yet');
+    }
+}
+
+function closeGamificationPanel() {
+    const panel = document.getElementById('gamificationPanel');
+    if (panel) panel.remove();
+}
+
+function resetGamificationStats() {
+    if (window.app && confirm('Are you sure you want to reset all your stats and achievements? This cannot be undone.')) {
+        localStorage.removeItem('vibeVoyage_userStats');
+        window.app.initGamificationSystem();
+        window.app.showGamificationPanel();
+        window.app.showNotification('🔄 Stats reset successfully!', 'info');
     }
 }
 
