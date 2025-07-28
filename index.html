@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VibeVoyage - Smart Navigation</title>
     <link rel="manifest" href="./manifest.json">
-    <link rel="icon" href="./icons/icon-192x192.png">
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+    <link rel="apple-touch-icon" href="./icons/icon.svg">
     <meta name="theme-color" content="#00FF88">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -45,20 +46,26 @@
     <script src="src/modules/GamificationManager.js"></script>
     <script src="src/modules/HazardManager.js"></script>
 
-    <!-- Main Application -->
-    <script src="VibeVoyageApp.js" defer></script>
+    <!-- Main Application - Load App.js directly -->
+    <script src="App.js?v=2025.17&system=master&t=1737735200" defer></script>
 
-    <!-- Legacy compatibility (keep old App.js as fallback) -->
+    <!-- Fallback for modular loading (if needed) -->
     <script>
-        // Fallback to legacy App.js if modular loading fails
-        window.addEventListener('error', function(e) {
-            if (e.filename && e.filename.includes('src/')) {
-                console.warn('⚠️ Modular loading failed, falling back to legacy App.js');
+        // Ensure App.js is loaded
+        setTimeout(() => {
+            if (typeof initializeVibeVoyage === 'undefined') {
+                console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=2025.17&system=master&t=1737735200';
+                script.src = 'App.js?v=2025.17&system=master&t=' + Date.now();
+                script.onload = () => {
+                    console.log('✅ App.js loaded successfully');
+                    if (typeof initializeVibeVoyage === 'function') {
+                        initializeVibeVoyage();
+                    }
+                };
                 document.head.appendChild(script);
             }
-        });
+        }, 1000);
     </script>
     
     <style>
@@ -3123,9 +3130,16 @@
 
             // Wait a bit for App.js to load
             setTimeout(() => {
+                console.log('🔍 Checking for initializeVibeVoyage function...');
+                console.log('typeof initializeVibeVoyage:', typeof initializeVibeVoyage);
+                console.log('window.initializeVibeVoyage:', typeof window.initializeVibeVoyage);
+
                 if (typeof initializeVibeVoyage === 'function') {
                     console.log('✅ Calling initializeVibeVoyage...');
                     initializeVibeVoyage();
+                } else if (typeof window.initializeVibeVoyage === 'function') {
+                    console.log('✅ Calling window.initializeVibeVoyage...');
+                    window.initializeVibeVoyage();
 
                     // Test notifications after app loads
                     setTimeout(() => {
@@ -3168,6 +3182,23 @@
                 }
             }, 500);
         });
+
+        // Additional fallback - try to initialize after 5 seconds
+        setTimeout(() => {
+            if (!window.app) {
+                console.log('🔄 Final fallback - trying to initialize app after 5 seconds...');
+                if (typeof VibeVoyageApp !== 'undefined') {
+                    try {
+                        window.app = new VibeVoyageApp();
+                        console.log('✅ App initialized via final fallback');
+                    } catch (error) {
+                        console.error('❌ Final fallback failed:', error);
+                    }
+                } else {
+                    console.error('❌ VibeVoyageApp class still not available after 5 seconds');
+                }
+            }
+        }, 5000);
 
         // Fallback basic map initialization
         function initBasicMap() {
