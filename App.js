@@ -2170,11 +2170,20 @@ class VibeVoyageApp {
         // Handle NaN and invalid values
         if (!amount || isNaN(amount) || amount < 0) {
             console.warn('⚠️ Invalid currency amount:', amount);
-            return '$0.00';
+            // Default to GBP for UK users, USD otherwise
+            const defaultSymbol = (this.userCountry === 'GB' || !this.userCountry) ? '£' : '$';
+            return `${defaultSymbol}0.00`;
         }
 
         // Get country-specific currency formatting
-        const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
+        let countryData = this.fuelPrices[this.userCountry];
+
+        // If no user country detected, default to GB (UK) for GBP
+        if (!countryData) {
+            console.log('🔍 No user country detected, defaulting to GB for GBP');
+            countryData = this.fuelPrices['GB'];
+        }
+
         const { symbol } = countryData;
 
         return `${symbol}${amount.toFixed(2)}`;
@@ -4147,6 +4156,12 @@ class VibeVoyageApp {
     async detectRealHazards() {
         if (!this.currentLocation) return [];
 
+        // TEMPORARILY DISABLED: Hazard detection causing false positives
+        // TODO: Implement more accurate hazard detection with verified data sources
+        console.log('🚫 Hazard detection temporarily disabled to prevent false positives');
+        return [];
+
+        /* DISABLED CODE:
         try {
             // Use JavaScript HazardDetectionService if available
             if (this.hazardDetectionService) {
@@ -4170,6 +4185,7 @@ class VibeVoyageApp {
             return await this.loadHazardsDirectly();
         }
         return [];
+        */
     }
 
     async getRealHazardsAhead() {
@@ -6823,8 +6839,17 @@ class VibeVoyageApp {
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
-                this.fixMapDisplay();
-                console.log('🔄 Map resized due to window resize');
+                try {
+                    // Check if map and container exist before resizing
+                    if (this.map && this.map.getContainer() && this.map.getContainer().offsetWidth > 0) {
+                        this.fixMapDisplay();
+                        console.log('🔄 Map resized due to window resize');
+                    } else {
+                        console.warn('⚠️ Map container not ready for resize');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Map resize error (safely handled):', error.message);
+                }
             }, 250);
         });
 
@@ -8053,15 +8078,34 @@ class VibeVoyageApp {
     }
 
     calculateETA(remainingDistance) {
+        // Validate input
+        if (isNaN(remainingDistance) || remainingDistance <= 0) {
+            console.warn('⚠️ Invalid remaining distance for ETA calculation:', remainingDistance);
+            return '--:--';
+        }
+
         // Use appropriate average speed based on user's speed unit
         let averageSpeedKmh = 50; // Default 50 km/h
-        if (this.units.speed === 'mph') {
+        if (this.units && this.units.speed === 'mph') {
             averageSpeedKmh = 31; // ~50 km/h in mph equivalent
         }
 
         const averageSpeed = averageSpeedKmh * 1000 / 3600; // Convert to m/s
         const remainingTime = remainingDistance / averageSpeed;
+
+        // Validate calculation
+        if (isNaN(remainingTime) || remainingTime <= 0) {
+            console.warn('⚠️ Invalid remaining time calculation:', remainingTime);
+            return '--:--';
+        }
+
         const eta = new Date(Date.now() + remainingTime * 1000);
+
+        // Validate date
+        if (isNaN(eta.getTime())) {
+            console.warn('⚠️ Invalid ETA date calculation');
+            return '--:--';
+        }
 
         return eta.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
