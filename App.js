@@ -287,8 +287,11 @@ class VibeVoyageApp {
             // Detect user country for currency
             await this.detectUserCountry();
 
-            // Get user location
+            // Get user location and set as default
             await this.getCurrentLocation();
+
+            // Set current location as default in from input
+            this.setDefaultFromLocation();
 
             console.log('✅ Async initialization completed');
 
@@ -1339,11 +1342,29 @@ class VibeVoyageApp {
                 console.warn('⚠️ Map not ready, location stored but not displayed');
             }
             
-            // Update UI - only update placeholder, leave value empty so user can type over it
+            // Update UI - set current location as default value that's easy to overwrite
             const fromInput = document.getElementById('fromInput');
-            if (fromInput && !fromInput.value.trim()) {
-                // Only update placeholder if input is empty, don't set value
-                fromInput.placeholder = 'From: Current Location (detected)';
+            if (fromInput) {
+                // Set current location as the default value
+                fromInput.value = 'Current Location';
+                fromInput.placeholder = 'From: Address, company, postcode...';
+
+                // Add special styling to indicate it's the default
+                fromInput.classList.add('default-location');
+
+                // Make it easy to overwrite - select all text when focused
+                fromInput.addEventListener('focus', function() {
+                    if (this.value === 'Current Location') {
+                        this.select();
+                    }
+                }, { once: false });
+
+                // Clear default when user starts typing something else
+                fromInput.addEventListener('input', function() {
+                    if (this.classList.contains('default-location')) {
+                        this.classList.remove('default-location');
+                    }
+                });
             }
             if (statusElement) {
                 statusElement.textContent = 'Location found';
@@ -1387,14 +1408,51 @@ class VibeVoyageApp {
                     .bindPopup('📍 Demo Location (NYC)')
                     .openPopup();
             }
-            // Update placeholder only, don't set value so user can type over it
+            // Update input with demo location as default value
             const fromInput = document.getElementById('fromInput');
-            if (fromInput && !fromInput.value.trim()) {
-                fromInput.placeholder = 'From: Demo Location (NYC)';
+            if (fromInput) {
+                fromInput.value = 'Demo Location (NYC)';
+                fromInput.placeholder = 'From: Address, company, postcode...';
+                fromInput.classList.add('default-location');
+
+                // Make it easy to overwrite
+                fromInput.addEventListener('focus', function() {
+                    if (this.value === 'Demo Location (NYC)') {
+                        this.select();
+                    }
+                }, { once: false });
             }
         }
     }
-    
+
+    setDefaultFromLocation() {
+        // Set current location as default in from input if it's empty
+        const fromInput = document.getElementById('fromInput');
+        if (fromInput && !fromInput.value.trim()) {
+            if (this.currentLocation) {
+                fromInput.value = 'Current Location';
+                fromInput.classList.add('default-location');
+
+                // Add event listeners for easy overwriting
+                fromInput.addEventListener('focus', function() {
+                    if (this.value === 'Current Location') {
+                        this.select();
+                    }
+                }, { once: false });
+
+                fromInput.addEventListener('input', function() {
+                    if (this.classList.contains('default-location')) {
+                        this.classList.remove('default-location');
+                    }
+                });
+
+                console.log('📍 Set "Current Location" as default starting point');
+            } else {
+                console.log('📍 No current location available yet for default');
+            }
+        }
+    }
+
     async setDestination(latlng) {
         this.destination = latlng;
 
@@ -1428,6 +1486,17 @@ class VibeVoyageApp {
     }
     
     async startNavigation() {
+        // Check if from input has "Current Location" and handle it
+        const fromInput = document.getElementById('fromInput');
+        if (fromInput && (fromInput.value === 'Current Location' || fromInput.value === 'Demo Location (NYC)')) {
+            // Use current location as starting point
+            console.log('📍 Using current location as starting point');
+        } else if (fromInput && fromInput.value.trim() && fromInput.value !== 'Current Location') {
+            // User has entered a custom starting location
+            console.log('📍 Custom starting location detected:', fromInput.value);
+            this.showNotification('🔄 Custom starting locations not yet supported, using current location', 'info');
+        }
+
         if (!this.currentLocation || !this.destination) {
             this.showNotification('Please set a destination first', 'error');
             return;
