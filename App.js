@@ -5036,8 +5036,8 @@ class VibeVoyageApp {
                         height: 0;
                         border-left: 8px solid transparent;
                         border-right: 8px solid transparent;
-                        border-bottom: 12px solid #00FF88;
-                        filter: drop-shadow(0 0 8px #00FF88);
+                        border-bottom: 12px solid #00BFFF;
+                        filter: drop-shadow(0 0 8px #00BFFF);
                     "></div>
                     <div style="
                         position: absolute;
@@ -5048,8 +5048,8 @@ class VibeVoyageApp {
                         height: 0;
                         border-left: 6px solid transparent;
                         border-right: 6px solid transparent;
-                        border-bottom: 8px solid #00FF88;
-                        filter: drop-shadow(0 0 6px #00FF88);
+                        border-bottom: 8px solid #00BFFF;
+                        filter: drop-shadow(0 0 6px #00BFFF);
                     "></div>
                 </div>
             `,
@@ -5092,8 +5092,8 @@ class VibeVoyageApp {
                         height: 0;
                         border-left: 8px solid transparent;
                         border-right: 8px solid transparent;
-                        border-bottom: 12px solid #00FF88;
-                        filter: drop-shadow(0 0 8px #00FF88);
+                        border-bottom: 12px solid #00BFFF;
+                        filter: drop-shadow(0 0 8px #00BFFF);
                     "></div>
                     <div style="
                         position: absolute;
@@ -5104,8 +5104,8 @@ class VibeVoyageApp {
                         height: 0;
                         border-left: 6px solid transparent;
                         border-right: 6px solid transparent;
-                        border-bottom: 8px solid #00FF88;
-                        filter: drop-shadow(0 0 6px #00FF88);
+                        border-bottom: 8px solid #00BFFF;
+                        filter: drop-shadow(0 0 6px #00BFFF);
                     "></div>
                 </div>
             `,
