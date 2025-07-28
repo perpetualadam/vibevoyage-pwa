@@ -6,6 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; object-src 'none'; connect-src 'self' https: wss:;">
     <title>VibeVoyage - Smart Navigation</title>
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
@@ -2588,16 +2589,57 @@
     <!-- Leaflet JS is already loaded in the head section -->
 
     <script>
-        // Suppress browser extension runtime connection errors
+        // AGGRESSIVE: Suppress browser extension runtime connection errors at all levels
+
+        // Override window.onerror to catch browser-level errors
+        window.onerror = function(message, source, lineno, colno, error) {
+            if (message && (message.includes('Could not establish connection') ||
+                           message.includes('Receiving end does not exist') ||
+                           message.includes('Unchecked runtime.lastError') ||
+                           message.includes('Extension context invalidated'))) {
+                return true; // Suppress these errors completely
+            }
+            return false;
+        };
+
+        // Suppress at the error event level
         window.addEventListener('error', function(e) {
             if (e.message && (e.message.includes('Could not establish connection') ||
                              e.message.includes('Extension context invalidated') ||
-                             e.message.includes('Receiving end does not exist'))) {
+                             e.message.includes('Receiving end does not exist') ||
+                             e.message.includes('Unchecked runtime.lastError'))) {
                 e.preventDefault();
                 e.stopPropagation();
                 return true;
             }
-        });
+        }, true); // Use capture phase
+
+        // Block chrome.runtime access entirely if it's causing issues
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            try {
+                // Override chrome.runtime.sendMessage to prevent connection attempts
+                const originalSendMessage = chrome.runtime.sendMessage;
+                chrome.runtime.sendMessage = function(...args) {
+                    // Silently ignore all extension message attempts
+                    return new Promise((resolve) => resolve());
+                };
+
+                // Override chrome.runtime.connect to prevent connection attempts
+                if (chrome.runtime.connect) {
+                    chrome.runtime.connect = function(...args) {
+                        // Return a mock port that does nothing
+                        return {
+                            postMessage: () => {},
+                            disconnect: () => {},
+                            onMessage: { addListener: () => {} },
+                            onDisconnect: { addListener: () => {} }
+                        };
+                    };
+                }
+            } catch (e) {
+                // Ignore any errors from overriding chrome.runtime
+            }
+        }
 
         // Suppress unhandled promise rejections for extension errors
         window.addEventListener('unhandledrejection', function(e) {
@@ -2671,6 +2713,38 @@
                 return; // Suppress these warnings
             }
             originalConsoleWarn.apply(console, args);
+        };
+
+        // NUCLEAR OPTION: Override console.info and console.debug for extension messages
+        const originalConsoleInfo = console.info;
+        console.info = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('Unchecked runtime.lastError') ||
+                message.includes('Could not establish connection')) {
+                return; // Suppress these info messages
+            }
+            originalConsoleInfo.apply(console, args);
+        };
+
+        const originalConsoleDebug = console.debug;
+        console.debug = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('Unchecked runtime.lastError') ||
+                message.includes('Could not establish connection')) {
+                return; // Suppress these debug messages
+            }
+            originalConsoleDebug.apply(console, args);
+        };
+
+        // Override console.trace for extension traces
+        const originalConsoleTrace = console.trace;
+        console.trace = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('Unchecked runtime.lastError') ||
+                message.includes('Could not establish connection')) {
+                return; // Suppress these traces
+            }
+            originalConsoleTrace.apply(console, args);
         };
     </script>
 
