@@ -2611,6 +2611,44 @@
     <!-- Leaflet JS is already loaded in the head section -->
 
     <script>
+        // NUCLEAR OPTION: Immediate error suppression before anything else
+        (function() {
+            // Block all chrome.runtime access immediately
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                Object.defineProperty(chrome.runtime, 'lastError', {
+                    get: function() { return undefined; },
+                    set: function() {},
+                    configurable: false
+                });
+
+                chrome.runtime.sendMessage = function() { return Promise.resolve(); };
+                chrome.runtime.connect = function() {
+                    return {
+                        postMessage: () => {},
+                        disconnect: () => {},
+                        onMessage: { addListener: () => {} },
+                        onDisconnect: { addListener: () => {} }
+                    };
+                };
+            }
+
+            // Immediate console override
+            const suppress = (method) => {
+                const original = console[method];
+                console[method] = function(...args) {
+                    const message = args.join(' ');
+                    if (message.includes('Unchecked runtime.lastError') ||
+                        message.includes('Could not establish connection') ||
+                        message.includes('Receiving end does not exist')) {
+                        return;
+                    }
+                    original.apply(console, args);
+                };
+            };
+
+            ['error', 'warn', 'log', 'info', 'debug', 'trace'].forEach(suppress);
+        })();
+
         // AGGRESSIVE: Suppress browser extension runtime connection errors at all levels
 
         // Override window.onerror to catch browser-level errors

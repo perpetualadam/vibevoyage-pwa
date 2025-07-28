@@ -1426,27 +1426,38 @@ class VibeVoyageApp {
     }
 
     setDefaultFromLocation() {
-        // Set current location as default in from input if it's empty
+        // Set current location as default in from input
         const fromInput = document.getElementById('fromInput');
-        if (fromInput && !fromInput.value.trim()) {
+        if (fromInput) {
+            // Always set current location as default, even if input has content
             if (this.currentLocation) {
-                fromInput.value = 'Current Location';
-                fromInput.classList.add('default-location');
+                // Only set if it's not already set or if it's empty
+                if (!fromInput.value.trim() || fromInput.value === 'Current Location' || fromInput.value === 'Demo Location (NYC)') {
+                    fromInput.value = 'Current Location';
+                    fromInput.classList.add('default-location');
 
-                // Add event listeners for easy overwriting
-                fromInput.addEventListener('focus', function() {
-                    if (this.value === 'Current Location') {
-                        this.select();
-                    }
-                }, { once: false });
+                    // Remove any existing event listeners to prevent duplicates
+                    fromInput.removeEventListener('focus', this.handleFromInputFocus);
+                    fromInput.removeEventListener('input', this.handleFromInputChange);
 
-                fromInput.addEventListener('input', function() {
-                    if (this.classList.contains('default-location')) {
-                        this.classList.remove('default-location');
-                    }
-                });
+                    // Add event listeners for easy overwriting
+                    this.handleFromInputFocus = function() {
+                        if (this.value === 'Current Location' || this.value === 'Demo Location (NYC)') {
+                            this.select();
+                        }
+                    };
 
-                console.log('📍 Set "Current Location" as default starting point');
+                    this.handleFromInputChange = function() {
+                        if (this.classList.contains('default-location')) {
+                            this.classList.remove('default-location');
+                        }
+                    };
+
+                    fromInput.addEventListener('focus', this.handleFromInputFocus);
+                    fromInput.addEventListener('input', this.handleFromInputChange);
+
+                    console.log('📍 Set "Current Location" as default starting point');
+                }
             } else {
                 console.log('📍 No current location available yet for default');
             }
@@ -1724,8 +1735,9 @@ class VibeVoyageApp {
             if (!param) return '';
             let cleaned = param;
 
-            // Remove all :number patterns (including :1, :2, etc.)
+            // Remove all :number patterns (including :1, :2, etc.) - multiple passes
             cleaned = cleaned.replace(/:[0-9]+/g, '');
+            cleaned = cleaned.replace(/:[0-9]+/g, ''); // Second pass
 
             // Remove any trailing numbers that might be appended
             cleaned = cleaned.replace(/[0-9]+$/g, '');
@@ -1733,8 +1745,12 @@ class VibeVoyageApp {
             // Clean up multiple commas and trailing/leading commas
             cleaned = cleaned.replace(/,+/g, ',').replace(/^,|,$/g, '');
 
-            // Remove any remaining problematic characters
+            // Remove any remaining problematic characters except letters, commas, &, =
             cleaned = cleaned.replace(/[^a-zA-Z,&=]/g, '');
+
+            // Final pass to remove any remaining :1 patterns
+            cleaned = cleaned.replace(/:1/g, '');
+            cleaned = cleaned.replace(/1$/g, ''); // Remove trailing 1
 
             console.log(`🧹 URL param cleaning: "${param}" → "${cleaned}"`);
             return cleaned;
