@@ -54,7 +54,12 @@ class GeocodingService {
             
             return data.map(item => this.formatGeocodingResult(item));
         } catch (error) {
-            console.error('Geocoding error:', error);
+            // Handle CORS errors more gracefully
+            if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                console.warn('🚫 CORS error blocked geocoding request - this is expected for some queries');
+            } else {
+                console.error('Geocoding error:', error);
+            }
             return [];
         }
     }
@@ -83,7 +88,12 @@ class GeocodingService {
             
             return this.formatGeocodingResult(data);
         } catch (error) {
-            console.error('Reverse geocoding error:', error);
+            // Handle CORS errors more gracefully
+            if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                console.warn('🚫 CORS error blocked reverse geocoding request');
+            } else {
+                console.error('Reverse geocoding error:', error);
+            }
             return null;
         }
     }

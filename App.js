@@ -2856,6 +2856,21 @@ class VibeVoyageApp {
             return;
         }
 
+        // Skip geocoding for default values to prevent CORS errors
+        const defaultValues = [
+            'Current Location',
+            'Demo Location (NYC)',
+            'Demo Location',
+            'current location',
+            'demo location'
+        ];
+
+        if (defaultValues.some(defaultValue => query.toLowerCase().includes(defaultValue.toLowerCase()))) {
+            console.log(`🚫 Skipping geocoding for default value: "${query}"`);
+            this.hideSuggestions(inputType);
+            return;
+        }
+
         // Show searching notification
         this.showNotification(`🔍 Searching for "${query}"...`, 'info');
 
@@ -2949,6 +2964,20 @@ class VibeVoyageApp {
 
     async getAddressSuggestions(query, format) {
         const suggestions = [];
+
+        // Additional protection against default values
+        const defaultValues = [
+            'Current Location',
+            'Demo Location (NYC)',
+            'Demo Location',
+            'current location',
+            'demo location'
+        ];
+
+        if (defaultValues.some(defaultValue => query.toLowerCase().includes(defaultValue.toLowerCase()))) {
+            console.log(`🚫 Blocking geocoding request for default value: "${query}"`);
+            return []; // Return empty suggestions
+        }
 
         try {
             switch (format) {
