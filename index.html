@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>VibeVoyage - Smart Navigation</title>
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
@@ -47,7 +50,7 @@
     <script src="src/modules/HazardManager.js"></script>
 
     <!-- Main Application - Load App.js directly -->
-    <script src="App.js?v=2025.20&system=master&t=1737735203" defer></script>
+    <script src="App.js?v=2025.21&system=master&t=1737735204&nocache=true" defer></script>
 
     <!-- Fallback for modular loading (if needed) -->
     <script>
@@ -56,7 +59,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=2025.20&system=master&t=' + Date.now();
+                script.src = 'App.js?v=2025.21&system=master&t=' + Date.now() + '&nocache=true';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
