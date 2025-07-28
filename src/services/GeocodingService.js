@@ -44,14 +44,17 @@ class GeocodingService {
                 params.append('bounded', '1');
             }
 
-            const response = await fetch(`${this.baseUrl}/search?${params}`);
-            
+            // Try primary Nominatim service
+            let response = await fetch(`${this.baseUrl}/search?${params}`);
+
+            // If Nominatim fails (503, 429, etc.), try alternative services
             if (!response.ok) {
-                throw new Error(`Geocoding request failed: ${response.status}`);
+                console.warn(`⚠️ Nominatim failed (${response.status}), trying alternative geocoding services...`);
+                return await this.tryAlternativeGeocodingServices(query, options);
             }
 
             const data = await response.json();
-            
+
             return data.map(item => this.formatGeocodingResult(item));
         } catch (error) {
             // Handle CORS errors more gracefully
@@ -60,8 +63,84 @@ class GeocodingService {
             } else {
                 console.error('Geocoding error:', error);
             }
-            return [];
+
+            // Try alternative services as fallback
+            console.log('🔄 Trying alternative geocoding services as fallback...');
+            return await this.tryAlternativeGeocodingServices(query, options);
         }
+    }
+
+    async tryAlternativeGeocodingServices(query, options = {}) {
+        const alternativeServices = [
+            {
+                name: 'Photon (Komoot)',
+                url: `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${options.limit || 10}`,
+                parser: this.parsePhotonResponse.bind(this)
+            },
+            {
+                name: 'Nominatim (MapQuest)',
+                url: `https://open.mapquestapi.com/nominatim/v1/search.php?format=json&q=${encodeURIComponent(query)}&limit=${options.limit || 10}&addressdetails=1`,
+                parser: this.formatGeocodingResult.bind(this)
+            },
+            {
+                name: 'Pelias (Geocode.earth)',
+                url: `https://api.geocode.earth/v1/search?text=${encodeURIComponent(query)}&size=${options.limit || 10}`,
+                parser: this.parsePeliasResponse.bind(this)
+            }
+        ];
+
+        for (const service of alternativeServices) {
+            try {
+                console.log(`🔍 Trying ${service.name}...`);
+                const response = await fetch(service.url);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const results = Array.isArray(data) ? data.map(service.parser) :
+                                   data.features ? data.features.map(service.parser) : [];
+
+                    if (results.length > 0) {
+                        console.log(`✅ ${service.name}: Found ${results.length} results`);
+                        return results;
+                    }
+                }
+            } catch (error) {
+                console.warn(`⚠️ ${service.name} failed:`, error.message);
+            }
+        }
+
+        console.warn('⚠️ All geocoding services failed');
+        return [];
+    }
+
+    parsePhotonResponse(item) {
+        return {
+            display_name: item.properties.name || item.properties.street || 'Unknown',
+            lat: item.geometry.coordinates[1],
+            lon: item.geometry.coordinates[0],
+            address: {
+                house_number: item.properties.housenumber,
+                road: item.properties.street,
+                city: item.properties.city,
+                postcode: item.properties.postcode,
+                country: item.properties.country
+            }
+        };
+    }
+
+    parsePeliasResponse(item) {
+        return {
+            display_name: item.properties.label || 'Unknown',
+            lat: item.geometry.coordinates[1],
+            lon: item.geometry.coordinates[0],
+            address: {
+                house_number: item.properties.housenumber,
+                road: item.properties.street,
+                city: item.properties.locality,
+                postcode: item.properties.postalcode,
+                country: item.properties.country
+            }
+        };
     }
 
     async reverseGeocode(lat, lng, options = {}) {

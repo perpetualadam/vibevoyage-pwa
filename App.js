@@ -1464,6 +1464,76 @@ class VibeVoyageApp {
         }
     }
 
+    parseRoutingResponse(data, service) {
+        try {
+            switch (service.type) {
+                case 'valhalla':
+                    return this.parseValhallaResponse(data);
+                case 'graphhopper':
+                    return this.parseGraphHopperResponse(data);
+                case 'openrouteservice':
+                    return this.parseOpenRouteServiceResponse(data);
+                case 'osrm':
+                default:
+                    return this.parseOSRMResponse(data);
+            }
+        } catch (error) {
+            console.error(`Error parsing ${service.type} response:`, error);
+            return [];
+        }
+    }
+
+    parseValhallaResponse(data) {
+        if (!data.trip || !data.trip.legs) return [];
+
+        const leg = data.trip.legs[0];
+        return [{
+            distance: data.trip.summary.length * 1000, // Convert km to meters
+            duration: data.trip.summary.time,
+            geometry: {
+                type: 'LineString',
+                coordinates: leg.shape.map(point => [point.lon, point.lat])
+            },
+            steps: leg.maneuvers || []
+        }];
+    }
+
+    parseGraphHopperResponse(data) {
+        if (!data.paths || data.paths.length === 0) return [];
+
+        return data.paths.map(path => ({
+            distance: path.distance,
+            duration: path.time / 1000, // Convert ms to seconds
+            geometry: {
+                type: 'LineString',
+                coordinates: path.points.coordinates
+            },
+            steps: path.instructions || []
+        }));
+    }
+
+    parseOpenRouteServiceResponse(data) {
+        if (!data.features || data.features.length === 0) return [];
+
+        return data.features.map(feature => ({
+            distance: feature.properties.summary.distance,
+            duration: feature.properties.summary.duration,
+            geometry: feature.geometry,
+            steps: feature.properties.segments?.[0]?.steps || []
+        }));
+    }
+
+    parseOSRMResponse(data) {
+        if (!data.routes || data.routes.length === 0) return [];
+
+        return data.routes.map(route => ({
+            distance: route.distance,
+            duration: route.duration,
+            geometry: route.geometry,
+            steps: route.legs?.[0]?.steps || []
+        }));
+    }
+
     async setDestination(latlng) {
         this.destination = latlng;
 
@@ -1798,32 +1868,37 @@ class VibeVoyageApp {
             return url;
         };
 
-        // Multiple routing services - start with simple calls, then add complexity
+        // Multiple routing services - prioritize reliable open source alternatives
         const routingServices = [
             {
-                name: 'OSRM Basic Route',
+                name: 'Valhalla Routing (Mapzen)',
+                url: `https://valhalla1.openstreetmap.de/route?json={"locations":[{"lat":${startLat},"lon":${startLng}},{"lat":${endLat},"lon":${endLng}}],"costing":"auto","directions_options":{"units":"kilometers"}}`,
+                timeout: 12000,
+                type: 'valhalla'
+            },
+            {
+                name: 'GraphHopper Routing',
+                url: `https://graphhopper.com/api/1/route?point=${startLat},${startLng}&point=${endLat},${endLng}&vehicle=car&locale=en&calc_points=true&debug=true&elevation=false&points_encoded=false&type=json`,
+                timeout: 10000,
+                type: 'graphhopper'
+            },
+            {
+                name: 'OSRM Clean Route',
                 url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`,
-                timeout: 10000
+                timeout: 8000,
+                type: 'osrm'
             },
             {
                 name: 'OSRM with Alternatives',
                 url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true`,
-                timeout: 8000
+                timeout: 6000,
+                type: 'osrm'
             },
             {
-                name: 'OSRM Primary (Hazard Avoiding)',
-                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true`, excludeParams.primary),
-                timeout: 8000
-            },
-            {
-                name: 'OSRM Alternative (No Highway)',
-                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=true&voice_instructions=true`, excludeParams.noHighway),
-                timeout: 6000
-            },
-            {
-                name: 'OSRM Backup (Safe Route)',
-                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true`, excludeParams.fastest),
-                timeout: 6000
+                name: 'OpenRouteService',
+                url: `https://api.openrouteservice.org/v2/directions/driving-car?start=${startLng},${startLat}&end=${endLng},${endLat}`,
+                timeout: 8000,
+                type: 'openrouteservice'
             }
         ];
 
@@ -1845,12 +1920,16 @@ class VibeVoyageApp {
                     const response = result.value.response;
                     if (response.ok) {
                         const data = await response.json();
-                        if (data.routes && data.routes.length > 0) {
-                            console.log(`✅ ${result.value.service}: ${data.routes.length} routes found`);
+
+                        // Parse response based on service type
+                        const parsedRoutes = this.parseRoutingResponse(data, routingServices[i]);
+
+                        if (parsedRoutes && parsedRoutes.length > 0) {
+                            console.log(`✅ ${result.value.service}: ${parsedRoutes.length} routes found`);
                             successfulRequests++;
 
                             // Add all routes from this response
-                            data.routes.forEach((route, index) => {
+                            parsedRoutes.forEach((route, index) => {
                                 routes.push({
                                     ...route,
                                     routeIndex: routes.length,
