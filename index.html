@@ -28,8 +28,38 @@
     <script src="src/services/WakeWordService.js"></script>
     <script src="src/services/VoiceHazardReportService.js"></script>
 
+    <!-- Refactored Modular Architecture -->
+    <!-- Core modules -->
+    <script src="src/core/BaseModule.js"></script>
+    <script src="src/core/ModuleLoader.js"></script>
+    <script src="src/core/AppCore.js"></script>
+
+    <!-- Application modules -->
+    <script src="src/modules/SettingsManager.js"></script>
+    <script src="src/modules/LanguageManager.js"></script>
+    <script src="src/modules/MapManager.js"></script>
+    <script src="src/modules/LocationManager.js"></script>
+    <script src="src/modules/RouteManager.js"></script>
+    <script src="src/modules/NavigationManager.js"></script>
+    <script src="src/modules/UIManager.js"></script>
+    <script src="src/modules/GamificationManager.js"></script>
+    <script src="src/modules/HazardManager.js"></script>
+
     <!-- Main Application -->
-    <script src="App.js?v=2025.17&system=master&t=1737735200" defer></script>
+    <script src="VibeVoyageApp.js" defer></script>
+
+    <!-- Legacy compatibility (keep old App.js as fallback) -->
+    <script>
+        // Fallback to legacy App.js if modular loading fails
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('src/')) {
+                console.warn('⚠️ Modular loading failed, falling back to legacy App.js');
+                const script = document.createElement('script');
+                script.src = 'App.js?v=2025.17&system=master&t=1737735200';
+                document.head.appendChild(script);
+            }
+        });
+    </script>
     
     <style>
         * {
