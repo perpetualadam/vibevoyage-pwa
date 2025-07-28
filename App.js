@@ -1710,7 +1710,7 @@ class VibeVoyageApp {
                 const data = await response.json();
                 if (data.routes && data.routes.length > 0) {
                     const route = data.routes[0];
-                    this.selectRoute(route, 0);
+                    await this.selectRoute(route, 0);
                     return;
                 }
             }
@@ -2000,7 +2000,7 @@ class VibeVoyageApp {
         }
     }
 
-    selectRoute(route, index) {
+    async selectRoute(route, index) {
         console.log('🎯 Route selected:', route.type, index);
 
         // Check if map is ready
@@ -8830,15 +8830,15 @@ function closeRouteComparison() {
     if (panel) panel.remove();
 }
 
-function selectRouteFromComparison(index) {
+async function selectRouteFromComparison(index) {
     if (window.app && window.app.availableRoutes && window.app.availableRoutes[index]) {
-        window.app.selectRoute(window.app.availableRoutes[index], index);
+        await window.app.selectRoute(window.app.availableRoutes[index], index);
         closeRouteComparison();
         window.app.showNotification('✅ Route selected from comparison', 'success');
     }
 }
 
-function selectBestRoute() {
+async function selectBestRoute() {
     if (window.app && window.app.availableRoutes && window.app.availableRoutes.length > 0) {
         // Select the route with the highest score
         let bestRoute = window.app.availableRoutes[0];
@@ -8854,7 +8854,7 @@ function selectBestRoute() {
             }
         });
 
-        window.app.selectRoute(bestRoute, bestIndex);
+        await window.app.selectRoute(bestRoute, bestIndex);
         closeRouteComparison();
         window.app.showNotification(`🏆 Best route selected (Score: ${bestScore}%)`, 'success');
     }
@@ -9025,10 +9025,10 @@ function hideRouteSelection() {
     }
 }
 
-function selectRouteForJourney() {
+async function selectRouteForJourney() {
     if (app && app.availableRoutes && app.availableRoutes.length > 0) {
         const selectedRoute = app.availableRoutes[app.selectedRouteIndex];
-        app.selectRoute(selectedRoute, app.selectedRouteIndex);
+        await app.selectRoute(selectedRoute, app.selectedRouteIndex);
         hideRouteSelection();
     }
 }
