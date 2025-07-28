@@ -1348,21 +1348,21 @@ class VibeVoyageApp {
 
             // Handle specific error types
             if (error.code === 1) {
-                errorMessage = 'Location denied';
-                notificationMessage = 'Please allow location access and refresh the page.';
+                errorMessage = 'Using demo location';
+                notificationMessage = 'Using demo location (NYC). Enable location for better experience.';
             } else if (error.code === 2) {
                 errorMessage = 'Location unavailable';
-                notificationMessage = 'Location services unavailable. Check your connection.';
+                notificationMessage = 'Location services unavailable. Using demo location (NYC).';
             } else if (error.code === 3) {
                 errorMessage = 'Location timeout';
-                notificationMessage = 'Location request timed out. Please try again.';
+                notificationMessage = 'Location request timed out. Using demo location (NYC).';
             }
 
             if (statusElement) {
                 statusElement.textContent = errorMessage;
                 statusElement.className = 'status-offline';
             }
-            this.showNotification(notificationMessage, 'error');
+            this.showNotification(notificationMessage, 'info');
 
             // Set a default location (NYC) for demo purposes
             this.currentLocation = { lat: 40.7128, lng: -74.0060 };

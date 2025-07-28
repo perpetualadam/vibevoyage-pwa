@@ -42,7 +42,8 @@ class HazardDetectionService {
             }
 
             if (!hazardsLoaded) {
-                console.warn('⚠️ HazardDetectionService: No hazards file found, using empty array');
+                console.warn('⚠️ HazardDetectionService: No hazards file found at any path, using empty array');
+                console.warn('⚠️ HazardDetectionService: Tried paths:', paths);
                 this.hazards = [];
             }
 

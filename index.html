@@ -47,7 +47,7 @@
     <script src="src/modules/HazardManager.js"></script>
 
     <!-- Main Application - Load App.js directly -->
-    <script src="App.js?v=2025.18&system=master&t=1737735201" defer></script>
+    <script src="App.js?v=2025.19&system=master&t=1737735202" defer></script>
 
     <!-- Fallback for modular loading (if needed) -->
     <script>
@@ -56,7 +56,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=2025.18&system=master&t=' + Date.now();
+                script.src = 'App.js?v=2025.19&system=master&t=' + Date.now();
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
