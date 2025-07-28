@@ -2551,6 +2551,14 @@ class VibeVoyageApp {
 
 
     calculateDistance(lat1, lng1, lat2, lng2) {
+        // Validate inputs
+        if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
+            console.error('❌ Invalid coordinates for distance calculation:', { lat1, lng1, lat2, lng2 });
+            return 0;
+        }
+
+        console.log('📏 Calculating distance:', { lat1, lng1, lat2, lng2 });
+
         const R = 6371000; // Earth's radius in meters
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -2558,7 +2566,10 @@ class VibeVoyageApp {
                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                 Math.sin(dLng/2) * Math.sin(dLng/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
+        const distance = R * c;
+
+        console.log('📏 Distance calculated:', distance + 'm');
+        return distance;
     }
 
     calculateSpeedFromPosition(prevLocation, newLocation, timestamp) {
@@ -5526,8 +5537,39 @@ class VibeVoyageApp {
     }
 
     calculateFuelCost(distance) {
-        // Use the proper fuel cost calculation with country-specific pricing
-        return this.estimateFuelCost(distance);
+        // Calculate numeric fuel cost (returns number, not formatted string)
+        if (!distance || isNaN(distance) || distance <= 0) {
+            console.warn('⚠️ Invalid distance for fuel cost calculation:', distance);
+            return 0;
+        }
+
+        const distanceKm = distance / 1000;
+        const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km average consumption
+
+        // Get country-specific pricing
+        const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
+        const { price } = countryData;
+
+        let cost;
+
+        // Calculate cost based on fuel unit preference
+        switch (this.units.fuel) {
+            case 'gallons_us':
+                const gallonsUs = fuelUsed * 0.264172;
+                cost = gallonsUs * (this.userCountry === 'US' ? price : price * 3.78541);
+                break;
+            case 'gallons_uk':
+                const gallonsUk = fuelUsed * 0.219969;
+                cost = gallonsUk * (this.userCountry === 'GB' ? price * 4.54609 : price * 4.54609);
+                break;
+            case 'liters':
+            default:
+                cost = fuelUsed * price;
+                break;
+        }
+
+        console.log('⛽ Fuel cost (numeric):', { distance, distanceKm, fuelUsed, cost });
+        return cost;
     }
 
     estimateTollCost(route) {
@@ -8484,8 +8526,10 @@ function toggleSettings() {
             padding: 30px;
             border-radius: 12px;
             border: 1px solid #333;
-            max-width: 400px;
+            max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
             color: #fff;
         ">
             <h3 style="margin: 0 0 20px 0; color: #00FF88;">⚙️ Navigation Settings</h3>
