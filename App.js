@@ -1595,6 +1595,26 @@ class VibeVoyageApp {
 
         console.log('🚨 OSRM exclude parameters (after cleaning):', excludeParams);
 
+        // Final aggressive cleaning right before URL construction
+        Object.keys(excludeParams).forEach(key => {
+            if (excludeParams[key]) {
+                // Remove all :number patterns and clean up
+                let cleaned = excludeParams[key];
+                cleaned = cleaned.replace(/:[0-9]+/g, ''); // Remove :1, :2, etc.
+                cleaned = cleaned.replace(/,+/g, ','); // Fix multiple commas
+                cleaned = cleaned.replace(/^,|,$/g, ''); // Remove leading/trailing commas
+                cleaned = cleaned.replace(/&exclude=,/g, '&exclude='); // Fix empty exclude
+                cleaned = cleaned.replace(/&exclude=$/g, ''); // Remove empty exclude at end
+
+                if (cleaned !== excludeParams[key]) {
+                    console.log(`🧹 Final cleaning ${key}: "${excludeParams[key]}" → "${cleaned}"`);
+                    excludeParams[key] = cleaned;
+                }
+            }
+        });
+
+        console.log('🚨 OSRM exclude parameters (final):', excludeParams);
+
         // Show user notification about active hazard avoidance
         const activeHazards = this.getActiveHazardTypes();
         if (activeHazards.length > 0) {
@@ -4321,7 +4341,15 @@ class VibeVoyageApp {
 
         // Calculate the number of intermediate points based on distance
         const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
-        const numPoints = Math.max(4, Math.min(8, Math.floor(distance / 3000))); // More points for better curves
+
+        // Ensure we always have a reasonable number of points even if distance calculation fails
+        let numPoints;
+        if (isNaN(distance) || distance <= 0) {
+            console.warn('⚠️ Invalid distance for waypoint calculation, using default points');
+            numPoints = 6; // Default to 6 intermediate points
+        } else {
+            numPoints = Math.max(4, Math.min(8, Math.floor(distance / 3000))); // More points for better curves
+        }
 
         console.log('🛣️ Generating road-like waypoints:', {
             distance: distance + 'm',
@@ -8038,6 +8066,12 @@ class VibeVoyageApp {
 
     updateCarPosition(lat, lng, heading = 0) {
         if (!this.map) return;
+
+        // Remove existing car marker to prevent duplicates
+        if (this.carMarker) {
+            this.map.removeLayer(this.carMarker);
+            this.carMarker = null;
+        }
 
         // Clear existing vehicle markers
         this.vehicleLayer.clearLayers();
