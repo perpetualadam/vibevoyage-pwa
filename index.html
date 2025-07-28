@@ -25,6 +25,8 @@
     <script src="src/services/HazardDetectionService.js"></script>
     <script src="src/services/GeocodingService.js"></script>
     <script src="src/services/VoiceNavigationService.js"></script>
+    <script src="src/services/WakeWordService.js"></script>
+    <script src="src/services/VoiceHazardReportService.js"></script>
 
     <!-- Main Application -->
     <script src="App.js?v=2025.17&system=master&t=1737735200" defer></script>
@@ -120,6 +122,18 @@
 
         .btn-secondary:hover {
             background: #555;
+        }
+
+        .btn-voice {
+            background: linear-gradient(45deg, #FF6B6B, #FF8E8E);
+            color: white;
+            border: 2px solid #FF6B6B;
+        }
+
+        .btn-voice:hover {
+            background: linear-gradient(45deg, #FF5252, #FF7979);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
         }
         
         /* Journey Planning Section */
@@ -1732,6 +1746,148 @@
             50% { opacity: 0.6; }
         }
 
+        /* Voice Reporting UI Styles */
+        .voice-reporting-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .voice-reporting-content {
+            background: rgba(26, 26, 26, 0.95);
+            border: 2px solid #00FF88;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            color: #00FF88;
+            font-family: 'Orbitron', monospace;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .mic-animation {
+            margin-bottom: 20px;
+        }
+
+        .mic-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .mic-icon.pulsing {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .reporting-text {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #87CEEB;
+        }
+
+        .cancel-reporting-btn {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: 'Orbitron', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cancel-reporting-btn:hover {
+            background: #FF5252;
+            transform: scale(1.05);
+        }
+
+        /* Wake Word Feedback */
+        .wake-word-feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 255, 136, 0.9);
+            color: #000;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-family: 'Orbitron', monospace;
+            font-weight: bold;
+            z-index: 2500;
+            animation: wakeWordFeedback 3s ease-in-out;
+        }
+
+        .wake-word-animation {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .wake-word-text {
+            font-size: 16px;
+        }
+
+        @keyframes wakeWordFeedback {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        }
+
+        /* User Hazard Marker Styles */
+        .user-hazard-marker {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hazard-icon {
+            font-size: 24px;
+            background: rgba(0, 255, 136, 0.9);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #00FF88;
+        }
+
+        .user-badge {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            background: #FFD700;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            border: 1px solid #FFA500;
+        }
+
+        .hazard-popup.user-reported {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(135, 206, 235, 0.1));
+            border: 1px solid #00FF88;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .hazard-popup.user-reported h4 {
+            color: #00FF88;
+            margin: 0 0 10px 0;
+        }
+
         /* Journey Control Panel */
         .journey-control-panel {
             position: fixed;
@@ -2056,6 +2212,9 @@
                 <button class="btn btn-secondary" onclick="comprehensiveAppTest()" title="Comprehensive App Test">🔍</button>
                 <button class="btn btn-secondary" onclick="debugAppState()" title="Debug App State">🔧</button>
                 <button class="btn btn-secondary" onclick="testRouteCalculation()" title="Test Route Calculation">🛣️</button>
+                <button class="btn btn-voice" onclick="toggleVoiceReporting()" title="Toggle Voice Hazard Reporting" id="voiceReportingBtn">🎙️</button>
+                <button class="btn btn-secondary" onclick="testVoiceHazardReporting()" title="Test Voice Hazard Reporting">🗣️</button>
+                <button class="btn btn-secondary" onclick="showVoiceReportingStatus()" title="Voice Reporting Status">📊</button>
             </div>
         </header>
 
@@ -2720,6 +2879,101 @@
             }
 
             return results;
+        }
+
+        // Voice Hazard Reporting Functions
+        function toggleVoiceReporting() {
+            console.log('🎙️ Toggling voice hazard reporting...');
+
+            if (!window.app) {
+                console.error('❌ App not initialized');
+                return;
+            }
+
+            const btn = document.getElementById('voiceReportingBtn');
+
+            if (window.app.wakeWordService) {
+                const status = window.app.wakeWordService.getStatus();
+
+                if (status.isEnabled) {
+                    // Stop wake word detection
+                    window.app.wakeWordService.stop();
+                    btn.textContent = '🎙️';
+                    btn.title = 'Start Voice Hazard Reporting';
+                    window.app.showNotification('Voice hazard reporting disabled', 'info');
+                } else {
+                    // Start wake word detection
+                    const started = window.app.wakeWordService.start();
+                    if (started) {
+                        btn.textContent = '🔴';
+                        btn.title = 'Stop Voice Hazard Reporting';
+                        window.app.showNotification('Voice hazard reporting enabled - Say "Hey NavBuddy" or "Report hazard"', 'success');
+                    } else {
+                        window.app.showNotification('Voice hazard reporting not supported in this browser', 'error');
+                    }
+                }
+            } else {
+                console.error('❌ Wake word service not available');
+                window.app.showNotification('Voice services not available', 'error');
+            }
+        }
+
+        function testVoiceHazardReporting() {
+            console.log('🎙️ Testing voice hazard reporting...');
+
+            if (!window.app) {
+                console.error('❌ App not initialized');
+                return;
+            }
+
+            if (!window.app.voiceHazardReportService) {
+                console.error('❌ Voice hazard report service not available');
+                window.app.showNotification('Voice hazard reporting not available', 'error');
+                return;
+            }
+
+            // Simulate wake word detection
+            window.app.handleWakeWordDetected({
+                wakeWord: 'test command',
+                transcript: 'test command',
+                confidence: 1.0,
+                timestamp: Date.now()
+            });
+        }
+
+        function showVoiceReportingStatus() {
+            console.log('🎙️ Voice hazard reporting status:');
+
+            if (!window.app) {
+                console.error('❌ App not initialized');
+                return;
+            }
+
+            if (window.app.wakeWordService) {
+                const status = window.app.wakeWordService.getStatus();
+                console.log('- Wake Word Service:', status);
+
+                const message = `
+                    Wake Word Detection: ${status.isEnabled ? '✅ Enabled' : '❌ Disabled'}
+                    Browser Support: ${status.isSupported ? '✅ Supported' : '❌ Not Supported'}
+                    Currently Listening: ${status.isListening ? '✅ Yes' : '❌ No'}
+                    Wake Words: ${status.wakeWords.join(', ')}
+                    Safari/iOS: ${status.isSafariOrIOS ? '⚠️ Yes (limited support)' : '✅ No'}
+                `;
+
+                window.app.showNotification(message, 'info');
+            }
+
+            if (window.app.voiceHazardReportService) {
+                const isActive = window.app.voiceHazardReportService.isReportingActive();
+                const currentStep = window.app.voiceHazardReportService.getCurrentStep();
+                const supportedTypes = window.app.voiceHazardReportService.getSupportedHazardTypes();
+
+                console.log('- Voice Hazard Report Service:');
+                console.log('  - Active:', isActive);
+                console.log('  - Current Step:', currentStep);
+                console.log('  - Supported Types:', supportedTypes);
+            }
         }
 
         // Initialize the app when DOM is loaded

@@ -249,6 +249,172 @@ class VibeVoyageApp {
         }, 1000);
     }
 
+    handleWakeWordDetected(data) {
+        try {
+            // Pause wake word detection during hazard reporting
+            if (this.wakeWordService) {
+                this.wakeWordService.pause();
+            }
+
+            // Start hazard reporting flow
+            if (this.voiceHazardReportService) {
+                this.voiceHazardReportService.startHazardReporting();
+            }
+
+            // Show visual feedback
+            this.showWakeWordDetectedFeedback();
+
+        } catch (error) {
+            console.error('❌ Error handling wake word detection:', error);
+        }
+    }
+
+    handleVoiceHazardReported(data) {
+        try {
+            // Add hazard to detection service
+            if (this.hazardDetectionService) {
+                this.hazardDetectionService.addUserReportedHazard(data.feature);
+            }
+
+            // Add hazard marker to map
+            this.addUserHazardMarker(data.feature);
+
+            // Resume wake word detection
+            if (this.wakeWordService) {
+                setTimeout(() => {
+                    this.wakeWordService.resume();
+                }, 2000); // 2 second delay before resuming
+            }
+
+            // Show success notification
+            this.showNotification(`${data.feature.properties.name} reported successfully!`, 'success');
+
+        } catch (error) {
+            console.error('❌ Error handling voice hazard report:', error);
+        }
+    }
+
+    addUserHazardMarker(hazardFeature) {
+        try {
+            if (!this.map) return;
+
+            const coords = hazardFeature.geometry.coordinates;
+            const props = hazardFeature.properties;
+
+            // Create custom icon for user-reported hazards
+            const userHazardIcon = L.divIcon({
+                html: `<div class="user-hazard-marker">
+                    <div class="hazard-icon">${props.icon}</div>
+                    <div class="user-badge">👤</div>
+                </div>`,
+                className: 'user-hazard-marker-container',
+                iconSize: [40, 40],
+                iconAnchor: [20, 40]
+            });
+
+            // Create marker
+            const marker = L.marker([coords[1], coords[0]], { icon: userHazardIcon })
+                .bindPopup(`
+                    <div class="hazard-popup user-reported">
+                        <h4>${props.icon} ${props.name}</h4>
+                        <p><strong>Type:</strong> ${props.type}</p>
+                        <p><strong>Severity:</strong> ${props.severity}</p>
+                        <p><strong>Reported:</strong> ${new Date(props.timestamp).toLocaleString()}</p>
+                        <p><small>👤 User reported via voice</small></p>
+                    </div>
+                `);
+
+            // Add to map
+            if (this.hazardsLayer) {
+                this.hazardsLayer.addLayer(marker);
+            } else {
+                marker.addTo(this.map);
+            }
+
+            console.log('✅ Added user hazard marker to map:', props.id);
+
+        } catch (error) {
+            console.error('❌ Error adding user hazard marker:', error);
+        }
+    }
+
+    showWakeWordDetectedFeedback() {
+        try {
+            // Create visual feedback element
+            const feedback = document.createElement('div');
+            feedback.className = 'wake-word-feedback';
+            feedback.innerHTML = `
+                <div class="wake-word-animation">
+                    <div class="mic-icon">🎙️</div>
+                    <div class="wake-word-text">Wake word detected!</div>
+                </div>
+            `;
+
+            document.body.appendChild(feedback);
+
+            // Remove after animation
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.parentNode.removeChild(feedback);
+                }
+            }, 3000);
+
+        } catch (error) {
+            console.error('❌ Error showing wake word feedback:', error);
+        }
+    }
+
+    showVoiceReportingUI(show) {
+        try {
+            let reportingUI = document.getElementById('voice-reporting-ui');
+
+            if (show) {
+                if (!reportingUI) {
+                    reportingUI = document.createElement('div');
+                    reportingUI.id = 'voice-reporting-ui';
+                    reportingUI.className = 'voice-reporting-overlay';
+                    reportingUI.innerHTML = `
+                        <div class="voice-reporting-content">
+                            <div class="mic-animation">
+                                <div class="mic-icon pulsing">🎙️</div>
+                            </div>
+                            <div class="reporting-text">Listening for hazard report...</div>
+                            <button class="cancel-reporting-btn" onclick="window.app.cancelVoiceReporting()">
+                                Cancel
+                            </button>
+                        </div>
+                    `;
+                    document.body.appendChild(reportingUI);
+                }
+                reportingUI.style.display = 'flex';
+            } else {
+                if (reportingUI) {
+                    reportingUI.style.display = 'none';
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ Error showing voice reporting UI:', error);
+        }
+    }
+
+    cancelVoiceReporting() {
+        try {
+            if (this.voiceHazardReportService && this.voiceHazardReportService.isReportingActive()) {
+                this.voiceHazardReportService.resetReportingState();
+            }
+
+            this.showVoiceReportingUI(false);
+
+            if (this.wakeWordService) {
+                this.wakeWordService.resume();
+            }
+
+        } catch (error) {
+            console.error('❌ Error cancelling voice reporting:', error);
+        }
+    }
+
     initJavaScriptServices() {
         try {
             console.log('🔧 Initializing JavaScript services...');
@@ -277,9 +443,86 @@ class VibeVoyageApp {
                 console.warn('⚠️ VoiceNavigationService not available');
             }
 
+            // Initialize Wake Word Service
+            if (typeof WakeWordService !== 'undefined') {
+                this.wakeWordService = new WakeWordService();
+                console.log('✅ WakeWordService initialized');
+            } else {
+                console.warn('⚠️ WakeWordService not available');
+            }
+
+            // Initialize Voice Hazard Report Service
+            if (typeof VoiceHazardReportService !== 'undefined') {
+                this.voiceHazardReportService = new VoiceHazardReportService();
+                this.voiceHazardReportService.setVoiceService(this.voiceNavigationService);
+                console.log('✅ VoiceHazardReportService initialized');
+            } else {
+                console.warn('⚠️ VoiceHazardReportService not available');
+            }
+
+            // Setup voice hazard reporting integration
+            this.setupVoiceHazardReporting();
+
             console.log('✅ JavaScript services initialized successfully');
         } catch (error) {
             console.error('❌ Error initializing JavaScript services:', error);
+        }
+    }
+
+    setupVoiceHazardReporting() {
+        try {
+            // Setup wake word service listeners
+            if (this.wakeWordService) {
+                this.wakeWordService.addListener((event, data) => {
+                    switch (event) {
+                        case 'wakeWordDetected':
+                            console.log('🎙️ Wake word detected:', data.wakeWord);
+                            this.handleWakeWordDetected(data);
+                            break;
+                        case 'notSupported':
+                            console.warn('⚠️ Wake word detection not supported');
+                            this.showNotification('Voice activation not supported in this browser', 'warning');
+                            break;
+                        case 'safariWarning':
+                            console.warn('⚠️ Safari wake word warning');
+                            this.showNotification('Voice activation may not work reliably in Safari', 'warning');
+                            break;
+                    }
+                });
+            }
+
+            // Setup voice hazard report service listeners
+            if (this.voiceHazardReportService) {
+                this.voiceHazardReportService.addListener((event, data) => {
+                    switch (event) {
+                        case 'hazardReported':
+                            console.log('🚨 Hazard reported via voice:', data.feature.properties.type);
+                            this.handleVoiceHazardReported(data);
+                            break;
+                        case 'reportingStarted':
+                            console.log('🎙️ Voice hazard reporting started');
+                            this.showVoiceReportingUI(true);
+                            break;
+                        case 'reportingEnded':
+                            console.log('🎙️ Voice hazard reporting ended');
+                            this.showVoiceReportingUI(false);
+                            break;
+                        case 'reportingError':
+                            console.error('❌ Voice hazard reporting error:', data.error);
+                            this.showNotification(`Voice reporting error: ${data.error}`, 'error');
+                            break;
+                    }
+                });
+
+                // Set current location for hazard reporting
+                if (this.currentLocation) {
+                    this.voiceHazardReportService.setCurrentLocation(this.currentLocation);
+                }
+            }
+
+            console.log('✅ Voice hazard reporting integration setup complete');
+        } catch (error) {
+            console.error('❌ Error setting up voice hazard reporting:', error);
         }
     }
 
@@ -960,6 +1203,11 @@ class VibeVoyageApp {
             };
 
             console.log('📍 Location found:', this.currentLocation);
+
+            // Update voice hazard reporting service with current location
+            if (this.voiceHazardReportService) {
+                this.voiceHazardReportService.setCurrentLocation(this.currentLocation);
+            }
 
             // Wait for map to be ready before updating
             await this.waitForMapReady();

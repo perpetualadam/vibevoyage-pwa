@@ -13,6 +13,7 @@ class HazardDetectionService {
 
     async loadHazards() {
         try {
+            // Load static hazards from GeoJSON
             const response = await fetch('/public/hazards.geojson');
             if (!response.ok) {
                 // Try alternative path
@@ -26,11 +27,39 @@ class HazardDetectionService {
                 const geojson = await response.json();
                 this.hazards = geojson.features || [];
             }
-            
-            console.log(`✅ HazardDetectionService: Loaded ${this.hazards.length} hazards`);
+
+            // Load user-reported hazards
+            await this.loadUserReportedHazards();
+
+            console.log(`✅ HazardDetectionService: Loaded ${this.hazards.length} total hazards`);
         } catch (error) {
             console.error('Error loading hazards:', error);
             this.hazards = [];
+        }
+    }
+
+    async loadUserReportedHazards() {
+        try {
+            const userReports = JSON.parse(localStorage.getItem('userHazardReports') || '[]');
+
+            // Filter out expired reports (older than 24 hours)
+            const now = Date.now();
+            const validReports = userReports.filter(report => {
+                const reportAge = now - report.properties.timestamp;
+                return reportAge < (24 * 60 * 60 * 1000); // 24 hours
+            });
+
+            // Add valid user reports to hazards array
+            this.hazards.push(...validReports);
+
+            // Clean up expired reports from localStorage
+            if (validReports.length !== userReports.length) {
+                localStorage.setItem('userHazardReports', JSON.stringify(validReports));
+            }
+
+            console.log(`✅ Loaded ${validReports.length} user-reported hazards`);
+        } catch (error) {
+            console.error('Error loading user-reported hazards:', error);
         }
     }
 
@@ -189,20 +218,74 @@ class HazardDetectionService {
         this.alertDistance = Math.max(100, Math.min(2000, distance)); // Between 100m and 2km
     }
 
+    // Add a new user-reported hazard
+    addUserReportedHazard(hazardFeature) {
+        try {
+            // Add to current hazards array
+            this.hazards.push(hazardFeature);
+
+            // Save to localStorage
+            const userReports = JSON.parse(localStorage.getItem('userHazardReports') || '[]');
+            userReports.push(hazardFeature);
+            localStorage.setItem('userHazardReports', JSON.stringify(userReports));
+
+            console.log('✅ Added user-reported hazard:', hazardFeature.properties.id);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to add user-reported hazard:', error);
+            return false;
+        }
+    }
+
+    // Remove a user-reported hazard
+    removeUserReportedHazard(hazardId) {
+        try {
+            // Remove from current hazards array
+            this.hazards = this.hazards.filter(hazard => hazard.properties.id !== hazardId);
+
+            // Remove from localStorage
+            const userReports = JSON.parse(localStorage.getItem('userHazardReports') || '[]');
+            const filteredReports = userReports.filter(report => report.properties.id !== hazardId);
+            localStorage.setItem('userHazardReports', JSON.stringify(filteredReports));
+
+            console.log('✅ Removed user-reported hazard:', hazardId);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to remove user-reported hazard:', error);
+            return false;
+        }
+    }
+
+    // Get only user-reported hazards
+    getUserReportedHazards() {
+        return this.hazards.filter(hazard =>
+            hazard.properties.source === 'user_voice_report'
+        );
+    }
+
+    // Refresh hazards (reload from sources)
+    async refreshHazards() {
+        this.hazards = [];
+        await this.loadHazards();
+    }
+
     // Get statistics
     getStatistics() {
         const stats = {
             total: this.hazards.length,
             byType: {},
-            bySeverity: {}
+            bySeverity: {},
+            bySource: {}
         };
 
         this.hazards.forEach(hazard => {
             const type = hazard.properties.type;
             const severity = hazard.properties.severity || 'medium';
+            const source = hazard.properties.source || 'static';
 
             stats.byType[type] = (stats.byType[type] || 0) + 1;
             stats.bySeverity[severity] = (stats.bySeverity[severity] || 0) + 1;
+            stats.bySource[source] = (stats.bySource[source] || 0) + 1;
         });
 
         return stats;
