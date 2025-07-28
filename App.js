@@ -4310,9 +4310,15 @@ class VibeVoyageApp {
 
         // Calculate the number of intermediate points based on distance
         const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
-        const numPoints = Math.max(3, Math.min(10, Math.floor(distance / 5000))); // 1 point per 5km
+        const numPoints = Math.max(4, Math.min(8, Math.floor(distance / 3000))); // More points for better curves
 
-        // Create waypoints with slight deviations to simulate road routing
+        console.log('🛣️ Generating road-like waypoints:', {
+            distance: distance + 'm',
+            numPoints,
+            startLat, startLng, endLat, endLng
+        });
+
+        // Create waypoints with more pronounced deviations to simulate road routing
         for (let i = 1; i < numPoints; i++) {
             const ratio = i / numPoints;
 
@@ -4320,15 +4326,25 @@ class VibeVoyageApp {
             let lat = startLat + (endLat - startLat) * ratio;
             let lng = startLng + (endLng - startLng) * ratio;
 
-            // Add realistic deviations to simulate road paths
-            const deviation = 0.01 * Math.sin(ratio * Math.PI * 3); // Sinusoidal deviation
-            lat += deviation * (Math.random() - 0.5);
-            lng += deviation * (Math.random() - 0.5);
+            // Add more realistic and pronounced deviations to simulate road paths
+            const baseDeviation = 0.005; // Base deviation amount
+            const distanceFactor = Math.min(distance / 10000, 1); // Scale with distance
+            const deviation = baseDeviation * distanceFactor;
+
+            // Create curved path with multiple sine waves for more realistic routing
+            const curve1 = Math.sin(ratio * Math.PI * 2) * deviation;
+            const curve2 = Math.sin(ratio * Math.PI * 4) * deviation * 0.5;
+            const randomOffset = (Math.random() - 0.5) * deviation * 0.3;
+
+            lat += curve1 + randomOffset;
+            lng += curve2 + randomOffset;
 
             waypoints.push([lng, lat]);
+            console.log(`🛣️ Waypoint ${i}:`, [lng, lat]);
         }
 
         waypoints.push([endLng, endLat]);
+        console.log('🛣️ Total waypoints generated:', waypoints.length);
         return waypoints;
     }
 
@@ -6194,11 +6210,14 @@ class VibeVoyageApp {
         ];
 
         // Filter hazard types based on avoidance settings
+        console.log('🚨 Current hazard avoidance settings:', this.hazardAvoidanceSettings);
+
         const availableHazardTypes = hazardTypes.filter(hazardType => {
             // Only include hazards that are NOT being avoided
             // If avoidance is enabled for this hazard type, exclude it from simulation
             const isAvoiding = this.shouldAvoidHazard(hazardType.type);
-            console.log(`🔍 Hazard ${hazardType.type}: avoiding=${isAvoiding}, will simulate=${!isAvoiding}`);
+            const settingValue = this.hazardAvoidanceSettings[hazardType.type];
+            console.log(`🔍 Hazard ${hazardType.type}: setting=${settingValue}, avoiding=${isAvoiding}, will simulate=${!isAvoiding}`);
             return !isAvoiding;
         });
 
