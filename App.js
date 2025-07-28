@@ -1685,6 +1685,11 @@ class VibeVoyageApp {
         const excludeParams = this.buildOSRMExcludeParams(exclusions);
         console.log('🚨 OSRM exclude parameters (before cleaning):', excludeParams);
 
+        // Debug: Log each parameter before and after cleaning
+        Object.keys(excludeParams).forEach(key => {
+            console.log(`🔍 Before cleaning ${key}:`, excludeParams[key]);
+        });
+
         // Clean any remaining :1 suffixes from all parameters (multiple passes)
         Object.keys(excludeParams).forEach(key => {
             if (excludeParams[key]) {
@@ -1756,31 +1761,55 @@ class VibeVoyageApp {
             return cleaned;
         };
 
+        // Build URLs with aggressive cleaning to prevent :1 suffixes
+        const buildCleanUrl = (baseUrl, excludeParam) => {
+            let url = baseUrl;
+            if (excludeParam && excludeParam.trim()) {
+                // Aggressively clean the exclude parameter
+                let cleanParam = excludeParam
+                    .replace(/:[0-9]+/g, '')  // Remove :1, :2, etc.
+                    .replace(/[0-9]+$/g, '')  // Remove trailing numbers
+                    .replace(/,+/g, ',')      // Clean multiple commas
+                    .replace(/^,|,$/g, '')    // Remove leading/trailing commas
+                    .replace(/[^a-zA-Z,&=]/g, ''); // Keep only letters, commas, &, =
+
+                if (cleanParam && cleanParam !== '&exclude=') {
+                    url += cleanParam;
+                }
+            }
+
+            // Final pass to remove any remaining :1 patterns
+            url = url.replace(/:[0-9]+/g, '').replace(/[0-9]+(?=&|$)/g, '');
+
+            console.log(`🔧 Built clean URL: ${url}`);
+            return url;
+        };
+
         // Multiple routing services for better reliability with hazard avoidance
         const routingServices = [
             {
                 name: 'OSRM Primary (Hazard Avoiding)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${cleanUrlParam(excludeParams.primary)}`,
+                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true`, excludeParams.primary),
                 timeout: 10000
             },
             {
                 name: 'OSRM Alternative (No Highway)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=true&voice_instructions=true${cleanUrlParam(excludeParams.noHighway)}`,
+                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=true&voice_instructions=true`, excludeParams.noHighway),
                 timeout: 8000
             },
             {
                 name: 'OSRM Railway Avoiding',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true${cleanUrlParam(excludeParams.noRailway)}`,
+                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true`, excludeParams.noRailway),
                 timeout: 8000
             },
             {
                 name: 'OSRM Shortest (Hazard Aware)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true${cleanUrlParam(excludeParams.shortest)}`,
+                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true`, excludeParams.shortest),
                 timeout: 6000
             },
             {
                 name: 'OSRM Backup (Safe Route)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${cleanUrlParam(excludeParams.fastest)}`,
+                url: buildCleanUrl(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true`, excludeParams.fastest),
                 timeout: 6000
             }
         ];
@@ -1910,12 +1939,26 @@ class VibeVoyageApp {
         console.log('🚨 Single route hazard avoidance applied:', excludeParams.primary);
 
         try {
-            // Clean the exclude parameter before using in URL
-            const cleanParam = excludeParams.primary ? excludeParams.primary.replace(/:[0-9]+/g, '').replace(/,+/g, ',').replace(/^,|,$/g, '') : '';
+            // Aggressively clean the exclude parameter to prevent :1 suffixes
+            let cleanParam = '';
+            if (excludeParams.primary && excludeParams.primary.trim()) {
+                cleanParam = excludeParams.primary
+                    .replace(/:[0-9]+/g, '')      // Remove :1, :2, etc.
+                    .replace(/[0-9]+$/g, '')      // Remove trailing numbers
+                    .replace(/,+/g, ',')          // Clean multiple commas
+                    .replace(/^,|,$/g, '')        // Remove leading/trailing commas
+                    .replace(/[^a-zA-Z,&=]/g, ''); // Keep only letters, commas, &, =
+            }
 
-            const response = await fetch(
-                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&voice_instructions=true${cleanParam}`
-            );
+            // Build the final URL with aggressive cleaning
+            let url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&voice_instructions=true${cleanParam}`;
+
+            // Final pass to remove any remaining :1 patterns
+            url = url.replace(/:[0-9]+/g, '').replace(/[0-9]+(?=&|$)/g, '');
+
+            console.log('🔧 Single route clean URL:', url);
+
+            const response = await fetch(url);
 
             if (response.ok) {
                 const data = await response.json();

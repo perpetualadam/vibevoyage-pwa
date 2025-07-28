@@ -2615,38 +2615,68 @@
         (function() {
             // Block all chrome.runtime access immediately
             if (typeof chrome !== 'undefined' && chrome.runtime) {
-                Object.defineProperty(chrome.runtime, 'lastError', {
-                    get: function() { return undefined; },
-                    set: function() {},
-                    configurable: false
-                });
+                try {
+                    Object.defineProperty(chrome.runtime, 'lastError', {
+                        get: function() { return undefined; },
+                        set: function() {},
+                        configurable: false,
+                        enumerable: false
+                    });
+                } catch (e) {}
 
-                chrome.runtime.sendMessage = function() { return Promise.resolve(); };
-                chrome.runtime.connect = function() {
-                    return {
-                        postMessage: () => {},
-                        disconnect: () => {},
-                        onMessage: { addListener: () => {} },
-                        onDisconnect: { addListener: () => {} }
+                try {
+                    chrome.runtime.sendMessage = function() { return Promise.resolve(); };
+                    chrome.runtime.connect = function() {
+                        return {
+                            postMessage: () => {},
+                            disconnect: () => {},
+                            onMessage: { addListener: () => {} },
+                            onDisconnect: { addListener: () => {} }
+                        };
                     };
-                };
+                } catch (e) {}
             }
 
-            // Immediate console override
+            // Block chrome object entirely if needed
+            try {
+                if (typeof chrome !== 'undefined') {
+                    Object.defineProperty(window, 'chrome', {
+                        get: function() { return undefined; },
+                        set: function() {},
+                        configurable: false
+                    });
+                }
+            } catch (e) {}
+
+            // Immediate console override with more aggressive suppression
             const suppress = (method) => {
-                const original = console[method];
-                console[method] = function(...args) {
-                    const message = args.join(' ');
-                    if (message.includes('Unchecked runtime.lastError') ||
-                        message.includes('Could not establish connection') ||
-                        message.includes('Receiving end does not exist')) {
-                        return;
-                    }
-                    original.apply(console, args);
-                };
+                try {
+                    const original = console[method];
+                    console[method] = function(...args) {
+                        const message = args.join(' ');
+                        if (message.includes('Unchecked runtime.lastError') ||
+                            message.includes('Could not establish connection') ||
+                            message.includes('Receiving end does not exist') ||
+                            message.includes('Extension context invalidated') ||
+                            message.includes('chrome.runtime')) {
+                            return;
+                        }
+                        original.apply(console, args);
+                    };
+                } catch (e) {}
             };
 
             ['error', 'warn', 'log', 'info', 'debug', 'trace'].forEach(suppress);
+
+            // Override window.onerror immediately
+            window.onerror = function(message, source, lineno, colno, error) {
+                if (message && (message.includes('Unchecked runtime.lastError') ||
+                               message.includes('Could not establish connection') ||
+                               message.includes('Receiving end does not exist'))) {
+                    return true; // Suppress completely
+                }
+                return false;
+            };
         })();
 
         // AGGRESSIVE: Suppress browser extension runtime connection errors at all levels
