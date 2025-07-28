@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage App Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        
+        .pass {
+            background: rgba(0, 255, 136, 0.1);
+            border-left-color: #00FF88;
+        }
+        
+        .fail {
+            background: rgba(255, 107, 107, 0.1);
+            border-left-color: #FF6B6B;
+        }
+        
+        .info {
+            background: rgba(135, 206, 235, 0.1);
+            border-left-color: #87CEEB;
+        }
+        
+        button {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: #00CC66;
+        }
+        
+        #results {
+            margin-top: 20px;
+        }
+        
+        pre {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 VibeVoyage App Test Suite</h1>
+    
+    <div>
+        <button onclick="runBasicTests()">🔍 Run Basic Tests</button>
+        <button onclick="runServiceTests()">⚙️ Test Services</button>
+        <button onclick="runFeatureTests()">🚀 Test Features</button>
+        <button onclick="runAllTests()">🧪 Run All Tests</button>
+        <button onclick="clearResults()">🧹 Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        let results = document.getElementById('results');
+        
+        function addResult(test, status, details = '') {
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            div.innerHTML = `
+                <strong>${test}</strong>: ${status.toUpperCase()}
+                ${details ? `<br><small>${details}</small>` : ''}
+            `;
+            results.appendChild(div);
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        async function runBasicTests() {
+            addResult('Basic Tests', 'info', 'Starting basic functionality tests...');
+            
+            // Test if main app is accessible
+            try {
+                const response = await fetch('/');
+                addResult('Main App Accessible', response.ok ? 'pass' : 'fail', 
+                    `Status: ${response.status}`);
+            } catch (error) {
+                addResult('Main App Accessible', 'fail', error.message);
+            }
+            
+            // Test if App.js is accessible
+            try {
+                const response = await fetch('/App.js');
+                addResult('App.js Accessible', response.ok ? 'pass' : 'fail', 
+                    `Status: ${response.status}`);
+            } catch (error) {
+                addResult('App.js Accessible', 'fail', error.message);
+            }
+            
+            // Test if hazards.geojson is accessible
+            try {
+                const response = await fetch('/public/hazards.geojson');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('Hazards Data Accessible', 'pass', 
+                        `${data.features?.length || 0} hazards loaded`);
+                } else {
+                    addResult('Hazards Data Accessible', 'fail', `Status: ${response.status}`);
+                }
+            } catch (error) {
+                addResult('Hazards Data Accessible', 'fail', error.message);
+            }
+        }
+        
+        async function runServiceTests() {
+            addResult('Service Tests', 'info', 'Testing JavaScript services...');
+            
+            // Test HazardDetectionService
+            try {
+                const response = await fetch('/src/services/HazardDetectionService.js');
+                addResult('HazardDetectionService.js', response.ok ? 'pass' : 'fail', 
+                    `Status: ${response.status}`);
+            } catch (error) {
+                addResult('HazardDetectionService.js', 'fail', error.message);
+            }
+            
+            // Test GeocodingService
+            try {
+                const response = await fetch('/src/services/GeocodingService.js');
+                addResult('GeocodingService.js', response.ok ? 'pass' : 'fail', 
+                    `Status: ${response.status}`);
+            } catch (error) {
+                addResult('GeocodingService.js', 'fail', error.message);
+            }
+            
+            // Test VoiceNavigationService
+            try {
+                const response = await fetch('/src/services/VoiceNavigationService.js');
+                addResult('VoiceNavigationService.js', response.ok ? 'pass' : 'fail', 
+                    `Status: ${response.status}`);
+            } catch (error) {
+                addResult('VoiceNavigationService.js', 'fail', error.message);
+            }
+        }
+        
+        async function runFeatureTests() {
+            addResult('Feature Tests', 'info', 'Testing browser features...');
+            
+            // Test Geolocation API
+            addResult('Geolocation API', 'geolocation' in navigator ? 'pass' : 'fail',
+                'geolocation' in navigator ? 'Available' : 'Not supported');
+            
+            // Test Speech Synthesis
+            addResult('Speech Synthesis', 'speechSynthesis' in window ? 'pass' : 'fail',
+                'speechSynthesis' in window ? 'Available' : 'Not supported');
+            
+            // Test Local Storage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                addResult('Local Storage', 'pass', 'Working correctly');
+            } catch (error) {
+                addResult('Local Storage', 'fail', error.message);
+            }
+            
+            // Test Service Worker
+            addResult('Service Worker', 'serviceWorker' in navigator ? 'pass' : 'fail',
+                'serviceWorker' in navigator ? 'Supported' : 'Not supported');
+            
+            // Test Leaflet
+            try {
+                const response = await fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+                addResult('Leaflet CDN', response.ok ? 'pass' : 'fail', 
+                    `Status: ${response.status}`);
+            } catch (error) {
+                addResult('Leaflet CDN', 'fail', error.message);
+            }
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            addResult('Full Test Suite', 'info', 'Running comprehensive tests...');
+            
+            await runBasicTests();
+            await runServiceTests();
+            await runFeatureTests();
+            
+            // Test main app window
+            try {
+                const mainWindow = window.open('/', '_blank');
+                setTimeout(() => {
+                    try {
+                        if (mainWindow.app) {
+                            addResult('Main App Initialization', 'pass', 'App object found');
+                            
+                            // Test services in main app
+                            if (mainWindow.app.hazardDetectionService) {
+                                addResult('HazardDetectionService Init', 'pass', 'Service initialized');
+                            } else {
+                                addResult('HazardDetectionService Init', 'fail', 'Service not initialized');
+                            }
+                            
+                            if (mainWindow.app.geocodingService) {
+                                addResult('GeocodingService Init', 'pass', 'Service initialized');
+                            } else {
+                                addResult('GeocodingService Init', 'fail', 'Service not initialized');
+                            }
+                            
+                            if (mainWindow.app.voiceNavigationService) {
+                                addResult('VoiceNavigationService Init', 'pass', 'Service initialized');
+                            } else {
+                                addResult('VoiceNavigationService Init', 'fail', 'Service not initialized');
+                            }
+                            
+                            if (mainWindow.app.map) {
+                                addResult('Map Initialization', 'pass', 'Leaflet map initialized');
+                            } else {
+                                addResult('Map Initialization', 'fail', 'Map not initialized');
+                            }
+                            
+                        } else {
+                            addResult('Main App Initialization', 'fail', 'App object not found');
+                        }
+                        
+                        mainWindow.close();
+                    } catch (error) {
+                        addResult('Main App Test', 'fail', `Error: ${error.message}`);
+                        mainWindow.close();
+                    }
+                }, 3000);
+            } catch (error) {
+                addResult('Main App Test', 'fail', `Cannot open main app: ${error.message}`);
+            }
+            
+            addResult('Test Suite Complete', 'info', 'All tests finished. Check results above.');
+        }
+        
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runBasicTests, 1000);
+        });
+    </script>
+</body>
+</html>

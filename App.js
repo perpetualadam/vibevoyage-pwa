@@ -157,12 +157,17 @@ class VibeVoyageApp {
 
         document.head.appendChild(script);
     }
-    
+
+
+
     async init() {
         console.log('🌟 VibeVoyage PWA Starting...');
 
-        // Initialize map
-        await this.initMap();
+        // Initialize JavaScript services
+        this.initJavaScriptServices();
+
+        // Initialize map with proper sequencing
+        await this.initMapWithSequencing();
 
         // Load saved units
         this.loadUnitsFromStorage();
@@ -219,11 +224,19 @@ class VibeVoyageApp {
             roadwork: true
         };
 
+        // Initialize speed tracking
+        this.currentSpeed = 0;
+        this.speedLimit = 30; // Default speed limit
+        this.lastSpeedAlert = 0;
+        this.speedingChimeAudio = null;
+        this.speedLimitMarkers = [];
+        this.lastSpeedLimitCheck = 0;
+
         // Load saved units from storage
         this.loadUnitsFromStorage();
         this.initializeUnitSelectors();
 
-        console.log('✅ VibeVoyage PWA Ready! v2025.15 - Units Restructured');
+        console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
 
@@ -235,7 +248,179 @@ class VibeVoyageApp {
             }
         }, 1000);
     }
-    
+
+    initJavaScriptServices() {
+        try {
+            console.log('🔧 Initializing JavaScript services...');
+
+            // Initialize Hazard Detection Service
+            if (typeof HazardDetectionService !== 'undefined') {
+                this.hazardDetectionService = new HazardDetectionService();
+                console.log('✅ HazardDetectionService initialized');
+            } else {
+                console.warn('⚠️ HazardDetectionService not available');
+            }
+
+            // Initialize Geocoding Service
+            if (typeof GeocodingService !== 'undefined') {
+                this.geocodingService = new GeocodingService();
+                console.log('✅ GeocodingService initialized');
+            } else {
+                console.warn('⚠️ GeocodingService not available');
+            }
+
+            // Initialize Voice Navigation Service
+            if (typeof VoiceNavigationService !== 'undefined') {
+                this.voiceNavigationService = new VoiceNavigationService();
+                console.log('✅ VoiceNavigationService initialized');
+            } else {
+                console.warn('⚠️ VoiceNavigationService not available');
+            }
+
+            console.log('✅ JavaScript services initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing JavaScript services:', error);
+        }
+    }
+
+    // Utility function for fetch with timeout
+    fetchWithTimeout(url, timeout = 10000) {
+        return Promise.race([
+            fetch(url),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(`Request timeout after ${timeout}ms`)), timeout)
+            )
+        ]);
+    }
+
+    async initMapWithSequencing() {
+        console.log('🗺️ Starting map initialization with proper sequencing...');
+
+        // Step 1: Wait for DOM to be ready
+        await this.waitForDOM();
+
+        // Step 2: Initialize map
+        await this.initMap();
+
+        // Step 3: Wait for map to be fully ready
+        await this.waitForMapReady();
+
+        // Step 4: Initialize map-dependent features
+        await this.initMapDependentFeatures();
+
+        console.log('✅ Map initialization sequence completed');
+    }
+
+    async waitForDOM() {
+        return new Promise((resolve) => {
+            if (document.readyState === 'complete') {
+                resolve();
+            } else {
+                window.addEventListener('load', resolve, { once: true });
+            }
+        });
+    }
+
+    async waitForMapReady() {
+        return new Promise((resolve) => {
+            if (this.map && this.map._loaded) {
+                resolve();
+            } else if (this.map) {
+                this.map.whenReady(() => {
+                    console.log('🗺️ Map is ready for operations');
+                    resolve();
+                });
+            } else {
+                // Fallback: wait a bit and check again
+                setTimeout(() => {
+                    if (this.map) {
+                        this.map.whenReady(resolve);
+                    } else {
+                        console.warn('⚠️ Map still not initialized, proceeding anyway');
+                        resolve();
+                    }
+                }, 1000);
+            }
+        });
+    }
+
+    async initMapDependentFeatures() {
+        console.log('🔧 Initializing map-dependent features...');
+
+        try {
+            // Initialize layers only after map is ready
+            if (this.map) {
+                // Ensure layers are properly initialized
+                if (!this.markersLayer) {
+                    this.markersLayer = L.layerGroup().addTo(this.map);
+                }
+                if (!this.routeLayer) {
+                    this.routeLayer = L.layerGroup().addTo(this.map);
+                }
+                if (!this.hazardsLayer) {
+                    this.hazardsLayer = L.layerGroup().addTo(this.map);
+                }
+                if (!this.vehicleLayer) {
+                    this.vehicleLayer = L.layerGroup().addTo(this.map);
+                }
+
+                console.log('✅ Map layers initialized');
+            }
+
+            // Initialize location services
+            await this.initLocationServices();
+
+        } catch (error) {
+            console.error('❌ Error initializing map-dependent features:', error);
+        }
+    }
+
+    async initLocationServices() {
+        console.log('📍 Initializing location services...');
+
+        try {
+            // Get current location
+            await this.getCurrentLocation();
+
+            // Load hazards after location is available
+            if (this.hazardDetectionService) {
+                await this.hazardDetectionService.loadHazards();
+                console.log('✅ Hazards loaded');
+            }
+
+        } catch (error) {
+            console.warn('⚠️ Location services initialization failed:', error);
+            // Continue with demo location
+            this.setDemoLocation();
+        }
+    }
+
+    // Safe method to add markers only when map is ready
+    async safeAddToMap(layer) {
+        if (!this.map) {
+            console.warn('⚠️ Cannot add to map: map not initialized');
+            return null;
+        }
+
+        try {
+            return layer.addTo(this.map);
+        } catch (error) {
+            console.error('❌ Error adding layer to map:', error);
+            return null;
+        }
+    }
+
+    // Safe method to remove layers
+    safeRemoveFromMap(layer) {
+        if (this.map && layer) {
+            try {
+                this.map.removeLayer(layer);
+            } catch (error) {
+                console.warn('⚠️ Error removing layer from map:', error);
+            }
+        }
+    }
+
     async initMap() {
         console.log('🗺️ Initializing map...');
 
@@ -312,8 +497,22 @@ class VibeVoyageApp {
         }
 
         try {
-            // Clear any existing content
-            mapContainer.innerHTML = '';
+            // Check if map is already initialized
+            if (this.map) {
+                console.log('🗺️ Map already initialized, skipping...');
+                return;
+            }
+
+            // Check if container has Leaflet classes (indicating previous initialization)
+            if (mapContainer.classList.contains('leaflet-container')) {
+                console.log('🔄 Cleaning up previous map instance...');
+                // Remove all Leaflet classes and content
+                mapContainer.className = 'interactive-map';
+                mapContainer.innerHTML = '';
+                // Remove any Leaflet-specific attributes
+                mapContainer.removeAttribute('tabindex');
+                mapContainer.style.cursor = '';
+            }
 
             // Initialize Leaflet map with enhanced mobile options
         this.map = L.map('map', {
@@ -704,6 +903,14 @@ class VibeVoyageApp {
 
     async getCurrentLocation() {
         console.log('📍 Getting current location...');
+
+        // Prevent multiple simultaneous location requests
+        if (this.locationRequestInProgress) {
+            console.log('📍 Location request already in progress, waiting...');
+            return this.locationRequestPromise;
+        }
+
+        this.locationRequestInProgress = true;
         const statusElement = document.getElementById('locationStatus');
 
         if (!navigator.geolocation) {
@@ -713,13 +920,29 @@ class VibeVoyageApp {
                 statusElement.className = 'status-offline';
             }
             this.showNotification('Location services not available', 'error');
-            return;
+            this.locationRequestInProgress = false;
+            throw new Error('Geolocation not supported');
         }
 
         if (statusElement) {
             statusElement.textContent = 'Getting location...';
             statusElement.className = 'status-warning';
         }
+
+        // Store the promise to prevent race conditions
+        this.locationRequestPromise = this.performLocationRequest(statusElement);
+
+        try {
+            const result = await this.locationRequestPromise;
+            this.locationRequestInProgress = false;
+            return result;
+        } catch (error) {
+            this.locationRequestInProgress = false;
+            throw error;
+        }
+    }
+
+    async performLocationRequest(statusElement) {
 
         try {
             console.log('📍 Requesting location permission...');
@@ -730,12 +953,17 @@ class VibeVoyageApp {
                     maximumAge: 60000
                 });
             });
-            
+
             this.currentLocation = {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude
             };
-            
+
+            console.log('📍 Location found:', this.currentLocation);
+
+            // Wait for map to be ready before updating
+            await this.waitForMapReady();
+
             // Update map view and add car marker
             if (this.isUsingBackupMap && this.backupMap) {
                 this.backupMap.center = { lat: this.currentLocation.lat, lng: this.currentLocation.lng };
@@ -746,6 +974,8 @@ class VibeVoyageApp {
                 this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15);
                 // Add car marker for current location
                 this.addCarMarker(this.currentLocation.lat, this.currentLocation.lng);
+            } else {
+                console.warn('⚠️ Map not ready, location stored but not displayed');
             }
             
             // Update UI
@@ -809,11 +1039,14 @@ class VibeVoyageApp {
                 this.map.removeLayer(this.destinationMarker);
             }
 
-            // Add destination marker
-            this.destinationMarker = L.marker([latlng.lat, latlng.lng])
-                .addTo(this.map)
-                .bindPopup('🎯 Destination')
-                .openPopup();
+            // Add destination marker safely
+            const marker = L.marker([latlng.lat, latlng.lng])
+                .bindPopup('🎯 Destination');
+
+            this.destinationMarker = await this.safeAddToMap(marker);
+            if (this.destinationMarker) {
+                this.destinationMarker.openPopup();
+            }
         }
 
         // Update destination input
@@ -932,42 +1165,77 @@ class VibeVoyageApp {
         const exclusions = this.buildRouteExclusions();
         console.log('🚨 Route exclusions based on hazard settings:', exclusions);
 
-        const routePromises = [
-            // Fastest route with hazard avoidance
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true${exclusions.fastest}`),
-
-            // Avoid highways/motorways with hazard avoidance
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway${exclusions.noHighway}&voice_instructions=true`),
-
-            // Shortest distance route with hazard avoidance
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false${exclusions.shortest}&voice_instructions=true`),
-
-            // Traffic light avoidance with hazard avoidance
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=ferry&continue_straight=true${exclusions.noLights}&voice_instructions=true`),
-
-            // Railway-safe route with comprehensive hazard avoidance
-            fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway,trunk,ferry${exclusions.noRailway}&voice_instructions=true`)
+        // Multiple routing services for better reliability
+        const routingServices = [
+            {
+                name: 'OSRM Primary',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true`,
+                timeout: 10000
+            },
+            {
+                name: 'OSRM Alternative',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`,
+                timeout: 8000
+            },
+            {
+                name: 'OSRM Backup',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`,
+                timeout: 6000
+            }
         ];
+
+        const routePromises = routingServices.map(service =>
+            this.fetchWithTimeout(service.url, service.timeout)
+                .then(response => ({ service: service.name, response }))
+                .catch(error => ({ service: service.name, error }))
+        );
 
         const responses = await Promise.allSettled(routePromises);
         const routes = [];
+        let successfulRequests = 0;
 
         for (let i = 0; i < responses.length; i++) {
-            const response = responses[i];
-            if (response.status === 'fulfilled' && response.value.ok) {
-                const data = await response.value.json();
-                if (data.routes && data.routes.length > 0) {
-                    // Add all routes from this response
-                    data.routes.forEach((route, index) => {
-                        routes.push({
-                            ...route,
-                            routeIndex: routes.length,
-                            type: this.getRouteType(i, index),
-                            color: this.getRouteColor(routes.length)
-                        });
-                    });
+            const result = responses[i];
+
+            if (result.status === 'fulfilled' && result.value.response) {
+                try {
+                    const response = result.value.response;
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.routes && data.routes.length > 0) {
+                            console.log(`✅ ${result.value.service}: ${data.routes.length} routes found`);
+                            successfulRequests++;
+
+                            // Add all routes from this response
+                            data.routes.forEach((route, index) => {
+                                routes.push({
+                                    ...route,
+                                    routeIndex: routes.length,
+                                    type: this.getRouteType(i, index),
+                                    color: this.getRouteColor(routes.length),
+                                    source: result.value.service
+                                });
+                            });
+                        } else {
+                            console.warn(`⚠️ ${result.value.service}: No routes in response`);
+                        }
+                    } else {
+                        console.error(`❌ ${result.value.service}: HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    console.error(`❌ ${result.value.service}: Parse error:`, error);
                 }
+            } else if (result.status === 'fulfilled' && result.value.error) {
+                console.error(`❌ ${result.value.service}: Request failed:`, result.value.error.message);
+            } else {
+                console.error(`❌ Route request ${i}: Promise rejected`);
             }
+        }
+
+        console.log(`📊 Route calculation summary: ${successfulRequests}/${responses.length} services succeeded, ${routes.length} total routes`);
+
+        if (routes.length === 0) {
+            throw new Error(`No routes found from any service (${successfulRequests}/${responses.length} services responded)`);
         }
 
         // Remove duplicates and limit to 4 routes
@@ -1053,12 +1321,16 @@ class VibeVoyageApp {
             this.map.removeLayer(this.routeLine);
         }
 
-        this.routeLine = L.polyline(routeCoords, {
-            color: '#FFA500',
-            weight: 5,
-            opacity: 0.8,
-            dashArray: '10, 10'
-        }).addTo(this.map);
+        if (this.map) {
+            this.routeLine = L.polyline(routeCoords, {
+                color: '#FFA500',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(this.map);
+        } else {
+            console.error('❌ Cannot add route line: map is null');
+        }
 
         this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
     }
@@ -1265,9 +1537,9 @@ class VibeVoyageApp {
 
             // Add route outline
             const routeOutline = L.polyline(routeCoords, {
-                color: '#000000',
+                color: '#004d2a',
                 weight: index === 0 ? 8 : 7,
-                opacity: 0.3
+                opacity: 0.5
             }).addTo(this.map);
             routeOutline.bringToBack();
 
@@ -1327,19 +1599,31 @@ class VibeVoyageApp {
         // Add only the selected route
         const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
 
-        this.routeLine = L.polyline(routeCoords, {
+        // Create route lines safely
+        const routeLine = L.polyline(routeCoords, {
             color: '#00FF88',
             weight: 8,
             opacity: 1,
             className: 'route-line-selected'
-        }).addTo(this.map);
+        });
 
-        this.routeOutline = L.polyline(routeCoords, {
-            color: '#000000',
+        const routeOutline = L.polyline(routeCoords, {
+            color: '#004d2a',
             weight: 10,
-            opacity: 0.5
-        }).addTo(this.map);
-        this.routeOutline.bringToBack();
+            opacity: 0.8
+        });
+
+        this.routeLine = await this.safeAddToMap(routeLine);
+        this.routeOutline = await this.safeAddToMap(routeOutline);
+
+        if (this.routeOutline) {
+            this.routeOutline.bringToBack();
+        }
+
+        if (!this.routeLine) {
+            console.error('❌ Failed to add route to map');
+            return;
+        }
 
         // Auto-zoom to fit entire route
         this.autoZoomToRoute();
@@ -1951,14 +2235,38 @@ class VibeVoyageApp {
                     break;
                 case 'place_name':
                 default:
-                    suggestions.push(...await this.searchPlaceName(query));
+                    // Use GeocodingService if available, otherwise fallback to direct search
+                    if (this.geocodingService) {
+                        const results = await this.geocodingService.searchPlaces(query);
+                        suggestions.push(...results.map(item => ({
+                            type: 'Place',
+                            main: item.displayName.split(',')[0],
+                            details: item.displayName.split(',').slice(1).join(',').trim(),
+                            lat: item.lat,
+                            lng: item.lng
+                        })));
+                    } else {
+                        suggestions.push(...await this.searchPlaceName(query));
+                    }
                     break;
             }
         } catch (error) {
             console.error('Address search error:', error);
         }
 
-        return suggestions.slice(0, 5); // Limit to 5 suggestions
+        // Add parking search if query contains parking-related terms
+        if (query.toLowerCase().includes('parking') || query.toLowerCase().includes('park')) {
+            try {
+                if (this.currentLocation) {
+                    const parkingSuggestions = await this.searchParkingSpaces(query, this.currentLocation.lat, this.currentLocation.lng);
+                    suggestions.unshift(...parkingSuggestions); // Add parking suggestions at the beginning
+                }
+            } catch (error) {
+                console.warn('Parking search error:', error);
+            }
+        }
+
+        return suggestions.slice(0, 8); // Increased limit to accommodate parking results
     }
 
     async searchCompanyName(companyName) {
@@ -2019,6 +2327,161 @@ class VibeVoyageApp {
 
         // Otherwise, return the search term with location
         return `${searchTerm} - ${parts[1] ? parts[1].trim() : firstPart}`;
+    }
+
+    async searchPlaceName(placeName) {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeName)}&limit=5&addressdetails=1`
+            );
+            const data = await response.json();
+
+            return data.map(item => ({
+                type: 'Place',
+                main: item.display_name.split(',')[0],
+                details: item.display_name.split(',').slice(1).join(',').trim(),
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon)
+            }));
+        } catch (error) {
+            console.error('Place name search error:', error);
+            return [];
+        }
+    }
+
+    async searchUKPostcode(postcode) {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(postcode)}&countrycodes=gb&limit=5&addressdetails=1`
+            );
+            const data = await response.json();
+
+            return data.map(item => ({
+                type: 'Postcode',
+                main: postcode.toUpperCase(),
+                details: item.display_name.split(',').slice(1).join(',').trim(),
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon)
+            }));
+        } catch (error) {
+            console.error('UK postcode search error:', error);
+            return [];
+        }
+    }
+
+    async searchParkingSpaces(query, lat, lng) {
+        try {
+            // Search for parking spaces near the query location
+            const overpassQuery = `
+                [out:json][timeout:10];
+                (
+                  nwr(around:2000,${lat},${lng})[amenity=parking];
+                  nwr(around:2000,${lat},${lng})[parking];
+                  nwr(around:2000,${lat},${lng})[amenity=parking_space];
+                );
+                out center meta;
+            `;
+
+            const response = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: overpassQuery,
+                headers: {
+                    'Content-Type': 'text/plain'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                return data.elements
+                    .filter(element => element.center || (element.lat && element.lon))
+                    .map(element => {
+                        const center = element.center || { lat: element.lat, lon: element.lon };
+                        const tags = element.tags || {};
+
+                        // Determine if parking is free
+                        const isFree = this.isParkingFree(tags);
+                        const parkingType = this.getParkingType(tags);
+
+                        return {
+                            type: 'Parking',
+                            main: this.getParkingName(tags, parkingType),
+                            details: this.getParkingDetails(tags, isFree),
+                            lat: center.lat,
+                            lng: center.lon,
+                            isFree: isFree,
+                            parkingType: parkingType,
+                            priority: isFree ? 1 : 2 // Free parking gets higher priority
+                        };
+                    })
+                    .sort((a, b) => {
+                        // Sort by priority (free first), then by distance
+                        if (a.priority !== b.priority) {
+                            return a.priority - b.priority;
+                        }
+
+                        const distanceA = this.calculateDistance({ lat, lng }, { lat: a.lat, lng: a.lng });
+                        const distanceB = this.calculateDistance({ lat, lng }, { lat: b.lat, lng: b.lng });
+                        return distanceA - distanceB;
+                    })
+                    .slice(0, 5); // Limit to 5 results
+            }
+        } catch (error) {
+            console.error('Parking search error:', error);
+        }
+
+        return [];
+    }
+
+    isParkingFree(tags) {
+        // Check various tags that indicate free parking
+        if (tags.fee === 'no' || tags.fee === 'free') return true;
+        if (tags['fee:conditional'] && tags['fee:conditional'].includes('no')) return true;
+        if (tags.access === 'customers' && !tags.fee) return true;
+        if (tags.parking === 'street_side' && !tags.fee) return true;
+
+        return false;
+    }
+
+    getParkingType(tags) {
+        if (tags.parking === 'surface') return 'Surface Parking';
+        if (tags.parking === 'multi-storey') return 'Multi-storey Car Park';
+        if (tags.parking === 'underground') return 'Underground Parking';
+        if (tags.parking === 'street_side') return 'Street Parking';
+        if (tags.amenity === 'parking_space') return 'Parking Space';
+
+        return 'Parking Area';
+    }
+
+    getParkingName(tags, parkingType) {
+        if (tags.name) return tags.name;
+        if (tags.operator) return `${tags.operator} Parking`;
+
+        return parkingType;
+    }
+
+    getParkingDetails(tags, isFree) {
+        const details = [];
+
+        if (isFree) {
+            details.push('🆓 Free');
+        } else if (tags.fee) {
+            details.push('💰 Paid');
+        }
+
+        if (tags.capacity) {
+            details.push(`${tags.capacity} spaces`);
+        }
+
+        if (tags.access === 'customers') {
+            details.push('Customers only');
+        }
+
+        if (tags.maxstay) {
+            details.push(`Max stay: ${tags.maxstay}`);
+        }
+
+        return details.join(' • ');
     }
 
     showSuggestions(inputType, suggestions) {
@@ -2355,19 +2818,19 @@ class VibeVoyageApp {
         this.journeyState = 'route-selected';
     }
 
-    detectRouteHazards(route) {
+    async detectRouteHazards(route) {
         const hazardCount = document.getElementById('hazardCount');
         const hazardIcons = document.getElementById('hazardIcons');
 
         if (!hazardCount || !hazardIcons) return;
 
         // Real hazard detection (disabled fake hazards)
-        const realHazards = this.detectRealHazards();
+        const realHazards = await this.detectRealHazards();
 
         hazardCount.textContent = `${realHazards.length} hazards detected`;
 
         hazardIcons.innerHTML = '';
-        simulatedHazards.forEach(hazard => {
+        realHazards.forEach(hazard => {
             const hazardElement = document.createElement('div');
             hazardElement.className = `hazard-icon ${hazard.type}`;
             hazardElement.innerHTML = `
@@ -2665,6 +3128,9 @@ class VibeVoyageApp {
         // Initialize hazard summary
         this.updateHazardSummary();
 
+        // Test hazard loading
+        // this.testHazardLoading(); // Commented out to prevent error
+
         // Start periodic hazard checks
         this.hazardCheckInterval = setInterval(() => {
             this.checkNearbyHazards();
@@ -2678,14 +3144,14 @@ class VibeVoyageApp {
         }
     }
 
-    updateHazardSummary() {
+    async updateHazardSummary() {
         const hazardSummaryContent = document.getElementById('hazardSummaryContent');
         const hazardTotal = document.getElementById('hazardTotal');
 
         if (!hazardSummaryContent || !hazardTotal) return;
 
         // Real hazards ahead on route (no fake data)
-        const hazardsAhead = this.getRealHazardsAhead();
+        const hazardsAhead = await this.getRealHazardsAhead();
 
         hazardTotal.textContent = `${hazardsAhead.length} ahead`;
 
@@ -2708,11 +3174,11 @@ class VibeVoyageApp {
         });
     }
 
-    checkNearbyHazards() {
+    async checkNearbyHazards() {
         if (!this.isNavigating || !this.currentLocation) return;
 
-        // Simulate hazard detection
-        const nearbyHazards = this.simulateNearbyHazards();
+        // Use real hazard detection
+        const nearbyHazards = await this.detectRealHazards();
 
         nearbyHazards.forEach(hazard => {
             if (hazard.distance < 500 && !hazard.alerted) {
@@ -2722,22 +3188,202 @@ class VibeVoyageApp {
         });
     }
 
-    simulateNearbyHazards() {
+    async simulateNearbyHazards() {
         // Return real hazards only (no fake demonstrations)
-        return [];
+        return await this.detectRealHazards();
     }
 
     // Real hazard detection functions
-    detectRealHazards() {
-        // TODO: Integrate with real hazard APIs (Waze, TomTom, etc.)
-        // For now, return empty array to stop fake alerts
+    async detectRealHazards() {
+        if (!this.currentLocation) return [];
+
+        try {
+            // Use JavaScript HazardDetectionService if available
+            if (this.hazardDetectionService) {
+                const alerts = await this.hazardDetectionService.checkProximity(this.currentLocation);
+                return alerts.map(alert => ({
+                    id: alert.hazard.properties.id,
+                    type: alert.hazard.properties.type,
+                    name: this.getHazardDisplayName(alert.hazard.properties.type),
+                    icon: this.getHazardIcon(alert.hazard.properties.type),
+                    distance: alert.distance,
+                    position: [alert.hazard.geometry.coordinates[1], alert.hazard.geometry.coordinates[0]],
+                    severity: alert.hazard.properties.severity,
+                    color: this.getHazardColor(alert.hazard.properties.type, alert.hazard.properties.severity)
+                }));
+            } else {
+                // Fallback: Load hazards directly from GeoJSON
+                return await this.loadHazardsDirectly();
+            }
+        } catch (error) {
+            console.error('Error detecting real hazards:', error);
+            return await this.loadHazardsDirectly();
+        }
         return [];
     }
 
-    getRealHazardsAhead() {
-        // TODO: Integrate with real traffic/hazard data sources
-        // For now, return empty array to stop fake alerts
+    async getRealHazardsAhead() {
+        if (!this.currentLocation || !this.routeData) return [];
+
+        try {
+            // Use JavaScript HazardDetectionService if available
+            if (this.hazardDetectionService && this.routeData && this.routeData.geometry) {
+                const routeCoords = this.routeData.geometry.coordinates.map(coord => ({ lat: coord[1], lng: coord[0] }));
+                const hazardFeatures = this.hazardDetectionService.getHazardsNearRoute(routeCoords, 500);
+
+                return hazardFeatures.map(hazard => ({
+                    id: hazard.properties.id,
+                    type: hazard.properties.type,
+                    name: this.getHazardDisplayName(hazard.properties.type),
+                    icon: this.getHazardIcon(hazard.properties.type),
+                    distance: this.calculateDistance(this.currentLocation, {
+                        lat: hazard.geometry.coordinates[1],
+                        lng: hazard.geometry.coordinates[0]
+                    }),
+                    position: [hazard.geometry.coordinates[1], hazard.geometry.coordinates[0]],
+                    severity: hazard.properties.severity,
+                    color: this.getHazardColor(hazard.properties.type, hazard.properties.severity)
+                }));
+            } else {
+                // Fallback: Load hazards directly and filter by route
+                const allHazards = await this.loadHazardsDirectly();
+
+                if (!this.routeData || !this.routeData.geometry) {
+                    return allHazards;
+                }
+
+                // Filter hazards that are near the route
+                const routeCoords = this.routeData.geometry.coordinates.map(coord => ({ lat: coord[1], lng: coord[0] }));
+                const nearRouteHazards = allHazards.filter(hazard => {
+                    return routeCoords.some(routePoint => {
+                        const distance = this.calculateDistance(routePoint, {
+                            lat: hazard.position[0],
+                            lng: hazard.position[1]
+                        });
+                        return distance <= 500; // Within 500 meters of route
+                    });
+                });
+
+                return nearRouteHazards;
+            }
+        } catch (error) {
+            console.error('Error getting hazards ahead:', error);
+            return [];
+        }
         return [];
+    }
+
+    getHazardDisplayName(type) {
+        const names = {
+            'speed_camera': 'Speed Camera',
+            'red_light_camera': 'Red Light Camera',
+            'roadwork': 'Road Work',
+            'average_speed_camera': 'Average Speed Camera'
+        };
+        return names[type] || 'Unknown Hazard';
+    }
+
+    getHazardIcon(type) {
+        const icons = {
+            'speed_camera': '📷',
+            'red_light_camera': '🚦',
+            'roadwork': '🚧',
+            'average_speed_camera': '📹'
+        };
+        return icons[type] || '⚠️';
+    }
+
+    getHazardColor(type, severity) {
+        const baseColors = {
+            'speed_camera': '#FFA500',
+            'red_light_camera': '#FF6B6B',
+            'roadwork': '#FFD700',
+            'average_speed_camera': '#87CEEB'
+        };
+
+        let color = baseColors[type] || '#666';
+
+        // Adjust for severity
+        if (severity === 'high') {
+            return color;
+        } else if (severity === 'medium') {
+            return color + 'CC'; // 80% opacity
+        } else {
+            return color + '99'; // 60% opacity
+        }
+    }
+
+    async loadHazardsDirectly() {
+        try {
+            // Try multiple paths for the hazards file
+            const paths = [
+                './public/hazards.geojson',
+                './hazards.geojson',
+                '/public/hazards.geojson',
+                '/hazards.geojson'
+            ];
+
+            for (const path of paths) {
+                try {
+                    console.log(`Trying to load hazards from: ${path}`);
+                    const response = await fetch(path);
+                    if (response.ok) {
+                        const geojson = await response.json();
+                        console.log(`✅ Loaded ${geojson.features?.length || 0} hazards from ${path}`);
+                        return this.processHazardFeatures(geojson.features || []);
+                    }
+                } catch (pathError) {
+                    console.warn(`Failed to load from ${path}:`, pathError);
+                }
+            }
+
+            throw new Error('Hazards file not found in any location');
+        } catch (error) {
+            console.error('Error loading hazards directly:', error);
+            return [];
+        }
+    }
+
+    processHazardFeatures(features) {
+        if (!this.currentLocation || !features) return [];
+
+        return features
+            .map(feature => {
+                const distance = this.calculateDistance(
+                    this.currentLocation,
+                    { lat: feature.geometry.coordinates[1], lng: feature.geometry.coordinates[0] }
+                );
+
+                return {
+                    id: feature.properties.id,
+                    type: feature.properties.type,
+                    name: this.getHazardDisplayName(feature.properties.type),
+                    icon: this.getHazardIcon(feature.properties.type),
+                    distance: distance,
+                    position: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
+                    severity: feature.properties.severity,
+                    color: this.getHazardColor(feature.properties.type, feature.properties.severity)
+                };
+            })
+            .filter(hazard => hazard.distance <= 1000) // Only show hazards within 1km
+            .sort((a, b) => a.distance - b.distance);
+    }
+
+    async testHazardLoading() {
+        console.log('🧪 Testing hazard loading...');
+        try {
+            const hazards = await this.loadHazardsDirectly();
+            console.log(`🧪 Test result: ${hazards.length} hazards loaded`);
+            if (hazards.length > 0) {
+                console.log('🧪 Sample hazard:', hazards[0]);
+                this.showNotification(`✅ Hazard detection working: ${hazards.length} hazards loaded`, 'success');
+            } else {
+                this.showNotification('⚠️ No hazards loaded - check hazards.geojson file', 'warning');
+            }
+        } catch (error) {
+            console.error('🧪 Hazard loading test failed:', error);
+            this.showNotification('❌ Hazard detection failed', 'error');
+        }
     }
 
     // Turn-by-turn navigation
@@ -3089,20 +3735,28 @@ class VibeVoyageApp {
     }
 
     // Hazard Marker Functions
-    addHazardMarkersToRoute(route) {
+    async addHazardMarkersToRoute(route) {
         if (!this.map || !route) return;
 
         // Clear existing hazard markers
         this.clearHazardMarkers();
 
-        // Simulate hazards along the route
-        const routeCoords = route.geometry.coordinates;
-        const hazards = this.generateRouteHazards(routeCoords);
+        // Get real hazards along the route
+        const routeCoords = route.geometry.coordinates.map(coord => ({ lat: coord[1], lng: coord[0] }));
 
-        hazards.forEach(hazard => {
-            const marker = this.createHazardMarker(hazard);
-            this.hazardMarkers.push(marker);
-        });
+        try {
+            // Load hazards directly and add markers (pure JavaScript implementation)
+            const hazards = await this.getRealHazardsAhead();
+            hazards.forEach(hazard => {
+                const marker = this.createHazardMarker({
+                    ...hazard,
+                    description: 'Hazard detected along route'
+                });
+                this.hazardMarkers.push(marker);
+            });
+        } catch (error) {
+            console.error('Error adding hazard markers to route:', error);
+        }
     }
 
     generateRouteHazards(routeCoords) {
@@ -4115,24 +4769,43 @@ class VibeVoyageApp {
             this.map.removeLayer(this.carMarker);
         }
 
-        // Create car icon
+        // Create chevron car icon
         const carIcon = L.divIcon({
             html: `
                 <div style="
-                    width: 30px;
-                    height: 30px;
-                    background: #00FF88;
-                    border: 3px solid #000;
-                    border-radius: 50% 50% 50% 0;
-                    transform: rotate(${heading - 45}deg);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 16px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                ">🚗</div>
+                    width: 24px;
+                    height: 24px;
+                    transform: rotate(${heading}deg);
+                    position: relative;
+                    animation: chevronBreathe 3s ease-in-out infinite;
+                " class="chevron-vehicle">
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-bottom: 12px solid #00FF88;
+                        filter: drop-shadow(0 0 8px #00FF88);
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        top: 8px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 6px solid transparent;
+                        border-right: 6px solid transparent;
+                        border-bottom: 8px solid #00FF88;
+                        filter: drop-shadow(0 0 6px #00FF88);
+                    "></div>
+                </div>
             `,
-            className: 'car-marker',
+            className: 'car-marker chevron-vehicle',
             iconSize: [30, 30],
             iconAnchor: [15, 15]
         });
@@ -4140,7 +4813,7 @@ class VibeVoyageApp {
         // Add car marker
         this.carMarker = L.marker([lat, lng], { icon: carIcon })
             .addTo(this.map)
-            .bindPopup('🚗 Your Vehicle');
+            .bindPopup('🛸 Your Vehicle');
 
         return this.carMarker;
     }
@@ -4151,10 +4824,43 @@ class VibeVoyageApp {
         // Clear existing vehicle markers
         this.vehicleLayer.clearLayers();
 
-        // Create vehicle marker with direction
+        // Create chevron vehicle marker with direction
         const vehicleIcon = L.divIcon({
-            className: 'vehicle-marker',
-            html: `<div class="vehicle-icon" style="transform: rotate(${heading}deg)">🚗</div>`,
+            className: 'vehicle-marker chevron-vehicle',
+            html: `
+                <div style="
+                    width: 24px;
+                    height: 24px;
+                    transform: rotate(${heading}deg);
+                    position: relative;
+                    animation: chevronBreathe 3s ease-in-out infinite;
+                " class="chevron-vehicle">
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-bottom: 12px solid #00FF88;
+                        filter: drop-shadow(0 0 8px #00FF88);
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        top: 8px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 6px solid transparent;
+                        border-right: 6px solid transparent;
+                        border-bottom: 8px solid #00FF88;
+                        filter: drop-shadow(0 0 6px #00FF88);
+                    "></div>
+                </div>
+            `,
             iconSize: [30, 30],
             iconAnchor: [15, 15]
         });
@@ -4174,7 +4880,264 @@ class VibeVoyageApp {
             this.updateRouteProgress(lat, lng);
         }
 
-        console.log(`🚗 Vehicle position updated: ${lat.toFixed(6)}, ${lng.toFixed(6)}, heading: ${heading}°`);
+        // Calculate and update speed
+        this.updateSpeed(lat, lng);
+
+        // Detect speed limit for current location
+        this.detectSpeedLimit(lat, lng);
+
+        console.log(`🛸 Vehicle position updated: ${lat.toFixed(6)}, ${lng.toFixed(6)}, heading: ${heading}°`);
+    }
+
+    updateSpeed(lat, lng) {
+        const now = Date.now();
+
+        if (this.lastPosition && this.lastPositionTime) {
+            const distance = this.calculateDistance(
+                { lat: this.lastPosition.lat, lng: this.lastPosition.lng },
+                { lat, lng }
+            );
+            const timeElapsed = (now - this.lastPositionTime) / 1000; // seconds
+
+            if (timeElapsed > 0) {
+                // Calculate speed in m/s, then convert to mph
+                const speedMps = distance / timeElapsed;
+                const speedMph = speedMps * 2.237; // Convert m/s to mph
+
+                // Smooth the speed reading
+                this.currentSpeed = this.currentSpeed * 0.7 + speedMph * 0.3;
+
+                // Update speedometer display
+                this.updateSpeedometer();
+
+                // Check for speeding
+                this.checkSpeeding();
+            }
+        }
+
+        this.lastPosition = { lat, lng };
+        this.lastPositionTime = now;
+    }
+
+    updateSpeedometer() {
+        const speedElement = document.getElementById('currentSpeed');
+        const speedStatusElement = document.getElementById('speedStatus');
+        const speedometerElement = document.getElementById('speedometer');
+
+        if (speedElement) {
+            speedElement.textContent = Math.round(this.currentSpeed);
+        }
+
+        if (speedStatusElement) {
+            const speedRatio = this.currentSpeed / this.speedLimit;
+
+            if (speedRatio <= 1) {
+                speedStatusElement.textContent = 'SAFE';
+                speedStatusElement.className = 'speed-status safe';
+            } else if (speedRatio <= 1.1) {
+                speedStatusElement.textContent = 'CAUTION';
+                speedStatusElement.className = 'speed-status warning';
+            } else {
+                speedStatusElement.textContent = 'SPEEDING';
+                speedStatusElement.className = 'speed-status danger';
+            }
+        }
+
+        // Show speedometer during navigation
+        if (speedometerElement && this.isNavigating) {
+            speedometerElement.style.display = 'block';
+        }
+    }
+
+    checkSpeeding() {
+        const now = Date.now();
+        const speedRatio = this.currentSpeed / this.speedLimit;
+
+        // If speeding and haven't alerted recently (5 seconds cooldown)
+        if (speedRatio > 1.1 && (now - this.lastSpeedAlert) > 5000) {
+            this.lastSpeedAlert = now;
+
+            // Play 4-second chime
+            this.playSpeedingChime();
+
+            // Voice announcement after chime
+            setTimeout(async () => {
+                if (this.voiceNavigationService) {
+                    await this.voiceNavigationService.announceSpeedWarning();
+                } else {
+                    this.speakInstruction('Reduce speed', 'high');
+                }
+            }, 4000);
+        }
+    }
+
+    playSpeedingChime() {
+        // Create audio context for chime
+        if (!this.speedingChimeAudio) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Create a pleasant warning chime
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 1);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 2);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 3);
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 4);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 4);
+
+                console.log('🔔 Playing speeding chime');
+            } catch (error) {
+                console.warn('Could not play speeding chime:', error);
+            }
+        }
+    }
+
+    async detectSpeedLimit(lat, lng) {
+        const now = Date.now();
+
+        // Only check speed limit every 10 seconds to avoid API spam
+        if (now - this.lastSpeedLimitCheck < 10000) return;
+        this.lastSpeedLimitCheck = now;
+
+        try {
+            // Query Overpass API for speed limit data
+            const query = `
+                [out:json][timeout:5];
+                (
+                  way(around:100,${lat},${lng})[highway][maxspeed];
+                  way(around:100,${lat},${lng})[highway]["maxspeed:advisory"];
+                );
+                out geom;
+            `;
+
+            const response = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: query,
+                headers: {
+                    'Content-Type': 'text/plain'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.elements && data.elements.length > 0) {
+                    // Find the closest road with speed limit
+                    let closestSpeedLimit = null;
+                    let minDistance = Infinity;
+
+                    data.elements.forEach(element => {
+                        if (element.tags && (element.tags.maxspeed || element.tags['maxspeed:advisory'])) {
+                            // Calculate distance to road segment
+                            if (element.geometry) {
+                                element.geometry.forEach(point => {
+                                    const distance = this.calculateDistance(
+                                        { lat, lng },
+                                        { lat: point.lat, lng: point.lon }
+                                    );
+
+                                    if (distance < minDistance) {
+                                        minDistance = distance;
+                                        const speedLimitStr = element.tags.maxspeed || element.tags['maxspeed:advisory'];
+                                        closestSpeedLimit = this.parseSpeedLimit(speedLimitStr);
+                                    }
+                                });
+                            }
+                        }
+                    });
+
+                    if (closestSpeedLimit && minDistance < 50) { // Within 50 meters
+                        this.updateSpeedLimit(closestSpeedLimit);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Speed limit detection error:', error);
+        }
+    }
+
+    parseSpeedLimit(speedLimitStr) {
+        if (!speedLimitStr) return null;
+
+        // Handle different speed limit formats
+        if (speedLimitStr.includes('mph')) {
+            return parseInt(speedLimitStr.replace('mph', '').trim());
+        } else if (speedLimitStr.includes('km/h')) {
+            const kmh = parseInt(speedLimitStr.replace('km/h', '').trim());
+            return Math.round(kmh * 0.621371); // Convert to mph
+        } else if (!isNaN(speedLimitStr)) {
+            // Assume km/h if no unit specified
+            const kmh = parseInt(speedLimitStr);
+            return Math.round(kmh * 0.621371);
+        }
+
+        return null;
+    }
+
+    updateSpeedLimit(newSpeedLimit) {
+        if (newSpeedLimit && newSpeedLimit !== this.speedLimit) {
+            this.speedLimit = newSpeedLimit;
+
+            // Update speedometer display
+            const speedLimitElement = document.getElementById('speedLimit');
+            if (speedLimitElement) {
+                speedLimitElement.textContent = newSpeedLimit;
+            }
+
+            console.log(`🚦 Speed limit updated: ${newSpeedLimit} mph`);
+
+            // Add speed limit marker to map
+            this.addSpeedLimitMarker(this.currentLocation.lat, this.currentLocation.lng, newSpeedLimit);
+        }
+    }
+
+    addSpeedLimitMarker(lat, lng, speedLimit) {
+        if (!this.map) return;
+
+        // Create speed limit sign icon
+        const speedLimitIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 30px;
+                    height: 30px;
+                    background: #fff;
+                    border: 3px solid #ff0000;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: #000;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                ">${speedLimit}</div>
+            `,
+            className: 'speed-limit-marker',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker([lat, lng], { icon: speedLimitIcon })
+            .addTo(this.map)
+            .bindPopup(`Speed Limit: ${speedLimit} mph`);
+
+        // Store marker for cleanup
+        this.speedLimitMarkers.push(marker);
+
+        // Keep only last 5 speed limit markers
+        if (this.speedLimitMarkers.length > 5) {
+            const oldMarker = this.speedLimitMarkers.shift();
+            this.map.removeLayer(oldMarker);
+        }
     }
 
     updateRouteProgress(lat, lng) {

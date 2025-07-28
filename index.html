@@ -21,8 +21,13 @@
     <!-- Leaflet JS for maps -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- JavaScript Services -->
+    <script src="src/services/HazardDetectionService.js"></script>
+    <script src="src/services/GeocodingService.js"></script>
+    <script src="src/services/VoiceNavigationService.js"></script>
+
     <!-- Main Application -->
-    <script src="App.js?v=2025.16&system=master&t=1737735100" defer></script>
+    <script src="App.js?v=2025.17&system=master&t=1737735200" defer></script>
     
     <style>
         * {
@@ -81,17 +86,38 @@
             font-weight: bold;
             transition: all 0.2s;
         }
-        
+
         .btn:hover {
             background: #00CC66;
             transform: translateY(-1px);
         }
-        
+
+        .btn-primary {
+            background: #00FF88;
+            color: #000;
+            font-weight: bold;
+            animation: testButtonPulse 2s ease-in-out infinite;
+        }
+
+        .btn-primary:hover {
+            background: #00CC66;
+            transform: translateY(-1px);
+        }
+
+        @keyframes testButtonPulse {
+            0%, 100% {
+                box-shadow: 0 0 5px #00FF88;
+            }
+            50% {
+                box-shadow: 0 0 15px #00FF88, 0 0 25px #00FF88;
+            }
+        }
+
         .btn-secondary {
             background: #333;
             color: #fff;
         }
-        
+
         .btn-secondary:hover {
             background: #555;
         }
@@ -1578,19 +1604,19 @@
         }
 
         .route-line-2 {
-            color: #FFD700 !important;
+            color: #00CC66 !important;
             weight: 5;
             opacity: 0.7;
         }
 
         .route-line-3 {
-            color: #87CEEB !important;
+            color: #00AA44 !important;
             weight: 5;
             opacity: 0.7;
         }
 
         .route-line-4 {
-            color: #90EE90 !important;
+            color: #008833 !important;
             weight: 5;
             opacity: 0.7;
         }
@@ -1602,8 +1628,108 @@
         }
 
         @keyframes routeHighlight {
+            0%, 100% {
+                opacity: 1;
+                filter: drop-shadow(0 0 8px #00FF88);
+            }
+            50% {
+                opacity: 0.7;
+                filter: drop-shadow(0 0 12px #00FF88);
+            }
+        }
+
+        /* Speedometer */
+        .speedometer {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border: 2px solid #00FF88;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+            z-index: 1001;
+            min-width: 120px;
+        }
+
+        .speedometer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .current-speed {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00FF88;
+            text-shadow: 0 0 10px #00FF88;
+            line-height: 1;
+        }
+
+        .speed-unit {
+            font-size: 14px;
+            color: #ccc;
+            margin-top: -5px;
+        }
+
+        .speed-limit-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .speed-limit-icon {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border: 3px solid #ff0000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .speed-limit-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .speed-status {
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .speed-status.safe {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00FF88;
+        }
+
+        .speed-status.warning {
+            background: rgba(255, 165, 0, 0.2);
+            color: #FFA500;
+        }
+
+        .speed-status.danger {
+            background: rgba(255, 107, 107, 0.2);
+            color: #FF6B6B;
+            animation: speedWarning 1s ease-in-out infinite;
+        }
+
+        @keyframes speedWarning {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            50% { opacity: 0.6; }
         }
 
         /* Journey Control Panel */
@@ -1799,9 +1925,36 @@
             transition: all 0.5s ease;
         }
 
+        /* Chevron vehicle animation */
+        .chevron-vehicle {
+            transition: all 0.3s ease;
+        }
+
+        @keyframes chevronBreathe {
+            0%, 100% {
+                filter: drop-shadow(0 0 6px #00FF88) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                transform: scale(1);
+                opacity: 0.9;
+            }
+            50% {
+                filter: drop-shadow(0 0 12px #00FF88) drop-shadow(0 0 8px #00FF88) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                transform: scale(1.15);
+                opacity: 1;
+            }
+        }
+
         /* Route line animation */
         .route-line {
             animation: routePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes routePulse {
+            0%, 100% {
+                filter: drop-shadow(0 0 4px #00FF88);
+            }
+            50% {
+                filter: drop-shadow(0 0 8px #00FF88) drop-shadow(0 0 12px #00FF88);
+            }
         }
 
         @keyframes routePulse {
@@ -1898,6 +2051,11 @@
                 <button class="btn btn-secondary" id="hazardSettingsBtn" onclick="toggleHazardSettings()">🚨</button>
                 <button class="btn btn-secondary" onclick="toggleSettings()">⚙️</button>
                 <button class="btn btn-secondary" onclick="getCurrentLocation()">📍</button>
+                <button class="btn btn-primary" onclick="testHazardDetection()" title="Test Hazard Detection">🧪</button>
+                <button class="btn btn-secondary" onclick="testAllFeatures()" title="Test All Features">🚀</button>
+                <button class="btn btn-secondary" onclick="comprehensiveAppTest()" title="Comprehensive App Test">🔍</button>
+                <button class="btn btn-secondary" onclick="debugAppState()" title="Debug App State">🔧</button>
+                <button class="btn btn-secondary" onclick="testRouteCalculation()" title="Test Route Calculation">🛣️</button>
             </div>
         </header>
 
@@ -1988,6 +2146,22 @@
             <div class="route-actions">
                 <button class="btn btn-secondary" onclick="hideRouteSelection()">Cancel</button>
                 <button class="btn" onclick="selectRouteForJourney()" id="selectRouteBtn" disabled>Select Route</button>
+            </div>
+        </div>
+
+        <!-- Speedometer -->
+        <div id="speedometer" class="speedometer" style="display: none;">
+            <div class="speedometer-container">
+                <div class="speed-display">
+                    <div class="current-speed" id="currentSpeed">0</div>
+                    <div class="speed-unit">mph</div>
+                </div>
+                <div class="speed-limit-display">
+                    <div class="speed-limit-icon">
+                        <div class="speed-limit-value" id="speedLimit">30</div>
+                    </div>
+                </div>
+                <div class="speed-status" id="speedStatus">SAFE</div>
             </div>
         </div>
 
@@ -2224,6 +2398,18 @@
                                             <input type="checkbox"> 🛤️ Narrow Roads
                                         </label>
                                     </div>
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
+                                        <button onclick="app.testHazardLoading()" style="
+                                            background: #00FF88;
+                                            color: #000;
+                                            border: none;
+                                            padding: 10px 20px;
+                                            border-radius: 8px;
+                                            cursor: pointer;
+                                            font-weight: bold;
+                                            width: 100%;
+                                        ">🧪 Test Hazard Detection</button>
+                                    </div>
                                 </div>
                             `;
                         }
@@ -2307,6 +2493,308 @@
                 window.app.getCurrentLocation();
             } else {
                 console.log('Get current location - app not ready');
+            }
+        }
+
+        async function testHazardDetection() {
+            console.log('🧪 Testing hazard detection...');
+            if (window.app && window.app.loadHazardsDirectly) {
+                try {
+                    const hazards = await window.app.loadHazardsDirectly();
+                    console.log(`🧪 Test result: ${hazards.length} hazards loaded`);
+                    if (hazards.length > 0) {
+                        console.log('🧪 Sample hazard:', hazards[0]);
+                        window.app.showNotification(`✅ Hazard detection working: ${hazards.length} hazards loaded`, 'success');
+                    } else {
+                        window.app.showNotification('⚠️ No hazards loaded - check hazards.geojson file', 'warning');
+                    }
+                } catch (error) {
+                    console.error('🧪 Hazard loading test failed:', error);
+                    window.app.showNotification('❌ Hazard detection failed', 'error');
+                }
+            } else {
+                console.log('App not ready for hazard testing');
+            }
+        }
+
+        function testAllFeatures() {
+            console.log('🧪 Testing all new features...');
+
+            if (!window.app) {
+                console.error('❌ App not initialized');
+                return;
+            }
+
+            // Test app state
+            console.log('🔍 App state check:');
+            console.log('- Map initialized:', !!window.app.map);
+            console.log('- Current location:', window.app.currentLocation);
+            console.log('- HazardDetectionService:', !!window.app.hazardDetectionService);
+            console.log('- GeocodingService:', !!window.app.geocodingService);
+            console.log('- VoiceNavigationService:', !!window.app.voiceNavigationService);
+
+            // Test chevron vehicle
+            console.log('🛸 Testing chevron vehicle...');
+            if (window.app.currentLocation) {
+                window.app.updateCarPosition(
+                    window.app.currentLocation.lat,
+                    window.app.currentLocation.lng,
+                    45
+                );
+                console.log('✅ Chevron vehicle updated');
+            }
+
+            // Test speedometer
+            console.log('📊 Testing speedometer...');
+            const speedometer = document.getElementById('speedometer');
+            if (speedometer) {
+                speedometer.style.display = 'block';
+                document.getElementById('currentSpeed').textContent = '35';
+                document.getElementById('speedLimit').textContent = '30';
+                document.getElementById('speedStatus').textContent = 'SPEEDING';
+                document.getElementById('speedStatus').className = 'speed-status danger';
+                console.log('✅ Speedometer displayed');
+            }
+
+            // Test address search
+            console.log('🔍 Testing address search...');
+            const toInput = document.getElementById('toInput');
+            if (toInput) {
+                toInput.value = 'london';
+                toInput.dispatchEvent(new Event('input'));
+                console.log('✅ Address search triggered');
+            }
+
+            window.app.showNotification('🧪 All features tested! Check console for details.', 'success');
+        }
+
+        function debugAppState() {
+            console.log('🔧 Debug App State:');
+            if (window.app) {
+                console.log('✅ App object exists');
+                console.log('- Map:', window.app.map ? '✅ Initialized' : '❌ Not initialized');
+                console.log('- Map Ready:', window.app.map && window.app.map._loaded ? '✅ Ready' : '⚠️ Not ready');
+                console.log('- Current Location:', window.app.currentLocation || '❌ Not set');
+                console.log('- Location Request In Progress:', window.app.locationRequestInProgress ? '⚠️ Yes' : '✅ No');
+                console.log('- Destination:', window.app.destination || '❌ Not set');
+                console.log('- Map Layers:');
+                console.log('  - markersLayer:', window.app.markersLayer ? '✅' : '❌');
+                console.log('  - routeLayer:', window.app.routeLayer ? '✅' : '❌');
+                console.log('  - hazardsLayer:', window.app.hazardsLayer ? '✅' : '❌');
+                console.log('  - vehicleLayer:', window.app.vehicleLayer ? '✅' : '❌');
+                console.log('- Services:');
+                console.log('  - HazardDetectionService:', window.app.hazardDetectionService ? '✅' : '❌');
+                console.log('  - GeocodingService:', window.app.geocodingService ? '✅' : '❌');
+                console.log('  - VoiceNavigationService:', window.app.voiceNavigationService ? '✅' : '❌');
+
+                if (window.app.showNotification) {
+                    window.app.showNotification('🔧 Debug info logged to console', 'info');
+                }
+            } else {
+                console.error('❌ App object not found');
+            }
+        }
+
+        async function testRouteCalculation() {
+            console.log('🛣️ Testing route calculation...');
+
+            if (!window.app) {
+                console.error('❌ App not initialized');
+                return;
+            }
+
+            if (!window.app.currentLocation) {
+                console.error('❌ No current location set');
+                window.app.showNotification('❌ Please get your location first', 'error');
+                return;
+            }
+
+            // Set a test destination
+            const testDestination = {
+                lat: window.app.currentLocation.lat + 0.01,
+                lng: window.app.currentLocation.lng + 0.01
+            };
+
+            window.app.destination = testDestination;
+            console.log('🎯 Test destination set:', testDestination);
+
+            try {
+                console.log('🔄 Starting route calculation test...');
+                await window.app.calculateRoute();
+                console.log('✅ Route calculation completed successfully');
+                window.app.showNotification('✅ Route calculation test passed!', 'success');
+            } catch (error) {
+                console.error('❌ Route calculation failed:', error);
+                window.app.showNotification(`❌ Route calculation failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function comprehensiveAppTest() {
+            console.log('🔍 Starting comprehensive app test...');
+
+            const results = {
+                passed: 0,
+                failed: 0,
+                tests: []
+            };
+
+            function testResult(name, passed, details = '') {
+                results.tests.push({ name, passed, details });
+                if (passed) {
+                    results.passed++;
+                    console.log(`✅ ${name}: PASSED ${details}`);
+                } else {
+                    results.failed++;
+                    console.error(`❌ ${name}: FAILED ${details}`);
+                }
+            }
+
+            // Test 1: App Initialization
+            testResult('App Initialization', !!window.app, window.app ? 'App object exists' : 'App object missing');
+
+            // Test 2: JavaScript Services
+            if (window.app) {
+                testResult('HazardDetectionService', !!window.app.hazardDetectionService,
+                    window.app.hazardDetectionService ? 'Service initialized' : 'Service missing');
+                testResult('GeocodingService', !!window.app.geocodingService,
+                    window.app.geocodingService ? 'Service initialized' : 'Service missing');
+                testResult('VoiceNavigationService', !!window.app.voiceNavigationService,
+                    window.app.voiceNavigationService ? 'Service initialized' : 'Service missing');
+            }
+
+            // Test 3: Map Initialization
+            testResult('Map Initialization', !!(window.app && window.app.map),
+                window.app && window.app.map ? 'Leaflet map initialized' : 'Map not initialized');
+
+            // Test 4: Location Services
+            testResult('Current Location', !!(window.app && window.app.currentLocation),
+                window.app && window.app.currentLocation ? `Location: ${window.app.currentLocation.lat}, ${window.app.currentLocation.lng}` : 'No location');
+
+            // Test 5: Hazard Detection
+            if (window.app && window.app.hazardDetectionService) {
+                try {
+                    const hazards = await window.app.loadHazardsDirectly();
+                    testResult('Hazard Loading', hazards.length > 0, `${hazards.length} hazards loaded`);
+                } catch (error) {
+                    testResult('Hazard Loading', false, `Error: ${error.message}`);
+                }
+            }
+
+            // Test 6: UI Elements
+            const speedometer = document.getElementById('speedometer');
+            testResult('Speedometer Element', !!speedometer, speedometer ? 'Element exists' : 'Element missing');
+
+            const testButton = document.querySelector('button[onclick="testHazardDetection()"]');
+            testResult('Test Button', !!testButton, testButton ? 'Test button exists' : 'Test button missing');
+
+            // Test 7: Service Worker
+            testResult('Service Worker', 'serviceWorker' in navigator,
+                'serviceWorker' in navigator ? 'Service Worker supported' : 'Service Worker not supported');
+
+            // Test 8: Voice Services
+            testResult('Speech Synthesis', 'speechSynthesis' in window,
+                'speechSynthesis' in window ? 'Speech synthesis available' : 'Speech synthesis not available');
+
+            // Test 9: Geolocation
+            testResult('Geolocation API', 'geolocation' in navigator,
+                'geolocation' in navigator ? 'Geolocation API available' : 'Geolocation API not available');
+
+            // Test 10: Local Storage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                testResult('Local Storage', true, 'Local storage working');
+            } catch (error) {
+                testResult('Local Storage', false, `Error: ${error.message}`);
+            }
+
+            // Display results
+            console.log('\n📊 TEST RESULTS:');
+            console.log(`✅ Passed: ${results.passed}`);
+            console.log(`❌ Failed: ${results.failed}`);
+            console.log(`📈 Success Rate: ${((results.passed / (results.passed + results.failed)) * 100).toFixed(1)}%`);
+
+            if (window.app) {
+                const message = `Tests: ${results.passed}✅ ${results.failed}❌ (${((results.passed / (results.passed + results.failed)) * 100).toFixed(1)}% success)`;
+                window.app.showNotification(message, results.failed === 0 ? 'success' : 'warning');
+            }
+
+            return results;
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🌟 DOM loaded, initializing VibeVoyage...');
+
+            // Prevent double initialization
+            if (window.app) {
+                console.log('🔄 App already initialized, skipping...');
+                return;
+            }
+
+            // Wait a bit for App.js to load
+            setTimeout(() => {
+                if (typeof initializeVibeVoyage === 'function') {
+                    initializeVibeVoyage();
+                } else {
+                    console.error('❌ initializeVibeVoyage function not found');
+                    // Try manual initialization
+                    setTimeout(() => {
+                        if (typeof VibeVoyageApp !== 'undefined' && !window.app) {
+                            console.log('🔧 Manual initialization...');
+                            window.app = new VibeVoyageApp();
+                        } else if (!window.app) {
+                            console.error('❌ VibeVoyageApp class not found');
+                            // Initialize a basic map as fallback
+                            initBasicMap();
+                        }
+                    }, 1000);
+                }
+            }, 500);
+        });
+
+        // Fallback basic map initialization
+        function initBasicMap() {
+            console.log('🗺️ Initializing basic fallback map...');
+
+            try {
+                if (typeof L !== 'undefined') {
+                    const mapElement = document.getElementById('map');
+                    if (mapElement) {
+                        const map = L.map('map').setView([51.505, -0.09], 13);
+
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        }).addTo(map);
+
+                        // Add Star Trek triangle
+                        const starTrekIcon = L.divIcon({
+                            html: `
+                                <div style="
+                                    width: 0;
+                                    height: 0;
+                                    border-left: 12px solid transparent;
+                                    border-right: 12px solid transparent;
+                                    border-bottom: 24px solid #00FF88;
+                                    filter: drop-shadow(0 0 8px #00FF88);
+                                    animation: starTrekPulse 2s ease-in-out infinite;
+                                "></div>
+                            `,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 20]
+                        });
+
+                        L.marker([51.505, -0.09], { icon: starTrekIcon })
+                            .addTo(map)
+                            .bindPopup('🛸 Star Trek Vehicle (Fallback Mode)');
+
+                        console.log('✅ Basic map initialized successfully');
+                    }
+                } else {
+                    console.error('❌ Leaflet not available for fallback map');
+                }
+            } catch (error) {
+                console.error('❌ Fallback map initialization failed:', error);
             }
         }
     </script>

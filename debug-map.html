@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage Debug - Map Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        
+        #map {
+            width: 100%;
+            height: 400px;
+            background: #333;
+            border: 2px solid #00FF88;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .debug-info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .btn {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #00CC66;
+        }
+        
+        .error {
+            color: #ff6b6b;
+        }
+        
+        .success {
+            color: #00FF88;
+        }
+        
+        .warning {
+            color: #ffa500;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+</head>
+<body>
+    <h1>🧭 VibeVoyage Debug - Map Test</h1>
+    
+    <div class="debug-info">
+        <h3>Debug Information:</h3>
+        <div id="debug-log"></div>
+    </div>
+    
+    <div>
+        <button class="btn" onclick="testMapInit()">🗺️ Test Map Init</button>
+        <button class="btn" onclick="testLeafletLoad()">📦 Test Leaflet Load</button>
+        <button class="btn" onclick="testStarTrekTriangle()">🛸 Test Star Trek Triangle</button>
+        <button class="btn" onclick="testHazardLoad()">🚨 Test Hazard Load</button>
+        <button class="btn" onclick="clearLog()">🧹 Clear Log</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin=""></script>
+    
+    <script>
+        let map = null;
+        let debugLog = document.getElementById('debug-log');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            debugLog.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        function clearLog() {
+            debugLog.innerHTML = '';
+        }
+        
+        function testLeafletLoad() {
+            log('Testing Leaflet load...');
+            if (typeof L !== 'undefined') {
+                log('✅ Leaflet is loaded successfully', 'success');
+                log(`Leaflet version: ${L.version}`, 'success');
+            } else {
+                log('❌ Leaflet is not loaded', 'error');
+            }
+        }
+        
+        function testMapInit() {
+            log('Testing map initialization...');
+            
+            if (typeof L === 'undefined') {
+                log('❌ Leaflet not available', 'error');
+                return;
+            }
+            
+            try {
+                // Clear existing map
+                if (map) {
+                    map.remove();
+                }
+                
+                // Initialize map
+                map = L.map('map').setView([51.505, -0.09], 13);
+                
+                // Add tile layer
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                log('✅ Map initialized successfully', 'success');
+                
+                // Test adding a marker
+                const marker = L.marker([51.505, -0.09]).addTo(map);
+                marker.bindPopup('Test marker').openPopup();
+                
+                log('✅ Test marker added', 'success');
+                
+            } catch (error) {
+                log(`❌ Map initialization failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function testStarTrekTriangle() {
+            log('Testing Star Trek triangle...');
+            
+            if (!map) {
+                log('❌ Map not initialized. Run map test first.', 'error');
+                return;
+            }
+            
+            try {
+                // Create Star Trek triangle icon
+                const starTrekIcon = L.divIcon({
+                    html: `
+                        <div style="
+                            width: 0;
+                            height: 0;
+                            border-left: 12px solid transparent;
+                            border-right: 12px solid transparent;
+                            border-bottom: 24px solid #00FF88;
+                            transform: rotate(45deg);
+                            filter: drop-shadow(0 0 8px #00FF88) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                            position: relative;
+                            animation: starTrekPulse 2s ease-in-out infinite;
+                        " class="startrek-triangle">
+                            <div style="
+                                position: absolute;
+                                top: 16px;
+                                left: -8px;
+                                width: 0;
+                                height: 0;
+                                border-left: 8px solid transparent;
+                                border-right: 8px solid transparent;
+                                border-bottom: 12px solid #00FF88;
+                                filter: brightness(1.2);
+                            "></div>
+                        </div>
+                    `,
+                    className: 'startrek-vehicle',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 20]
+                });
+                
+                // Add Star Trek triangle marker
+                const starTrekMarker = L.marker([51.51, -0.08], { icon: starTrekIcon }).addTo(map);
+                starTrekMarker.bindPopup('🛸 Star Trek Triangle Vehicle');
+                
+                log('✅ Star Trek triangle added successfully', 'success');
+                
+                // Add CSS animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes starTrekPulse {
+                        0%, 100% { 
+                            filter: drop-shadow(0 0 8px #00FF88) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                            transform: scale(1);
+                        }
+                        50% { 
+                            filter: drop-shadow(0 0 12px #00FF88) drop-shadow(0 0 8px #00FF88) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                            transform: scale(1.1);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+                
+            } catch (error) {
+                log(`❌ Star Trek triangle failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testHazardLoad() {
+            log('Testing hazard loading...');
+            
+            try {
+                const response = await fetch('/public/hazards.geojson');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const geojson = await response.json();
+                log(`✅ Hazards loaded: ${geojson.features?.length || 0} hazards`, 'success');
+                
+                if (geojson.features && geojson.features.length > 0) {
+                    log(`Sample hazard: ${geojson.features[0].properties.type} at [${geojson.features[0].geometry.coordinates}]`, 'success');
+                }
+                
+            } catch (error) {
+                log(`❌ Hazard loading failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            log('🚀 Debug page loaded');
+            setTimeout(() => {
+                testLeafletLoad();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

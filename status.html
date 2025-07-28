@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage Status Check</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        
+        .status-item {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #666;
+        }
+        
+        .status-item.success {
+            border-left-color: #00FF88;
+        }
+        
+        .status-item.error {
+            border-left-color: #ff6b6b;
+        }
+        
+        .status-item.warning {
+            border-left-color: #ffa500;
+        }
+        
+        .btn {
+            background: #00FF88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        pre {
+            background: #333;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 VibeVoyage Status Check</h1>
+    
+    <button class="btn" onclick="runAllTests()">🧪 Run All Tests</button>
+    <button class="btn" onclick="clearResults()">🧹 Clear Results</button>
+    <button class="btn" onclick="location.href='/'">🏠 Back to App</button>
+    <button class="btn" onclick="location.href='/debug-map.html'">🗺️ Debug Map</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        let results = document.getElementById('results');
+        
+        function addResult(title, status, message, details = '') {
+            const item = document.createElement('div');
+            item.className = `status-item ${status}`;
+            item.innerHTML = `
+                <h3>${title}</h3>
+                <p>${message}</p>
+                ${details ? `<pre>${details}</pre>` : ''}
+            `;
+            results.appendChild(item);
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            
+            // Test 1: Check if files are accessible
+            addResult('📄 File Access Test', 'info', 'Testing file accessibility...');
+            
+            try {
+                const appResponse = await fetch('/App.js');
+                if (appResponse.ok) {
+                    addResult('App.js', 'success', 'App.js is accessible');
+                } else {
+                    addResult('App.js', 'error', `App.js not accessible: ${appResponse.status}`);
+                }
+            } catch (error) {
+                addResult('App.js', 'error', `App.js fetch failed: ${error.message}`);
+            }
+            
+            try {
+                const hazardResponse = await fetch('/public/hazards.geojson');
+                if (hazardResponse.ok) {
+                    const hazardData = await hazardResponse.json();
+                    addResult('Hazards GeoJSON', 'success', `Hazards file loaded: ${hazardData.features?.length || 0} hazards`);
+                } else {
+                    addResult('Hazards GeoJSON', 'error', `Hazards file not accessible: ${hazardResponse.status}`);
+                }
+            } catch (error) {
+                addResult('Hazards GeoJSON', 'error', `Hazards fetch failed: ${error.message}`);
+            }
+            
+            // Test 2: Check Leaflet
+            addResult('🗺️ Leaflet Test', 'info', 'Testing Leaflet library...');
+            
+            if (typeof L !== 'undefined') {
+                addResult('Leaflet Library', 'success', `Leaflet loaded successfully (v${L.version})`);
+            } else {
+                addResult('Leaflet Library', 'error', 'Leaflet not loaded');
+            }
+            
+            // Test 3: Check main app
+            addResult('🚀 App Test', 'info', 'Testing main application...');
+            
+            try {
+                const mainWindow = window.open('/', '_blank');
+                setTimeout(() => {
+                    try {
+                        if (mainWindow.app) {
+                            addResult('Main App', 'success', 'Main app initialized successfully');
+                        } else if (mainWindow.VibeVoyageApp) {
+                            addResult('Main App', 'warning', 'VibeVoyageApp class available but not initialized');
+                        } else {
+                            addResult('Main App', 'error', 'Main app not initialized');
+                        }
+                        mainWindow.close();
+                    } catch (error) {
+                        addResult('Main App', 'error', `Cannot access main app: ${error.message}`);
+                        mainWindow.close();
+                    }
+                }, 2000);
+            } catch (error) {
+                addResult('Main App', 'error', `Cannot test main app: ${error.message}`);
+            }
+            
+            // Test 4: Server status
+            addResult('🌐 Server Test', 'info', 'Testing server status...');
+            
+            try {
+                const serverResponse = await fetch('/');
+                if (serverResponse.ok) {
+                    addResult('Server Status', 'success', 'Server responding correctly');
+                } else {
+                    addResult('Server Status', 'error', `Server error: ${serverResponse.status}`);
+                }
+            } catch (error) {
+                addResult('Server Status', 'error', `Server not accessible: ${error.message}`);
+            }
+        }
+        
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+    
+    <!-- Load Leaflet for testing -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>

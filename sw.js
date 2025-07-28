@@ -103,15 +103,9 @@ async function handleMapTileRequest(request) {
       return cachedResponse;
     }
 
-    // Fetch from network
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // Cache successful responses
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
+    // For map tiles, let the browser handle them directly without service worker interference
+    // This avoids CORS issues with OpenStreetMap tiles
+    return fetch(request);
   } catch (error) {
     console.log('VibeVoyage SW: Map tile fetch failed:', error);
     
