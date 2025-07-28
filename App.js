@@ -1434,21 +1434,41 @@ class VibeVoyageApp {
         const exclusions = this.buildRouteExclusions();
         console.log('🚨 Route exclusions based on hazard settings:', exclusions);
 
-        // Multiple routing services for better reliability
+        // Build exclusion parameters for OSRM API
+        const excludeParams = this.buildOSRMExcludeParams(exclusions);
+        console.log('🚨 OSRM exclude parameters:', excludeParams);
+
+        // Show user notification about active hazard avoidance
+        const activeHazards = this.getActiveHazardTypes();
+        if (activeHazards.length > 0) {
+            this.showNotification(`🚨 Avoiding: ${activeHazards.join(', ')}`, 'info');
+        }
+
+        // Multiple routing services for better reliability with hazard avoidance
         const routingServices = [
             {
-                name: 'OSRM Primary',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true`,
+                name: 'OSRM Primary (Hazard Avoiding)',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.primary}&voice_instructions=true`,
                 timeout: 10000
             },
             {
-                name: 'OSRM Alternative',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`,
+                name: 'OSRM Alternative (No Highway)',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.noHighway}&continue_straight=true&voice_instructions=true`,
                 timeout: 8000
             },
             {
-                name: 'OSRM Backup',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`,
+                name: 'OSRM Railway Avoiding',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true${excludeParams.noRailway}&voice_instructions=true`,
+                timeout: 8000
+            },
+            {
+                name: 'OSRM Shortest (Hazard Aware)',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.shortest}&continue_straight=false&voice_instructions=true`,
+                timeout: 6000
+            },
+            {
+                name: 'OSRM Backup (Safe Route)',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.fastest}&voice_instructions=true`,
                 timeout: 6000
             }
         ];
@@ -1557,13 +1577,18 @@ class VibeVoyageApp {
     }
 
     async calculateSingleRoute() {
-        // Fallback to single route calculation
+        // Fallback to single route calculation with hazard avoidance
         const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
         const end = `${this.destination.lng},${this.destination.lat}`;
 
+        // Apply hazard avoidance to single route as well
+        const exclusions = this.buildRouteExclusions();
+        const excludeParams = this.buildOSRMExcludeParams(exclusions);
+        console.log('🚨 Single route hazard avoidance applied:', excludeParams.primary);
+
         try {
             const response = await fetch(
-                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`
+                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true${excludeParams.primary}&voice_instructions=true`
             );
 
             if (response.ok) {
@@ -3852,8 +3877,7 @@ class VibeVoyageApp {
 
         // Build base exclusions from hazard settings
         if (settings.railwayCrossings) {
-            // Note: OSRM doesn't have direct railway crossing exclusion,
-            // but we can avoid certain road types that commonly have crossings
+            // Avoid road types that commonly have railway crossings
             baseExclusions.push('trunk'); // Trunk roads often have level crossings
         }
 
@@ -3865,15 +3889,73 @@ class VibeVoyageApp {
             baseExclusions.push('ferry'); // Avoid ferries and some bridge types
         }
 
+        // Additional hazard-based exclusions
+        if (settings.speedCameras || settings.redLightCameras) {
+            // Speed cameras are often on major roads - avoid motorways for camera avoidance
+            // This is a compromise since OSRM doesn't have camera-specific exclusions
+        }
+
+        if (settings.narrowRoads) {
+            // Avoid residential and unclassified roads which tend to be narrow
+            baseExclusions.push('residential', 'unclassified');
+        }
+
+        if (settings.steepGrades) {
+            // Avoid trunk roads which may have steep grades in hilly areas
+            if (!baseExclusions.includes('trunk')) {
+                baseExclusions.push('trunk');
+            }
+        }
+
         const baseExclusionString = baseExclusions.length > 0 ? `,${baseExclusions.join(',')}` : '';
 
         return {
             fastest: baseExclusionString,
-            noHighway: baseExclusionString,
+            noHighway: baseExclusionString + ',motorway', // Avoid highways for safer route
             shortest: baseExclusionString,
-            noLights: baseExclusionString,
+            noLights: baseExclusionString + ',trunk,secondary', // Avoid roads with many traffic lights
             noRailway: baseExclusionString + (settings.railwayCrossings ? ',trunk,secondary' : '')
         };
+    }
+
+    buildOSRMExcludeParams(exclusions) {
+        // Convert exclusion strings to OSRM API parameters
+        const buildExcludeParam = (exclusionString) => {
+            if (!exclusionString || exclusionString.length === 0) {
+                return '';
+            }
+            // Remove leading comma and build exclude parameter
+            const cleanExclusions = exclusionString.startsWith(',') ? exclusionString.substring(1) : exclusionString;
+            return cleanExclusions ? `&exclude=${cleanExclusions}` : '';
+        };
+
+        return {
+            primary: buildExcludeParam(exclusions.fastest),
+            noHighway: buildExcludeParam(exclusions.noHighway + ',motorway,trunk'),
+            shortest: buildExcludeParam(exclusions.shortest),
+            noRailway: buildExcludeParam(exclusions.noRailway),
+            fastest: buildExcludeParam(exclusions.fastest)
+        };
+    }
+
+    getActiveHazardTypes() {
+        const settings = this.hazardAvoidanceSettings;
+        const activeHazards = [];
+
+        if (settings.speedCameras) activeHazards.push('Speed Cameras');
+        if (settings.redLightCameras) activeHazards.push('Red Light Cameras');
+        if (settings.railwayCrossings) activeHazards.push('Railway Crossings');
+        if (settings.tollBooths) activeHazards.push('Toll Booths');
+        if (settings.bridges) activeHazards.push('Bridges/Ferries');
+        if (settings.narrowRoads) activeHazards.push('Narrow Roads');
+        if (settings.steepGrades) activeHazards.push('Steep Grades');
+        if (settings.schoolZones) activeHazards.push('School Zones');
+        if (settings.hospitalZones) activeHazards.push('Hospital Zones');
+        if (settings.accidents) activeHazards.push('Accident Reports');
+        if (settings.roadwork) activeHazards.push('Road Works');
+        if (settings.policeReports) activeHazards.push('Police Reports');
+
+        return activeHazards;
     }
 
     updateHazardAvoidanceSettings() {
