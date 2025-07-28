@@ -134,8 +134,8 @@ async function handleAPIRequest(request) {
     // Try network first for fresh data
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
-      // Cache successful API responses
+    if (networkResponse.ok && request.method === 'GET') {
+      // Only cache GET requests (POST requests can't be cached)
       cache.put(request, networkResponse.clone());
     }
     

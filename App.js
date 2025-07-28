@@ -1542,8 +1542,23 @@ class VibeVoyageApp {
     }
 
     async calculateMultipleRoutes() {
+        // Validate coordinates before making API calls
+        if (!this.currentLocation || !this.destination) {
+            throw new Error('Missing location data for route calculation');
+        }
+
         const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
         const end = `${this.destination.lng},${this.destination.lat}`;
+
+        console.log('🗺️ Route calculation coordinates:', { start, end });
+        console.log('🗺️ Current location:', this.currentLocation);
+        console.log('🗺️ Destination:', this.destination);
+
+        // Validate coordinate format
+        const coordRegex = /^-?\d+\.?\d*,-?\d+\.?\d*$/;
+        if (!coordRegex.test(start) || !coordRegex.test(end)) {
+            throw new Error(`Invalid coordinate format: start=${start}, end=${end}`);
+        }
 
         // Build exclusion list based on hazard avoidance settings
         const exclusions = this.buildRouteExclusions();
@@ -2547,6 +2562,16 @@ class VibeVoyageApp {
         const converted = this.convertDistance(meters);
         console.log('📏 formatDistance:', meters, 'meters →', converted, 'system:', this.units.system);
         return `${converted.value} ${converted.unit}`;
+    }
+
+    formatWindSpeed(kmh) {
+        if (this.units.system === 'imperial') {
+            // Convert km/h to mph
+            const mph = kmh * 0.621371;
+            return `${Math.round(mph)} mph`;
+        } else {
+            return `${kmh} km/h`;
+        }
     }
 
     formatSpeed(kmh) {
@@ -4451,8 +4476,8 @@ class VibeVoyageApp {
                     <div style="font-size: 12px; opacity: 0.8;">${weather.condition}</div>
                 </div>
                 <div style="font-size: 12px; opacity: 0.7;">
-                    💨 ${weather.windSpeed} km/h<br>
-                    👁️ ${weather.visibility} km
+                    💨 ${this.formatWindSpeed(weather.windSpeed)}<br>
+                    👁️ ${this.formatDistance(weather.visibility * 1000)}
                 </div>
             </div>
         `;
@@ -5346,10 +5371,8 @@ class VibeVoyageApp {
     }
 
     calculateFuelCost(distance) {
-        const fuelEfficiency = this.units.fuelEfficiency || 8; // L/100km default
-        const fuelPrice = 1.45; // £1.45 per liter default
-        const litersUsed = (distance / 1000) * (fuelEfficiency / 100);
-        return litersUsed * fuelPrice;
+        // Use the proper fuel cost calculation with country-specific pricing
+        return this.estimateFuelCost(distance);
     }
 
     estimateTollCost(route) {
@@ -7632,11 +7655,47 @@ class VibeVoyageApp {
     setupEventListeners() {
         // Search input handling
         const toInput = document.getElementById('toInput');
+        const fromInput = document.getElementById('fromInput');
+
+        // To input handling
         toInput.addEventListener('input', (e) => {
             const value = e.target.value.trim();
             document.getElementById('navigateBtn').disabled = !value;
+
+            // Handle address input with debouncing
+            clearTimeout(this.toInputTimeout);
+            this.toInputTimeout = setTimeout(() => {
+                this.handleAddressInput('to', value);
+            }, 300);
         });
-        
+
+        // From input handling
+        if (fromInput) {
+            fromInput.addEventListener('input', (e) => {
+                const value = e.target.value.trim();
+
+                // Handle address input with debouncing
+                clearTimeout(this.fromInputTimeout);
+                this.fromInputTimeout = setTimeout(() => {
+                    this.handleAddressInput('from', value);
+                }, 300);
+            });
+        }
+
+        // Click outside to hide suggestions
+        document.addEventListener('click', (e) => {
+            const toSuggestions = document.getElementById('toSuggestions');
+            const fromSuggestions = document.getElementById('fromSuggestions');
+
+            if (toSuggestions && !toInput.contains(e.target) && !toSuggestions.contains(e.target)) {
+                this.hideSuggestions('to');
+            }
+
+            if (fromSuggestions && fromInput && !fromInput.contains(e.target) && !fromSuggestions.contains(e.target)) {
+                this.hideSuggestions('from');
+            }
+        });
+
         // Online/offline status
         window.addEventListener('online', () => this.updateConnectionStatus());
         window.addEventListener('offline', () => this.updateConnectionStatus());
