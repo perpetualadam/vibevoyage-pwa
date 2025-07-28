@@ -1406,6 +1406,9 @@ class VibeVoyageApp {
         // Start location tracking
         this.startLocationTracking();
 
+        // Show turn-by-turn navigation
+        this.showTurnByTurnNavigation();
+
         const navBtn = document.getElementById('navigateBtn');
         navBtn.innerHTML = '🛑 Stop Navigation';
         navBtn.onclick = () => this.stopNavigation();
@@ -1925,6 +1928,16 @@ class VibeVoyageApp {
 
     selectRoute(route, index) {
         console.log('🎯 Route selected:', route.type, index);
+
+        // Check if map is ready
+        if (!this.map) {
+            console.warn('⚠️ Map not ready, cannot display route');
+            // Store route data anyway for when map becomes available
+            this.routeData = route;
+            this.routeSteps = route.legs[0].steps;
+            this.currentStepIndex = 0;
+            return;
+        }
 
         // Store selected route data
         this.routeData = route;
@@ -2572,16 +2585,67 @@ class VibeVoyageApp {
                     }
                     break;
                 case 'us_zipcode':
-                    suggestions.push(...await this.searchUSZipcode(query));
+                    try {
+                        const result = await this.geocodeLocation(query);
+                        suggestions.push({
+                            type: 'US Zipcode',
+                            main: query,
+                            details: result.name.split(',').slice(1).join(',').trim(),
+                            lat: result.lat,
+                            lng: result.lng
+                        });
+                    } catch (error) {
+                        console.warn('US zipcode search failed:', error);
+                    }
                     break;
                 case 'coordinates':
-                    suggestions.push(...await this.parseCoordinates(query));
+                    try {
+                        // Parse coordinates in format "lat,lng" or "lat lng"
+                        const coords = query.replace(/[^\d.,-\s]/g, '').split(/[,\s]+/);
+                        if (coords.length >= 2) {
+                            const lat = parseFloat(coords[0]);
+                            const lng = parseFloat(coords[1]);
+                            if (!isNaN(lat) && !isNaN(lng)) {
+                                suggestions.push({
+                                    type: 'Coordinates',
+                                    main: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+                                    details: 'GPS Coordinates',
+                                    lat: lat,
+                                    lng: lng
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Coordinate parsing failed:', error);
+                    }
                     break;
                 case 'street_address':
-                    suggestions.push(...await this.searchStreetAddress(query));
+                    try {
+                        const result = await this.geocodeLocation(query);
+                        suggestions.push({
+                            type: 'Address',
+                            main: result.name.split(',')[0],
+                            details: result.name.split(',').slice(1).join(',').trim(),
+                            lat: result.lat,
+                            lng: result.lng
+                        });
+                    } catch (error) {
+                        console.warn('Street address search failed:', error);
+                    }
                     break;
                 case 'company_name':
-                    suggestions.push(...await this.searchCompanyName(query));
+                    try {
+                        const result = await this.geocodeLocation(query);
+                        suggestions.push({
+                            type: 'Business',
+                            main: result.name.split(',')[0],
+                            details: result.name.split(',').slice(1).join(',').trim(),
+                            lat: result.lat,
+                            lng: result.lng
+                        });
+                    } catch (error) {
+                        console.warn('Company name search failed:', error);
+                    }
                     break;
                 case 'place_name':
                 default:
@@ -2598,9 +2662,18 @@ class VibeVoyageApp {
                             })));
                         } catch (error) {
                             console.warn('GeocodingService search failed, using fallback:', error);
-                            // Fallback to direct search
-                            if (this.searchPlaceName && typeof this.searchPlaceName === 'function') {
-                                suggestions.push(...await this.searchPlaceName(query));
+                            // Fallback to geocodeLocation
+                            try {
+                                const result = await this.geocodeLocation(query);
+                                suggestions.push({
+                                    type: 'Place',
+                                    main: result.name.split(',')[0],
+                                    details: result.name.split(',').slice(1).join(',').trim(),
+                                    lat: result.lat,
+                                    lng: result.lng
+                                });
+                            } catch (geocodeError) {
+                                console.warn('Geocoding failed for place name:', geocodeError);
                             }
                         }
                     } else {
@@ -4007,7 +4080,7 @@ class VibeVoyageApp {
 
         return {
             primary: buildExcludeParam(exclusions.fastest),
-            noHighway: buildExcludeParam(exclusions.noHighway + ',motorway,trunk'),
+            noHighway: buildExcludeParam(exclusions.noHighway),
             shortest: buildExcludeParam(exclusions.shortest),
             noRailway: buildExcludeParam(exclusions.noRailway),
             fastest: buildExcludeParam(exclusions.fastest)
@@ -4499,6 +4572,653 @@ class VibeVoyageApp {
         }
 
         favoritesList.innerHTML = html;
+    }
+
+    // ===== TURN-BY-TURN NAVIGATION UI =====
+
+    initTurnByTurnUI() {
+        // Create turn-by-turn navigation panel
+        const navPanel = document.getElementById('navPanel');
+        if (!navPanel) return;
+
+        const turnByTurnHTML = `
+            <div id="turnByTurnContainer" style="
+                position: fixed;
+                top: 70px;
+                left: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.9);
+                border: 2px solid #00FF88;
+                border-radius: 12px;
+                padding: 15px;
+                color: white;
+                z-index: 1000;
+                display: none;
+                max-width: 400px;
+                margin: 0 auto;
+            ">
+                <div id="currentInstruction" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    margin-bottom: 10px;
+                ">
+                    <div id="turnIcon" style="
+                        font-size: 32px;
+                        min-width: 40px;
+                        text-align: center;
+                    ">➡️</div>
+                    <div style="flex: 1;">
+                        <div id="instructionText" style="
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #00FF88;
+                            margin-bottom: 5px;
+                        ">Continue straight</div>
+                        <div id="instructionDistance" style="
+                            font-size: 14px;
+                            color: #888;
+                        ">for 500m</div>
+                    </div>
+                </div>
+
+                <div id="nextInstruction" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    padding: 10px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 8px;
+                    font-size: 12px;
+                    color: #ccc;
+                ">
+                    <div id="nextTurnIcon" style="font-size: 16px; min-width: 20px;">🔄</div>
+                    <div>
+                        <div id="nextInstructionText">Then turn right</div>
+                        <div id="nextInstructionDistance">in 1.2km</div>
+                    </div>
+                </div>
+
+                <div id="routeProgress" style="
+                    margin-top: 10px;
+                    padding: 8px;
+                    background: rgba(0, 255, 136, 0.1);
+                    border-radius: 6px;
+                    font-size: 12px;
+                    text-align: center;
+                ">
+                    <div id="progressText">2.5km remaining • 8 min</div>
+                    <div style="
+                        width: 100%;
+                        height: 4px;
+                        background: rgba(255, 255, 255, 0.2);
+                        border-radius: 2px;
+                        margin-top: 5px;
+                        overflow: hidden;
+                    ">
+                        <div id="progressBar" style="
+                            height: 100%;
+                            background: #00FF88;
+                            width: 35%;
+                            transition: width 0.3s ease;
+                        "></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add to page if not exists
+        if (!document.getElementById('turnByTurnContainer')) {
+            document.body.insertAdjacentHTML('beforeend', turnByTurnHTML);
+        }
+    }
+
+    showTurnByTurnNavigation() {
+        this.initTurnByTurnUI();
+        const container = document.getElementById('turnByTurnContainer');
+        if (container) {
+            container.style.display = 'block';
+            this.updateTurnByTurnInstructions();
+        }
+    }
+
+    hideTurnByTurnNavigation() {
+        const container = document.getElementById('turnByTurnContainer');
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+
+    updateTurnByTurnInstructions() {
+        if (!this.routeSteps || this.currentStepIndex >= this.routeSteps.length) return;
+
+        const currentStep = this.routeSteps[this.currentStepIndex];
+        const nextStep = this.routeSteps[this.currentStepIndex + 1];
+
+        // Update current instruction
+        const instructionText = document.getElementById('instructionText');
+        const instructionDistance = document.getElementById('instructionDistance');
+        const turnIcon = document.getElementById('turnIcon');
+
+        if (instructionText && currentStep) {
+            instructionText.textContent = currentStep.maneuver?.instruction || 'Continue straight';
+
+            if (instructionDistance) {
+                instructionDistance.textContent = `for ${(currentStep.distance || 0).toFixed(0)}m`;
+            }
+
+            if (turnIcon) {
+                turnIcon.textContent = this.getTurnIcon(currentStep.maneuver?.type);
+            }
+        }
+
+        // Update next instruction
+        const nextInstructionText = document.getElementById('nextInstructionText');
+        const nextInstructionDistance = document.getElementById('nextInstructionDistance');
+        const nextTurnIcon = document.getElementById('nextTurnIcon');
+
+        if (nextStep && nextInstructionText) {
+            nextInstructionText.textContent = nextStep.maneuver?.instruction || 'Continue';
+
+            if (nextInstructionDistance) {
+                const distanceToNext = this.routeSteps
+                    .slice(this.currentStepIndex, this.currentStepIndex + 1)
+                    .reduce((sum, step) => sum + (step.distance || 0), 0);
+                nextInstructionDistance.textContent = `in ${(distanceToNext / 1000).toFixed(1)}km`;
+            }
+
+            if (nextTurnIcon) {
+                nextTurnIcon.textContent = this.getTurnIcon(nextStep.maneuver?.type);
+            }
+        }
+
+        // Update progress
+        this.updateNavigationProgress();
+    }
+
+    getTurnIcon(maneuverType) {
+        const icons = {
+            'turn-left': '↰',
+            'turn-right': '↱',
+            'turn-slight-left': '↖️',
+            'turn-slight-right': '↗️',
+            'turn-sharp-left': '⬅️',
+            'turn-sharp-right': '➡️',
+            'continue': '⬆️',
+            'merge': '🔀',
+            'on-ramp': '🛣️',
+            'off-ramp': '🛤️',
+            'fork': '🍴',
+            'roundabout': '🔄',
+            'rotary': '🔄',
+            'roundabout-turn': '🔄',
+            'notification': '📍',
+            'depart': '🚗',
+            'arrive': '🏁'
+        };
+        return icons[maneuverType] || '➡️';
+    }
+
+    updateNavigationProgress() {
+        if (!this.routeData) return;
+
+        const progressText = document.getElementById('progressText');
+        const progressBar = document.getElementById('progressBar');
+
+        if (progressText && this.currentLocation && this.destination) {
+            const remainingDistance = this.calculateDistance(
+                this.currentLocation.lat,
+                this.currentLocation.lng,
+                this.destination.lat,
+                this.destination.lng
+            );
+
+            const totalDistance = this.routeData.distance || 1000;
+            const completedDistance = totalDistance - remainingDistance;
+            const progressPercent = Math.max(0, Math.min(100, (completedDistance / totalDistance) * 100));
+
+            const remainingKm = (remainingDistance / 1000).toFixed(1);
+            const estimatedMinutes = Math.round(remainingDistance / 1000 / 30 * 60); // Assuming 30 km/h average
+
+            progressText.textContent = `${remainingKm}km remaining • ${estimatedMinutes} min`;
+
+            if (progressBar) {
+                progressBar.style.width = `${progressPercent}%`;
+            }
+        }
+    }
+
+    // ===== PARKING & FUEL STATION FINDER =====
+
+    async findNearbyServices(type, location = null) {
+        const coords = location || this.destination || this.currentLocation;
+        if (!coords) {
+            this.showNotification('❌ No location available for search', 'error');
+            return [];
+        }
+
+        try {
+            // Use Overpass API to find nearby services
+            const services = await this.searchOverpassAPI(type, coords);
+            this.displayNearbyServices(services, type);
+            return services;
+        } catch (error) {
+            console.error(`Error finding ${type}:`, error);
+            // Fallback to mock data
+            return this.getMockServices(type, coords);
+        }
+    }
+
+    async searchOverpassAPI(type, coords) {
+        const radius = 2000; // 2km radius
+        const queries = {
+            parking: `[out:json][timeout:25];
+                (
+                  node["amenity"="parking"](around:${radius},${coords.lat},${coords.lng});
+                  way["amenity"="parking"](around:${radius},${coords.lat},${coords.lng});
+                );
+                out center;`,
+            fuel: `[out:json][timeout:25];
+                (
+                  node["amenity"="fuel"](around:${radius},${coords.lat},${coords.lng});
+                  way["amenity"="fuel"](around:${radius},${coords.lat},${coords.lng});
+                );
+                out center;`,
+            restaurant: `[out:json][timeout:25];
+                (
+                  node["amenity"="restaurant"](around:${radius},${coords.lat},${coords.lng});
+                  node["amenity"="fast_food"](around:${radius},${coords.lat},${coords.lng});
+                );
+                out center;`,
+            hospital: `[out:json][timeout:25];
+                (
+                  node["amenity"="hospital"](around:${radius},${coords.lat},${coords.lng});
+                  node["amenity"="clinic"](around:${radius},${coords.lat},${coords.lng});
+                );
+                out center;`
+        };
+
+        const query = queries[type];
+        if (!query) throw new Error(`Unknown service type: ${type}`);
+
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `data=${encodeURIComponent(query)}`
+        });
+
+        if (!response.ok) throw new Error('Overpass API request failed');
+
+        const data = await response.json();
+        return this.parseOverpassResults(data.elements, type);
+    }
+
+    parseOverpassResults(elements, type) {
+        return elements.map(element => {
+            const lat = element.lat || element.center?.lat;
+            const lng = element.lon || element.center?.lon;
+
+            if (!lat || !lng) return null;
+
+            return {
+                id: element.id,
+                name: element.tags?.name || `${type.charAt(0).toUpperCase() + type.slice(1)} Station`,
+                type: type,
+                lat: lat,
+                lng: lng,
+                address: this.buildAddress(element.tags),
+                brand: element.tags?.brand || element.tags?.operator,
+                opening_hours: element.tags?.opening_hours,
+                phone: element.tags?.phone,
+                website: element.tags?.website,
+                amenity: element.tags?.amenity,
+                distance: this.calculateDistance(
+                    this.currentLocation?.lat || 0,
+                    this.currentLocation?.lng || 0,
+                    lat,
+                    lng
+                )
+            };
+        }).filter(Boolean).sort((a, b) => a.distance - b.distance);
+    }
+
+    buildAddress(tags) {
+        const parts = [];
+        if (tags?.['addr:housenumber']) parts.push(tags['addr:housenumber']);
+        if (tags?.['addr:street']) parts.push(tags['addr:street']);
+        if (tags?.['addr:city']) parts.push(tags['addr:city']);
+        return parts.join(' ') || 'Address not available';
+    }
+
+    getMockServices(type, coords) {
+        // Mock data for demonstration
+        const mockData = {
+            parking: [
+                { name: 'City Center Parking', type: 'parking', distance: 150, price: '£2/hour' },
+                { name: 'Shopping Mall Parking', type: 'parking', distance: 300, price: '£1.50/hour' },
+                { name: 'Street Parking', type: 'parking', distance: 80, price: '£1/hour' }
+            ],
+            fuel: [
+                { name: 'Shell Station', type: 'fuel', distance: 200, price: '£1.45/L' },
+                { name: 'BP Garage', type: 'fuel', distance: 450, price: '£1.42/L' },
+                { name: 'Tesco Petrol', type: 'fuel', distance: 600, price: '£1.38/L' }
+            ],
+            restaurant: [
+                { name: 'McDonald\'s', type: 'restaurant', distance: 120, cuisine: 'Fast Food' },
+                { name: 'Pizza Express', type: 'restaurant', distance: 250, cuisine: 'Italian' },
+                { name: 'Nando\'s', type: 'restaurant', distance: 380, cuisine: 'Portuguese' }
+            ],
+            hospital: [
+                { name: 'City Hospital', type: 'hospital', distance: 800, services: 'Emergency' },
+                { name: 'Medical Centre', type: 'hospital', distance: 400, services: 'GP' }
+            ]
+        };
+
+        return (mockData[type] || []).map(item => ({
+            ...item,
+            id: Math.random().toString(36).substr(2, 9),
+            lat: coords.lat + (Math.random() - 0.5) * 0.01,
+            lng: coords.lng + (Math.random() - 0.5) * 0.01,
+            address: 'Mock Address'
+        }));
+    }
+
+    displayNearbyServices(services, type) {
+        const icons = {
+            parking: '🅿️',
+            fuel: '⛽',
+            restaurant: '🍽️',
+            hospital: '🏥'
+        };
+
+        const icon = icons[type] || '📍';
+        const typeName = type.charAt(0).toUpperCase() + type.slice(1);
+
+        if (services.length === 0) {
+            this.showNotification(`${icon} No ${typeName.toLowerCase()} found nearby`, 'info');
+            return;
+        }
+
+        // Create services panel
+        const panelHTML = `
+            <div id="servicesPanel" style="
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                right: 20px;
+                max-width: 400px;
+                margin: 0 auto;
+                background: rgba(0, 0, 0, 0.9);
+                border: 2px solid #00FF88;
+                border-radius: 12px;
+                padding: 15px;
+                color: white;
+                z-index: 1000;
+                max-height: 300px;
+                overflow-y: auto;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="color: #00FF88; margin: 0;">${icon} Nearby ${typeName}</h3>
+                    <button onclick="closeServicesPanel()" style="background: #FF6B6B; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+                </div>
+                <div id="servicesList">
+                    ${services.slice(0, 5).map(service => `
+                        <div style="
+                            padding: 10px;
+                            border: 1px solid #333;
+                            border-radius: 6px;
+                            margin-bottom: 8px;
+                            cursor: pointer;
+                            background: rgba(255, 255, 255, 0.02);
+                        " onclick="navigateToService('${service.id}', ${service.lat}, ${service.lng}, '${service.name}')">
+                            <div style="font-weight: bold; color: #00FF88;">${service.name}</div>
+                            <div style="font-size: 12px; color: #888; margin: 2px 0;">${service.address}</div>
+                            <div style="font-size: 12px; color: #ccc;">
+                                📏 ${(service.distance / 1000).toFixed(1)}km away
+                                ${service.price ? ` • 💰 ${service.price}` : ''}
+                                ${service.cuisine ? ` • 🍴 ${service.cuisine}` : ''}
+                                ${service.services ? ` • 🏥 ${service.services}` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        // Remove existing panel
+        const existingPanel = document.getElementById('servicesPanel');
+        if (existingPanel) existingPanel.remove();
+
+        // Add new panel
+        document.body.insertAdjacentHTML('beforeend', panelHTML);
+
+        // Add markers to map
+        this.addServiceMarkers(services, type);
+
+        this.showNotification(`${icon} Found ${services.length} ${typeName.toLowerCase()} nearby`, 'success');
+    }
+
+    addServiceMarkers(services, type) {
+        if (!this.map) return;
+
+        // Clear existing service markers
+        if (this.serviceMarkers) {
+            this.serviceMarkers.forEach(marker => this.map.removeLayer(marker));
+        }
+        this.serviceMarkers = [];
+
+        const icons = {
+            parking: '🅿️',
+            fuel: '⛽',
+            restaurant: '🍽️',
+            hospital: '🏥'
+        };
+
+        services.forEach(service => {
+            const marker = L.marker([service.lat, service.lng])
+                .bindPopup(`
+                    <div style="text-align: center;">
+                        <div style="font-size: 20px;">${icons[type]}</div>
+                        <div style="font-weight: bold; margin: 5px 0;">${service.name}</div>
+                        <div style="font-size: 12px; color: #666;">${service.address}</div>
+                        <div style="font-size: 12px; margin: 5px 0;">📏 ${(service.distance / 1000).toFixed(1)}km away</div>
+                        <button onclick="navigateToService('${service.id}', ${service.lat}, ${service.lng}, '${service.name}')"
+                                style="background: #00FF88; color: black; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-top: 5px;">
+                            Navigate Here
+                        </button>
+                    </div>
+                `);
+
+            this.serviceMarkers.push(marker);
+            marker.addTo(this.map);
+        });
+    }
+
+    // ===== ROUTE COMPARISON TOOL =====
+
+    showRouteComparison(routes) {
+        if (!routes || routes.length < 2) {
+            this.showNotification('❌ Need at least 2 routes to compare', 'error');
+            return;
+        }
+
+        const comparisonHTML = `
+            <div id="routeComparisonPanel" style="
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                max-width: 600px;
+                max-height: 80vh;
+                background: rgba(0, 0, 0, 0.95);
+                border: 2px solid #00FF88;
+                border-radius: 12px;
+                padding: 20px;
+                color: white;
+                z-index: 10000;
+                overflow-y: auto;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #00FF88; margin: 0;">📊 Route Comparison</h3>
+                    <button onclick="closeRouteComparison()" style="background: #FF6B6B; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    ${routes.map((route, index) => this.createRouteComparisonCard(route, index)).join('')}
+                </div>
+
+                <div style="margin-top: 20px; padding: 15px; background: rgba(0, 255, 136, 0.1); border-radius: 8px;">
+                    <h4 style="color: #00FF88; margin: 0 0 10px 0;">📈 Comparison Summary</h4>
+                    ${this.generateComparisonSummary(routes)}
+                </div>
+
+                <div style="text-align: center; margin-top: 15px;">
+                    <button onclick="selectBestRoute()" style="background: #00FF88; color: black; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        🏆 Select Best Route
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Remove existing panel
+        const existingPanel = document.getElementById('routeComparisonPanel');
+        if (existingPanel) existingPanel.remove();
+
+        // Add new panel
+        document.body.insertAdjacentHTML('beforeend', comparisonHTML);
+    }
+
+    createRouteComparisonCard(route, index) {
+        const distance = (route.distance / 1000).toFixed(1);
+        const duration = Math.round(route.duration / 60);
+        const hours = Math.floor(duration / 60);
+        const minutes = duration % 60;
+        const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+        const fuelCost = this.calculateFuelCost(route.distance);
+        const tollCost = this.estimateTollCost(route);
+        const totalCost = fuelCost + tollCost;
+
+        const routeTypes = {
+            fastest: { icon: '⚡', name: 'Fastest Route', color: '#FF6B6B' },
+            shortest: { icon: '📏', name: 'Shortest Route', color: '#4ECDC4' },
+            scenic: { icon: '🌄', name: 'Scenic Route', color: '#45B7D1' },
+            alternative: { icon: '🔄', name: 'Alternative Route', color: '#96CEB4' }
+        };
+
+        const routeInfo = routeTypes[route.type] || routeTypes.alternative;
+
+        return `
+            <div style="
+                border: 2px solid ${routeInfo.color};
+                border-radius: 8px;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.02);
+                cursor: pointer;
+                transition: all 0.3s ease;
+            " onclick="selectRouteFromComparison(${index})" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 24px; margin-right: 10px;">${routeInfo.icon}</span>
+                    <div>
+                        <div style="font-weight: bold; color: ${routeInfo.color};">${routeInfo.name}</div>
+                        <div style="font-size: 12px; color: #888;">Route ${index + 1}</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>🕐 Time:</span>
+                        <span style="font-weight: bold;">${timeStr}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>📏 Distance:</span>
+                        <span style="font-weight: bold;">${distance} km</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>💰 Est. Cost:</span>
+                        <span style="font-weight: bold;">${this.formatCurrency(totalCost)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>⛽ Fuel:</span>
+                        <span>${this.formatCurrency(fuelCost)}</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 12px; color: #888;">
+                    ${this.getRouteFeatures(route).join(' • ')}
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <div style="background: rgba(255, 255, 255, 0.1); height: 4px; border-radius: 2px; overflow: hidden;">
+                        <div style="height: 100%; background: ${routeInfo.color}; width: ${this.getRouteScore(route)}%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div style="text-align: center; font-size: 10px; color: #888; margin-top: 2px;">
+                        Score: ${this.getRouteScore(route)}%
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    generateComparisonSummary(routes) {
+        const fastest = routes.reduce((min, route) => route.duration < min.duration ? route : min);
+        const shortest = routes.reduce((min, route) => route.distance < min.distance ? route : min);
+        const cheapest = routes.reduce((min, route) => {
+            const minCost = this.calculateFuelCost(min.distance) + this.estimateTollCost(min);
+            const routeCost = this.calculateFuelCost(route.distance) + this.estimateTollCost(route);
+            return routeCost < minCost ? route : min;
+        });
+
+        return `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 12px;">
+                <div style="text-align: center;">
+                    <div style="color: #FF6B6B;">⚡ Fastest</div>
+                    <div>${Math.round(fastest.duration / 60)}m</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: #4ECDC4;">📏 Shortest</div>
+                    <div>${(shortest.distance / 1000).toFixed(1)}km</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: #96CEB4;">💰 Cheapest</div>
+                    <div>${this.formatCurrency(this.calculateFuelCost(cheapest.distance) + this.estimateTollCost(cheapest))}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    getRouteFeatures(route) {
+        const features = [];
+        if (route.distance < 5000) features.push('Short');
+        if (route.duration < 600) features.push('Quick');
+        if (this.estimateTollCost(route) === 0) features.push('Toll-free');
+        if (route.type === 'scenic') features.push('Scenic');
+        return features.length > 0 ? features : ['Standard'];
+    }
+
+    getRouteScore(route) {
+        // Calculate a score based on time, distance, and cost
+        const timeScore = Math.max(0, 100 - (route.duration / 60)); // Lower time = higher score
+        const distanceScore = Math.max(0, 100 - (route.distance / 1000)); // Lower distance = higher score
+        const costScore = Math.max(0, 100 - (this.calculateFuelCost(route.distance) * 10)); // Lower cost = higher score
+
+        return Math.round((timeScore + distanceScore + costScore) / 3);
+    }
+
+    calculateFuelCost(distance) {
+        const fuelEfficiency = this.units.fuelEfficiency || 8; // L/100km default
+        const fuelPrice = 1.45; // £1.45 per liter default
+        const litersUsed = (distance / 1000) * (fuelEfficiency / 100);
+        return litersUsed * fuelPrice;
+    }
+
+    estimateTollCost(route) {
+        // Simple toll estimation - in real app would use toll road detection
+        if (route.type === 'fastest' && route.distance > 50000) {
+            return 5.50; // Estimate £5.50 for long fast routes
+        }
+        return 0;
     }
 
     updateHazardAvoidanceSettings() {
@@ -5397,6 +6117,9 @@ class VibeVoyageApp {
 
         // Stop ETA updates
         this.stopETAUpdates();
+
+        // Hide turn-by-turn navigation
+        this.hideTurnByTurnNavigation();
 
         // Reset navigation button
         const navBtn = document.getElementById('navigateBtn');
@@ -6839,6 +7562,89 @@ function clearAllFavorites() {
         window.app.saveFavoriteLocations();
         window.app.showFavorites(); // Refresh the display
         window.app.showNotification('🗑️ All favorites cleared', 'info');
+    }
+}
+
+// ===== NEW FEATURE FUNCTIONS =====
+
+function findNearbyParking() {
+    if (window.app && window.app.findNearbyServices) {
+        window.app.findNearbyServices('parking');
+    }
+}
+
+function findNearbyFuel() {
+    if (window.app && window.app.findNearbyServices) {
+        window.app.findNearbyServices('fuel');
+    }
+}
+
+function findNearbyRestaurants() {
+    if (window.app && window.app.findNearbyServices) {
+        window.app.findNearbyServices('restaurant');
+    }
+}
+
+function findNearbyHospitals() {
+    if (window.app && window.app.findNearbyServices) {
+        window.app.findNearbyServices('hospital');
+    }
+}
+
+function navigateToService(serviceId, lat, lng, name) {
+    if (window.app) {
+        window.app.setDestination({ lat: lat, lng: lng, name: name });
+        document.getElementById('toInput').value = name;
+        closeServicesPanel();
+        window.app.showNotification(`🎯 Navigating to ${name}`, 'success');
+    }
+}
+
+function closeServicesPanel() {
+    const panel = document.getElementById('servicesPanel');
+    if (panel) panel.remove();
+}
+
+function compareRoutes() {
+    if (window.app && window.app.availableRoutes && window.app.availableRoutes.length > 1) {
+        window.app.showRouteComparison(window.app.availableRoutes);
+    } else {
+        window.app?.showNotification('❌ Need multiple routes to compare', 'error');
+    }
+}
+
+function closeRouteComparison() {
+    const panel = document.getElementById('routeComparisonPanel');
+    if (panel) panel.remove();
+}
+
+function selectRouteFromComparison(index) {
+    if (window.app && window.app.availableRoutes && window.app.availableRoutes[index]) {
+        window.app.selectRoute(window.app.availableRoutes[index], index);
+        closeRouteComparison();
+        window.app.showNotification('✅ Route selected from comparison', 'success');
+    }
+}
+
+function selectBestRoute() {
+    if (window.app && window.app.availableRoutes && window.app.availableRoutes.length > 0) {
+        // Select the route with the highest score
+        let bestRoute = window.app.availableRoutes[0];
+        let bestIndex = 0;
+        let bestScore = window.app.getRouteScore(bestRoute);
+
+        window.app.availableRoutes.forEach((route, index) => {
+            const score = window.app.getRouteScore(route);
+            if (score > bestScore) {
+                bestScore = score;
+                bestRoute = route;
+                bestIndex = index;
+            }
+        });
+
+        window.app.selectRoute(bestRoute, bestIndex);
+        closeRouteComparison();
+        window.app.showNotification(`🏆 Best route selected (Score: ${bestScore}%)`, 'success');
     }
 }
 
