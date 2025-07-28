@@ -224,6 +224,14 @@ class VibeVoyageApp {
             roadwork: true
         };
 
+        // Initialize favorite locations and recent searches
+        this.favoriteLocations = [];
+        this.recentSearches = [];
+        this.maxRecentSearches = 10;
+        this.maxFavoriteLocations = 50;
+        this.loadFavoriteLocations();
+        this.loadRecentSearches();
+
         // Initialize speed tracking
         this.currentSpeed = 0;
         this.speedLimit = 30; // Default speed limit
@@ -235,6 +243,12 @@ class VibeVoyageApp {
         // Load saved units from storage
         this.loadUnitsFromStorage();
         this.initializeUnitSelectors();
+
+        // Check for shared route in URL
+        this.parseSharedRoute();
+
+        // Get current weather
+        setTimeout(() => this.getCurrentWeather(), 2000);
 
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
@@ -1357,12 +1371,23 @@ class VibeVoyageApp {
         navBtn.disabled = true;
 
         try {
+            // Add destination to recent searches
+            this.addToRecentSearches({
+                name: this.destination.name || 'Destination',
+                lat: this.destination.lat,
+                lng: this.destination.lng,
+                query: document.getElementById('toInput').value
+            });
+
             // Calculate multiple routes
             await this.calculateRoute();
 
             // If we have a selected route, start navigation immediately
             if (this.routeData && this.routeSteps) {
                 this.startSelectedNavigation();
+
+                // Start ETA updates
+                this.startETAUpdates();
             }
 
         } catch (error) {
@@ -2532,22 +2557,18 @@ class VibeVoyageApp {
         try {
             switch (format) {
                 case 'uk_postcode':
-                    if (this.searchUKPostcode && typeof this.searchUKPostcode === 'function') {
-                        suggestions.push(...await this.searchUKPostcode(query));
-                    } else {
-                        // Fallback using geocodeLocation
-                        try {
-                            const result = await this.geocodeLocation(query);
-                            suggestions.push({
-                                type: 'UK Postcode',
-                                main: query.toUpperCase(),
-                                details: result.name.split(',').slice(1).join(',').trim(),
-                                lat: result.lat,
-                                lng: result.lng
-                            });
-                        } catch (error) {
-                            console.warn('UK postcode search failed:', error);
-                        }
+                    // Always use geocodeLocation for UK postcodes
+                    try {
+                        const result = await this.geocodeLocation(query);
+                        suggestions.push({
+                            type: 'UK Postcode',
+                            main: query.toUpperCase(),
+                            details: result.name.split(',').slice(1).join(',').trim(),
+                            lat: result.lat,
+                            lng: result.lng
+                        });
+                    } catch (error) {
+                        console.warn('UK postcode search failed:', error);
                     }
                     break;
                 case 'us_zipcode':
@@ -2583,24 +2604,18 @@ class VibeVoyageApp {
                             }
                         }
                     } else {
-                        // Check if function exists before calling
-                        if (this.searchPlaceName && typeof this.searchPlaceName === 'function') {
-                            suggestions.push(...await this.searchPlaceName(query));
-                        } else {
-                            console.warn('searchPlaceName function not available, using geocodeLocation fallback');
-                            // Ultimate fallback using existing geocodeLocation
-                            try {
-                                const result = await this.geocodeLocation(query);
-                                suggestions.push({
-                                    type: 'Place',
-                                    main: result.name.split(',')[0],
-                                    details: result.name.split(',').slice(1).join(',').trim(),
-                                    lat: result.lat,
-                                    lng: result.lng
-                                });
-                            } catch (geocodeError) {
-                                console.warn('All search methods failed:', geocodeError);
-                            }
+                        // Always use geocodeLocation fallback since searchPlaceName doesn't exist
+                        try {
+                            const result = await this.geocodeLocation(query);
+                            suggestions.push({
+                                type: 'Place',
+                                main: result.name.split(',')[0],
+                                details: result.name.split(',').slice(1).join(',').trim(),
+                                lat: result.lat,
+                                lng: result.lng
+                            });
+                        } catch (geocodeError) {
+                            console.warn('Geocoding failed for place name:', geocodeError);
                         }
                     }
                     break;
@@ -4019,6 +4034,473 @@ class VibeVoyageApp {
         return activeHazards;
     }
 
+    // ===== FAVORITE LOCATIONS MANAGEMENT =====
+
+    loadFavoriteLocations() {
+        try {
+            const saved = localStorage.getItem('vibeVoyage_favoriteLocations');
+            if (saved) {
+                this.favoriteLocations = JSON.parse(saved);
+                console.log('📍 Loaded favorite locations:', this.favoriteLocations.length);
+            }
+        } catch (error) {
+            console.warn('Error loading favorite locations:', error);
+            this.favoriteLocations = [];
+        }
+    }
+
+    saveFavoriteLocations() {
+        try {
+            localStorage.setItem('vibeVoyage_favoriteLocations', JSON.stringify(this.favoriteLocations));
+            console.log('💾 Saved favorite locations');
+        } catch (error) {
+            console.error('Error saving favorite locations:', error);
+        }
+    }
+
+    addToFavorites(location) {
+        const favorite = {
+            id: Date.now().toString(),
+            name: location.name || 'Unnamed Location',
+            address: location.address || location.name || '',
+            lat: location.lat,
+            lng: location.lng,
+            addedAt: Date.now(),
+            type: location.type || 'custom'
+        };
+
+        // Check if already exists
+        const exists = this.favoriteLocations.find(fav =>
+            Math.abs(fav.lat - favorite.lat) < 0.0001 &&
+            Math.abs(fav.lng - favorite.lng) < 0.0001
+        );
+
+        if (exists) {
+            this.showNotification('⭐ Location already in favorites', 'info');
+            return false;
+        }
+
+        // Add to beginning of array
+        this.favoriteLocations.unshift(favorite);
+
+        // Limit to max favorites
+        if (this.favoriteLocations.length > this.maxFavoriteLocations) {
+            this.favoriteLocations = this.favoriteLocations.slice(0, this.maxFavoriteLocations);
+        }
+
+        this.saveFavoriteLocations();
+        this.showNotification('⭐ Added to favorites!', 'success');
+        return true;
+    }
+
+    removeFromFavorites(favoriteId) {
+        const index = this.favoriteLocations.findIndex(fav => fav.id === favoriteId);
+        if (index !== -1) {
+            const removed = this.favoriteLocations.splice(index, 1)[0];
+            this.saveFavoriteLocations();
+            this.showNotification(`🗑️ Removed "${removed.name}" from favorites`, 'info');
+            return true;
+        }
+        return false;
+    }
+
+    getFavoriteLocations() {
+        return [...this.favoriteLocations];
+    }
+
+    // ===== RECENT SEARCHES MANAGEMENT =====
+
+    loadRecentSearches() {
+        try {
+            const saved = localStorage.getItem('vibeVoyage_recentSearches');
+            if (saved) {
+                this.recentSearches = JSON.parse(saved);
+                console.log('🔍 Loaded recent searches:', this.recentSearches.length);
+            }
+        } catch (error) {
+            console.warn('Error loading recent searches:', error);
+            this.recentSearches = [];
+        }
+    }
+
+    saveRecentSearches() {
+        try {
+            localStorage.setItem('vibeVoyage_recentSearches', JSON.stringify(this.recentSearches));
+            console.log('💾 Saved recent searches');
+        } catch (error) {
+            console.error('Error saving recent searches:', error);
+        }
+    }
+
+    addToRecentSearches(location) {
+        const search = {
+            id: Date.now().toString(),
+            query: location.query || location.name || '',
+            name: location.name || 'Unnamed Location',
+            address: location.address || location.name || '',
+            lat: location.lat,
+            lng: location.lng,
+            searchedAt: Date.now(),
+            type: location.type || 'search'
+        };
+
+        // Remove if already exists (to move to top)
+        this.recentSearches = this.recentSearches.filter(recent =>
+            !(Math.abs(recent.lat - search.lat) < 0.0001 &&
+              Math.abs(recent.lng - search.lng) < 0.0001)
+        );
+
+        // Add to beginning of array
+        this.recentSearches.unshift(search);
+
+        // Limit to max recent searches
+        if (this.recentSearches.length > this.maxRecentSearches) {
+            this.recentSearches = this.recentSearches.slice(0, this.maxRecentSearches);
+        }
+
+        this.saveRecentSearches();
+    }
+
+    clearRecentSearches() {
+        this.recentSearches = [];
+        this.saveRecentSearches();
+        this.showNotification('🗑️ Recent searches cleared', 'info');
+    }
+
+    getRecentSearches() {
+        return [...this.recentSearches];
+    }
+
+    // ===== WEATHER INTEGRATION =====
+
+    async getCurrentWeather(location = null) {
+        const coords = location || this.currentLocation;
+        if (!coords) {
+            console.warn('No location available for weather');
+            return null;
+        }
+
+        try {
+            // Use free weather API (OpenWeatherMap requires API key, so we'll use a mock for now)
+            const weather = await this.getMockWeatherData(coords);
+            this.displayWeatherInfo(weather);
+            return weather;
+        } catch (error) {
+            console.error('Weather fetch error:', error);
+            return null;
+        }
+    }
+
+    getMockWeatherData(coords) {
+        // Mock weather data for demonstration
+        const conditions = ['sunny', 'cloudy', 'rainy', 'partly-cloudy'];
+        const condition = conditions[Math.floor(Math.random() * conditions.length)];
+
+        return {
+            location: `${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}`,
+            temperature: Math.round(15 + Math.random() * 15), // 15-30°C
+            condition: condition,
+            humidity: Math.round(40 + Math.random() * 40), // 40-80%
+            windSpeed: Math.round(Math.random() * 20), // 0-20 km/h
+            visibility: Math.round(8 + Math.random() * 7), // 8-15 km
+            icon: this.getWeatherIcon(condition),
+            timestamp: Date.now()
+        };
+    }
+
+    getWeatherIcon(condition) {
+        const icons = {
+            'sunny': '☀️',
+            'cloudy': '☁️',
+            'rainy': '🌧️',
+            'partly-cloudy': '⛅'
+        };
+        return icons[condition] || '🌤️';
+    }
+
+    displayWeatherInfo(weather) {
+        const weatherDisplay = document.getElementById('weatherDisplay');
+        if (!weatherDisplay) return;
+
+        weatherDisplay.innerHTML = `
+            <div class="weather-info" style="
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            ">
+                <span style="font-size: 20px;">${weather.icon}</span>
+                <div>
+                    <div style="font-weight: bold;">${weather.temperature}°C</div>
+                    <div style="font-size: 12px; opacity: 0.8;">${weather.condition}</div>
+                </div>
+                <div style="font-size: 12px; opacity: 0.7;">
+                    💨 ${weather.windSpeed} km/h<br>
+                    👁️ ${weather.visibility} km
+                </div>
+            </div>
+        `;
+    }
+
+    // ===== ROUTE SHARING =====
+
+    async shareCurrentRoute() {
+        if (!this.currentLocation || !this.destination) {
+            this.showNotification('❌ No active route to share', 'error');
+            return;
+        }
+
+        const routeData = {
+            from: {
+                lat: this.currentLocation.lat,
+                lng: this.currentLocation.lng,
+                name: 'Current Location'
+            },
+            to: {
+                lat: this.destination.lat,
+                lng: this.destination.lng,
+                name: this.destination.name || 'Destination'
+            },
+            timestamp: Date.now(),
+            app: 'VibeVoyage'
+        };
+
+        const shareUrl = this.generateShareUrl(routeData);
+        const shareText = `🗺️ Check out my route on VibeVoyage!\n\nFrom: ${routeData.from.name}\nTo: ${routeData.to.name}\n\n${shareUrl}`;
+
+        try {
+            if (navigator.share) {
+                // Use native sharing if available
+                await navigator.share({
+                    title: 'VibeVoyage Route',
+                    text: shareText,
+                    url: shareUrl
+                });
+                this.showNotification('📤 Route shared successfully!', 'success');
+            } else {
+                // Fallback to clipboard
+                await navigator.clipboard.writeText(shareText);
+                this.showNotification('📋 Route link copied to clipboard!', 'success');
+            }
+        } catch (error) {
+            console.error('Share error:', error);
+            this.showNotification('❌ Failed to share route', 'error');
+        }
+    }
+
+    generateShareUrl(routeData) {
+        const baseUrl = window.location.origin + window.location.pathname;
+        const params = new URLSearchParams({
+            from: `${routeData.from.lat},${routeData.from.lng}`,
+            to: `${routeData.to.lat},${routeData.to.lng}`,
+            fromName: routeData.from.name,
+            toName: routeData.to.name
+        });
+        return `${baseUrl}?${params.toString()}`;
+    }
+
+    parseSharedRoute() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const from = urlParams.get('from');
+        const to = urlParams.get('to');
+        const fromName = urlParams.get('fromName');
+        const toName = urlParams.get('toName');
+
+        if (from && to) {
+            const [fromLat, fromLng] = from.split(',').map(Number);
+            const [toLat, toLng] = to.split(',').map(Number);
+
+            if (!isNaN(fromLat) && !isNaN(fromLng) && !isNaN(toLat) && !isNaN(toLng)) {
+                // Set shared route
+                this.currentLocation = { lat: fromLat, lng: fromLng, name: fromName };
+                this.destination = { lat: toLat, lng: toLng, name: toName };
+
+                this.showNotification('🔗 Loaded shared route!', 'success');
+
+                // Update UI
+                if (fromName) document.getElementById('fromInput').placeholder = `From: ${fromName}`;
+                if (toName) document.getElementById('toInput').value = toName;
+
+                // Calculate route
+                setTimeout(() => this.startNavigation(), 1000);
+
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ===== REAL-TIME ETA UPDATES =====
+
+    startETAUpdates() {
+        if (this.etaUpdateInterval) {
+            clearInterval(this.etaUpdateInterval);
+        }
+
+        this.etaUpdateInterval = setInterval(() => {
+            if (this.isNavigating && this.currentLocation && this.destination) {
+                this.updateETA();
+            }
+        }, 30000); // Update every 30 seconds
+    }
+
+    stopETAUpdates() {
+        if (this.etaUpdateInterval) {
+            clearInterval(this.etaUpdateInterval);
+            this.etaUpdateInterval = null;
+        }
+    }
+
+    async updateETA() {
+        try {
+            const distance = this.calculateDistance(
+                this.currentLocation.lat,
+                this.currentLocation.lng,
+                this.destination.lat,
+                this.destination.lng
+            );
+
+            // Estimate based on current speed and traffic
+            const currentSpeed = this.currentSpeed || 30; // Default 30 km/h
+            const estimatedTime = (distance / 1000) / currentSpeed * 60; // minutes
+
+            // Add traffic delay estimation
+            const trafficDelay = this.estimateTrafficDelay(distance);
+            const totalETA = estimatedTime + trafficDelay;
+
+            this.displayETA(totalETA, distance);
+
+        } catch (error) {
+            console.error('ETA update error:', error);
+        }
+    }
+
+    estimateTrafficDelay(distance) {
+        // Simple traffic estimation based on time of day
+        const hour = new Date().getHours();
+        let trafficMultiplier = 1;
+
+        // Rush hour traffic
+        if ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)) {
+            trafficMultiplier = 1.5;
+        } else if (hour >= 22 || hour <= 6) {
+            trafficMultiplier = 0.8; // Less traffic at night
+        }
+
+        return (distance / 1000) * trafficMultiplier * 0.5; // Additional minutes
+    }
+
+    displayETA(etaMinutes, distance) {
+        const etaDisplay = document.getElementById('etaDisplay');
+        if (!etaDisplay) return;
+
+        const hours = Math.floor(etaMinutes / 60);
+        const minutes = Math.round(etaMinutes % 60);
+        const arrivalTime = new Date(Date.now() + etaMinutes * 60000);
+
+        let etaText = '';
+        if (hours > 0) {
+            etaText = `${hours}h ${minutes}m`;
+        } else {
+            etaText = `${minutes}m`;
+        }
+
+        etaDisplay.innerHTML = `
+            <div class="eta-info" style="
+                background: rgba(0, 255, 136, 0.1);
+                border: 1px solid #00FF88;
+                color: #00FF88;
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 14px;
+                text-align: center;
+            ">
+                <div style="font-size: 18px; font-weight: bold;">🕐 ${etaText}</div>
+                <div style="font-size: 12px; opacity: 0.8;">
+                    Arrive: ${arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+                <div style="font-size: 12px; opacity: 0.6;">
+                    📏 ${(distance / 1000).toFixed(1)} km remaining
+                </div>
+            </div>
+        `;
+    }
+
+    // ===== FAVORITES UI MANAGEMENT =====
+
+    toggleFavorites() {
+        const container = document.getElementById('favoritesContainer');
+        if (container) {
+            if (container.style.display === 'none' || !container.style.display) {
+                this.showFavorites();
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+    }
+
+    showFavorites() {
+        const favoritesList = document.getElementById('favoritesList');
+        if (!favoritesList) return;
+
+        const favorites = this.getFavoriteLocations();
+        const recent = this.getRecentSearches();
+
+        if (favorites.length === 0 && recent.length === 0) {
+            favoritesList.innerHTML = `
+                <div style="text-align: center; color: #888; padding: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📍</div>
+                    <div>No favorites or recent searches yet</div>
+                    <div style="font-size: 12px; margin-top: 5px;">Search for locations to add them here</div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        // Show favorites
+        if (favorites.length > 0) {
+            html += '<div style="margin-bottom: 20px;"><h4 style="color: #00FF88; margin-bottom: 10px;">⭐ Favorites</h4>';
+            favorites.forEach(fav => {
+                html += `
+                    <div style="display: flex; align-items: center; padding: 8px; border: 1px solid #333; border-radius: 6px; margin-bottom: 5px; background: rgba(0,255,136,0.05);">
+                        <div style="flex: 1; cursor: pointer;" onclick="navigateToFavorite('${fav.id}')">
+                            <div style="font-weight: bold; color: #00FF88;">${fav.name}</div>
+                            <div style="font-size: 12px; color: #888;">${fav.address}</div>
+                        </div>
+                        <button onclick="removeFromFavorites('${fav.id}')" style="background: #FF6B6B; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        // Show recent searches
+        if (recent.length > 0) {
+            html += '<div><h4 style="color: #888; margin-bottom: 10px;">🕐 Recent Searches</h4>';
+            recent.forEach(search => {
+                html += `
+                    <div style="display: flex; align-items: center; padding: 8px; border: 1px solid #333; border-radius: 6px; margin-bottom: 5px; background: rgba(255,255,255,0.02);">
+                        <div style="flex: 1; cursor: pointer;" onclick="navigateToRecent('${search.id}')">
+                            <div style="font-weight: bold;">${search.name}</div>
+                            <div style="font-size: 12px; color: #888;">${search.address}</div>
+                        </div>
+                        <button onclick="addRecentToFavorites('${search.id}')" style="background: #00FF88; border: none; color: black; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">⭐</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        favoritesList.innerHTML = html;
+    }
+
     updateHazardAvoidanceSettings() {
         console.log('🚨 Updating hazard avoidance settings...');
 
@@ -4903,21 +5385,24 @@ class VibeVoyageApp {
     
     stopNavigation() {
         this.isNavigating = false;
-        
+
         // Hide navigation panel
         document.getElementById('navPanel').classList.remove('active');
-        
+
         // Stop location tracking
         if (this.watchId) {
             navigator.geolocation.clearWatch(this.watchId);
             this.watchId = null;
         }
-        
+
+        // Stop ETA updates
+        this.stopETAUpdates();
+
         // Reset navigation button
         const navBtn = document.getElementById('navigateBtn');
         navBtn.innerHTML = '🚗 Start Navigation';
         navBtn.onclick = () => this.startNavigation();
-        
+
         this.showNotification('Navigation stopped', 'warning');
         this.speakInstruction('Navigation stopped.');
     }
@@ -6281,6 +6766,79 @@ function stopNavigation() {
         window.app.stopNavigation();
     } else {
         console.error('❌ App not ready yet');
+    }
+}
+
+// ===== NEW FEATURE FUNCTIONS =====
+
+function shareCurrentRoute() {
+    if (window.app && window.app.shareCurrentRoute) {
+        window.app.shareCurrentRoute();
+    } else {
+        console.error('❌ App not ready yet');
+    }
+}
+
+function toggleFavorites() {
+    if (window.app && window.app.toggleFavorites) {
+        window.app.toggleFavorites();
+    } else {
+        console.error('❌ App not ready yet');
+    }
+}
+
+function navigateToFavorite(favoriteId) {
+    if (window.app) {
+        const favorite = window.app.favoriteLocations.find(fav => fav.id === favoriteId);
+        if (favorite) {
+            window.app.setDestination({ lat: favorite.lat, lng: favorite.lng, name: favorite.name });
+            document.getElementById('toInput').value = favorite.name;
+            document.getElementById('favoritesContainer').style.display = 'none';
+            window.app.showNotification(`🎯 Destination set: ${favorite.name}`, 'success');
+        }
+    }
+}
+
+function navigateToRecent(searchId) {
+    if (window.app) {
+        const recent = window.app.recentSearches.find(search => search.id === searchId);
+        if (recent) {
+            window.app.setDestination({ lat: recent.lat, lng: recent.lng, name: recent.name });
+            document.getElementById('toInput').value = recent.name;
+            document.getElementById('favoritesContainer').style.display = 'none';
+            window.app.showNotification(`🎯 Destination set: ${recent.name}`, 'success');
+        }
+    }
+}
+
+function removeFromFavorites(favoriteId) {
+    if (window.app && window.app.removeFromFavorites) {
+        window.app.removeFromFavorites(favoriteId);
+        window.app.showFavorites(); // Refresh the display
+    }
+}
+
+function addRecentToFavorites(searchId) {
+    if (window.app) {
+        const recent = window.app.recentSearches.find(search => search.id === searchId);
+        if (recent) {
+            window.app.addToFavorites({
+                name: recent.name,
+                address: recent.address,
+                lat: recent.lat,
+                lng: recent.lng
+            });
+            window.app.showFavorites(); // Refresh the display
+        }
+    }
+}
+
+function clearAllFavorites() {
+    if (window.app && confirm('Are you sure you want to clear all favorites?')) {
+        window.app.favoriteLocations = [];
+        window.app.saveFavoriteLocations();
+        window.app.showFavorites(); // Refresh the display
+        window.app.showNotification('🗑️ All favorites cleared', 'info');
     }
 }
 

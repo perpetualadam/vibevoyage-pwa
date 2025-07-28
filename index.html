@@ -2207,9 +2207,27 @@
                 <button class="btn btn-secondary" id="hazardSettingsBtn" onclick="toggleHazardSettings()" title="Hazard Avoidance Settings">🚨</button>
                 <button class="btn btn-secondary" onclick="toggleSettings()" title="App Settings">⚙️</button>
                 <button class="btn btn-secondary" onclick="getCurrentLocation()" title="Get Current Location">📍</button>
+                <button class="btn btn-secondary" onclick="shareCurrentRoute()" title="Share Current Route">📤</button>
+                <button class="btn btn-secondary" onclick="toggleFavorites()" title="Favorite Locations">⭐</button>
                 <button class="btn btn-voice" onclick="toggleVoiceReporting()" title="Voice Hazard Reporting" id="voiceReportingBtn">🎙️</button>
             </div>
         </header>
+
+        <!-- Favorites Panel (Hidden by default) -->
+        <div id="favoritesContainer" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 10000; background: rgba(0,0,0,0.9); padding: 20px; max-height: 80vh; overflow-y: auto;" onclick="if(event.target === this) this.style.display='none';">
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333; max-width: 500px; margin: 0 auto; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #00FF88; margin: 0;">⭐ Favorite Locations</h3>
+                    <button onclick="document.getElementById('favoritesContainer').style.display='none'" style="background: #FF6B6B; border: none; color: white; font-size: 18px; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-weight: bold;">✕</button>
+                </div>
+                <div id="favoritesList" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Favorites will be populated by JavaScript -->
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button onclick="clearAllFavorites()" style="background: #FF6B6B; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px;">Clear All Favorites</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Hazard Avoidance Panel (Hidden by default) -->
         <div id="hazardAvoidanceContainer" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 10000; background: rgba(0,0,0,0.9); padding: 20px; max-height: 80vh; overflow-y: auto;" onclick="if(event.target === this) this.style.display='none';">
@@ -2257,6 +2275,12 @@
                 <button class="navigate-btn mobile-navigate-btn" id="navigateBtn" onclick="startNavigation()" disabled>
                     🚗 Start Navigation
                 </button>
+
+                <!-- Weather and ETA Display -->
+                <div class="info-displays" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <div id="weatherDisplay" style="flex: 1; min-width: 200px;"></div>
+                    <div id="etaDisplay" style="flex: 1; min-width: 200px;"></div>
+                </div>
             </div>
         </section>
 
