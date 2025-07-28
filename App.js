@@ -741,20 +741,35 @@ class VibeVoyageApp {
 
         try {
             // Check if map is already initialized
-            if (this.map) {
-                console.log('🗺️ Map already initialized, skipping...');
+            if (this.map && this.map._container) {
+                console.log('🗺️ Map already initialized and has container, skipping...');
                 return;
             }
 
             // Check if container has Leaflet classes (indicating previous initialization)
             if (mapContainer.classList.contains('leaflet-container')) {
                 console.log('🔄 Cleaning up previous map instance...');
-                // Remove all Leaflet classes and content
+
+                // Try to remove existing map instance if it exists
+                if (mapContainer._leaflet_id) {
+                    try {
+                        // Find and remove the existing map
+                        const existingMap = mapContainer._leaflet_map || this.map;
+                        if (existingMap && existingMap.remove) {
+                            existingMap.remove();
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ Error removing existing map:', e);
+                    }
+                }
+
+                // Clean up container
                 mapContainer.className = 'interactive-map';
                 mapContainer.innerHTML = '';
-                // Remove any Leaflet-specific attributes
                 mapContainer.removeAttribute('tabindex');
                 mapContainer.style.cursor = '';
+                delete mapContainer._leaflet_id;
+                delete mapContainer._leaflet_map;
             }
 
             // Initialize Leaflet map with enhanced mobile options
@@ -3892,6 +3907,94 @@ class VibeVoyageApp {
         return checkbox ? checkbox.checked : false;
     }
 
+    // Hazard Settings Toggle Method
+    toggleHazardSettings() {
+        console.log('🚨 Toggling hazard settings...');
+        const container = document.getElementById('hazardAvoidanceContainer');
+        if (container) {
+            console.log('Container current display:', container.style.display);
+            if (container.style.display === 'none' || !container.style.display) {
+                console.log('Opening hazard settings...');
+                container.style.display = 'block';
+                // Always refresh hazard panel content to ensure latest version
+                container.innerHTML = '';
+                container.innerHTML = `
+                    <div class="hazard-panel-content" style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333; max-width: 500px; margin: 0 auto; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
+                            <button onclick="if(window.app) window.app.toggleHazardSettings()" style="background: #FF6B6B; border: none; color: white; font-size: 18px; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-weight: bold; z-index: 10001; position: relative;">✕ Close</button>
+                        </div>
+                        <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="speedCameras" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 📷 Speed Cameras
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="redLightCameras" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚦 Red Light Cameras
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="policeReports" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚨 Police Reports
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="roadwork" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚧 Road Works
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="railwayCrossings" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚂 Railway Crossings
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="trafficLights" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🚦 Complex Junctions
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="schoolZones" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🏫 School Zones
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="hospitalZones" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🏥 Hospital Zones
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="tollBooths" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 💰 Toll Booths
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="bridges" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🌉 Bridges/Tunnels
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="accidents" checked onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 💥 Accident Reports
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="weather" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🌧️ Weather Alerts
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="steepGrades" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> ⛰️ Steep Grades
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" id="narrowRoads" onchange="if(window.app) window.app.updateHazardAvoidanceSettings()"> 🛤️ Narrow Roads
+                            </label>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label style="display: block; margin-bottom: 5px;">Alert Distance: <span id="alertDistanceValue">500m</span></label>
+                            <input type="range" min="100" max="1000" step="50" value="500" style="width: 100%;"
+                                   onchange="document.getElementById('alertDistanceValue').textContent = this.value + 'm'">
+                        </div>
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button onclick="if(window.app) window.app.toggleHazardSettings()" style="background: #00FF88; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">Close Hazard Settings</button>
+                        </div>
+                    </div>
+                `;
+                this.showNotification('Hazard settings opened', 'info');
+
+                // Add click-outside-to-close functionality
+                container.onclick = (e) => {
+                    if (e.target === container) {
+                        this.toggleHazardSettings();
+                    }
+                };
+            } else {
+                console.log('Closing hazard settings...');
+                container.style.display = 'none';
+                console.log('Container display set to none');
+                this.showNotification('Hazard settings closed', 'info');
+            }
+        }
+    }
+
     getHazardAvoidanceDescription() {
         const settings = this.hazardAvoidanceSettings;
         const avoided = [];
@@ -5017,7 +5120,7 @@ class VibeVoyageApp {
             this.map.removeLayer(this.carMarker);
         }
 
-        // Create chevron car icon
+        // Create single blue triangle car icon
         const carIcon = L.divIcon({
             html: `
                 <div style="
@@ -5026,34 +5129,22 @@ class VibeVoyageApp {
                     transform: rotate(${heading}deg);
                     position: relative;
                     animation: chevronBreathe 3s ease-in-out infinite;
-                " class="chevron-vehicle">
+                " class="triangle-vehicle">
                     <div style="
                         position: absolute;
-                        top: 0;
+                        top: 2px;
                         left: 50%;
                         transform: translateX(-50%);
                         width: 0;
                         height: 0;
-                        border-left: 8px solid transparent;
-                        border-right: 8px solid transparent;
-                        border-bottom: 12px solid #00BFFF;
+                        border-left: 10px solid transparent;
+                        border-right: 10px solid transparent;
+                        border-bottom: 18px solid #00BFFF;
                         filter: drop-shadow(0 0 8px #00BFFF);
-                    "></div>
-                    <div style="
-                        position: absolute;
-                        top: 8px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        width: 0;
-                        height: 0;
-                        border-left: 6px solid transparent;
-                        border-right: 6px solid transparent;
-                        border-bottom: 8px solid #00BFFF;
-                        filter: drop-shadow(0 0 6px #00BFFF);
                     "></div>
                 </div>
             `,
-            className: 'car-marker chevron-vehicle',
+            className: 'car-marker triangle-vehicle',
             iconSize: [30, 30],
             iconAnchor: [15, 15]
         });
@@ -5072,9 +5163,9 @@ class VibeVoyageApp {
         // Clear existing vehicle markers
         this.vehicleLayer.clearLayers();
 
-        // Create chevron vehicle marker with direction
+        // Create single blue triangle vehicle marker with direction
         const vehicleIcon = L.divIcon({
-            className: 'vehicle-marker chevron-vehicle',
+            className: 'vehicle-marker triangle-vehicle',
             html: `
                 <div style="
                     width: 24px;
@@ -5082,30 +5173,18 @@ class VibeVoyageApp {
                     transform: rotate(${heading}deg);
                     position: relative;
                     animation: chevronBreathe 3s ease-in-out infinite;
-                " class="chevron-vehicle">
+                " class="triangle-vehicle">
                     <div style="
                         position: absolute;
-                        top: 0;
+                        top: 2px;
                         left: 50%;
                         transform: translateX(-50%);
                         width: 0;
                         height: 0;
-                        border-left: 8px solid transparent;
-                        border-right: 8px solid transparent;
-                        border-bottom: 12px solid #00BFFF;
+                        border-left: 10px solid transparent;
+                        border-right: 10px solid transparent;
+                        border-bottom: 18px solid #00BFFF;
                         filter: drop-shadow(0 0 8px #00BFFF);
-                    "></div>
-                    <div style="
-                        position: absolute;
-                        top: 8px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        width: 0;
-                        height: 0;
-                        border-left: 6px solid transparent;
-                        border-right: 6px solid transparent;
-                        border-bottom: 8px solid #00BFFF;
-                        filter: drop-shadow(0 0 6px #00BFFF);
                     "></div>
                 </div>
             `,
