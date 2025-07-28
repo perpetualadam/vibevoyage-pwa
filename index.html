@@ -2634,11 +2634,25 @@
             const message = args.join(' ');
             if (message.includes('Could not establish connection') ||
                 message.includes('Extension context invalidated') ||
-                message.includes('Receiving end does not exist')) {
+                message.includes('Receiving end does not exist') ||
+                message.includes('Unchecked runtime.lastError')) {
                 return; // Suppress these errors
             }
             originalConsoleError.apply(console, args);
         };
+
+        // Also suppress the specific runtime.lastError messages
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            const originalSendMessage = chrome.runtime.sendMessage;
+            chrome.runtime.sendMessage = function(...args) {
+                try {
+                    return originalSendMessage.apply(this, args);
+                } catch (error) {
+                    // Silently ignore connection errors
+                    return;
+                }
+            };
+        }
     </script>
 
     <script>

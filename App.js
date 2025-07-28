@@ -2047,6 +2047,25 @@ class VibeVoyageApp {
         }
     }
 
+    extractRouteSteps(route) {
+        // Handle different route formats (OSRM vs Demo routes)
+        if (route.legs && route.legs[0] && route.legs[0].steps) {
+            // OSRM route format
+            return route.legs[0].steps;
+        } else if (route.steps) {
+            // Demo route format
+            return route.steps;
+        } else {
+            // Fallback: create basic steps from route data
+            console.warn('⚠️ Route has no steps, creating basic navigation');
+            return [{
+                instruction: `Navigate to destination (${this.formatDistance(route.distance || 0)})`,
+                distance: route.distance || 0,
+                duration: route.duration || 0
+            }];
+        }
+    }
+
     async selectRoute(route, index) {
         console.log('🎯 Route selected:', route.type, index);
 
@@ -2055,14 +2074,14 @@ class VibeVoyageApp {
             console.warn('⚠️ Map not ready, cannot display route');
             // Store route data anyway for when map becomes available
             this.routeData = route;
-            this.routeSteps = route.legs[0].steps;
+            this.routeSteps = this.extractRouteSteps(route);
             this.currentStepIndex = 0;
             return;
         }
 
         // Store selected route data
         this.routeData = route;
-        this.routeSteps = route.legs[0].steps;
+        this.routeSteps = this.extractRouteSteps(route);
         this.currentStepIndex = 0;
 
         // Clear all route lines
@@ -4243,10 +4262,13 @@ class VibeVoyageApp {
             const [endLng, endLat] = end.split(',').map(Number);
 
             // Create a simple straight-line route for demo purposes
+            const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
+            const duration = Math.round(distance / 50 * 3600); // Assume 50 km/h average
+
             const demoRoute = {
                 type: 'Demo Route',
-                distance: this.calculateDistance(startLat, startLng, endLat, endLng),
-                duration: Math.round(this.calculateDistance(startLat, startLng, endLat, endLng) / 50 * 3600), // Assume 50 km/h average
+                distance: distance,
+                duration: duration,
                 geometry: {
                     type: 'LineString',
                     coordinates: [
@@ -4257,9 +4279,22 @@ class VibeVoyageApp {
                 },
                 steps: [
                     {
-                        instruction: `Head towards destination (${this.formatDistance(this.calculateDistance(startLat, startLng, endLat, endLng))})`,
-                        distance: this.calculateDistance(startLat, startLng, endLat, endLng),
-                        duration: Math.round(this.calculateDistance(startLat, startLng, endLat, endLng) / 50 * 3600)
+                        instruction: `Head towards destination (${this.formatDistance(distance)})`,
+                        distance: distance,
+                        duration: duration,
+                        maneuver: {
+                            type: 'depart',
+                            instruction: `Head towards destination`
+                        }
+                    },
+                    {
+                        instruction: 'You have arrived at your destination',
+                        distance: 0,
+                        duration: 0,
+                        maneuver: {
+                            type: 'arrive',
+                            instruction: 'You have arrived at your destination'
+                        }
                     }
                 ],
                 source: 'Demo Route (Fallback)'
@@ -9148,10 +9183,25 @@ function hideRouteSelection() {
 }
 
 async function selectRouteForJourney() {
-    if (app && app.availableRoutes && app.availableRoutes.length > 0) {
-        const selectedRoute = app.availableRoutes[app.selectedRouteIndex];
-        await app.selectRoute(selectedRoute, app.selectedRouteIndex);
-        hideRouteSelection();
+    try {
+        if (app && app.availableRoutes && app.availableRoutes.length > 0) {
+            const selectedRoute = app.availableRoutes[app.selectedRouteIndex || 0];
+            if (selectedRoute) {
+                console.log('🎯 Selecting route for journey:', selectedRoute.type);
+                await app.selectRoute(selectedRoute, app.selectedRouteIndex || 0);
+                hideRouteSelection();
+                app.showNotification('✅ Route selected successfully', 'success');
+            } else {
+                console.error('❌ Selected route is undefined');
+                app.showNotification('❌ Route selection failed', 'error');
+            }
+        } else {
+            console.error('❌ No routes available for selection');
+            app.showNotification('❌ No routes available', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Error selecting route for journey:', error);
+        app.showNotification('❌ Route selection failed', 'error');
     }
 }
 
