@@ -1448,27 +1448,27 @@ class VibeVoyageApp {
         const routingServices = [
             {
                 name: 'OSRM Primary (Hazard Avoiding)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.primary}&voice_instructions=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${excludeParams.primary}`,
                 timeout: 10000
             },
             {
                 name: 'OSRM Alternative (No Highway)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.noHighway}&continue_straight=true&voice_instructions=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=true&voice_instructions=true${excludeParams.noHighway}`,
                 timeout: 8000
             },
             {
                 name: 'OSRM Railway Avoiding',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true${excludeParams.noRailway}&voice_instructions=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&annotations=true&alternatives=true&voice_instructions=true${excludeParams.noRailway}`,
                 timeout: 8000
             },
             {
                 name: 'OSRM Shortest (Hazard Aware)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.shortest}&continue_straight=false&voice_instructions=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false&voice_instructions=true${excludeParams.shortest}`,
                 timeout: 6000
             },
             {
                 name: 'OSRM Backup (Safe Route)',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${excludeParams.fastest}&voice_instructions=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&voice_instructions=true${excludeParams.fastest}`,
                 timeout: 6000
             }
         ];
@@ -1588,7 +1588,7 @@ class VibeVoyageApp {
 
         try {
             const response = await fetch(
-                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true${excludeParams.primary}&voice_instructions=true`
+                `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&voice_instructions=true${excludeParams.primary}`
             );
 
             if (response.ok) {
@@ -2513,7 +2513,23 @@ class VibeVoyageApp {
         try {
             switch (format) {
                 case 'uk_postcode':
-                    suggestions.push(...await this.searchUKPostcode(query));
+                    if (this.searchUKPostcode && typeof this.searchUKPostcode === 'function') {
+                        suggestions.push(...await this.searchUKPostcode(query));
+                    } else {
+                        // Fallback using geocodeLocation
+                        try {
+                            const result = await this.geocodeLocation(query);
+                            suggestions.push({
+                                type: 'UK Postcode',
+                                main: query.toUpperCase(),
+                                details: result.name.split(',').slice(1).join(',').trim(),
+                                lat: result.lat,
+                                lng: result.lng
+                            });
+                        } catch (error) {
+                            console.warn('UK postcode search failed:', error);
+                        }
+                    }
                     break;
                 case 'us_zipcode':
                     suggestions.push(...await this.searchUSZipcode(query));
@@ -2531,16 +2547,42 @@ class VibeVoyageApp {
                 default:
                     // Use GeocodingService if available, otherwise fallback to direct search
                     if (this.geocodingService) {
-                        const results = await this.geocodingService.searchPlaces(query);
-                        suggestions.push(...results.map(item => ({
-                            type: 'Place',
-                            main: item.displayName.split(',')[0],
-                            details: item.displayName.split(',').slice(1).join(',').trim(),
-                            lat: item.lat,
-                            lng: item.lng
-                        })));
+                        try {
+                            const results = await this.geocodingService.searchPlaces(query);
+                            suggestions.push(...results.map(item => ({
+                                type: 'Place',
+                                main: item.displayName.split(',')[0],
+                                details: item.displayName.split(',').slice(1).join(',').trim(),
+                                lat: item.lat,
+                                lng: item.lng
+                            })));
+                        } catch (error) {
+                            console.warn('GeocodingService search failed, using fallback:', error);
+                            // Fallback to direct search
+                            if (this.searchPlaceName && typeof this.searchPlaceName === 'function') {
+                                suggestions.push(...await this.searchPlaceName(query));
+                            }
+                        }
                     } else {
-                        suggestions.push(...await this.searchPlaceName(query));
+                        // Check if function exists before calling
+                        if (this.searchPlaceName && typeof this.searchPlaceName === 'function') {
+                            suggestions.push(...await this.searchPlaceName(query));
+                        } else {
+                            console.warn('searchPlaceName function not available, using geocodeLocation fallback');
+                            // Ultimate fallback using existing geocodeLocation
+                            try {
+                                const result = await this.geocodeLocation(query);
+                                suggestions.push({
+                                    type: 'Place',
+                                    main: result.name.split(',')[0],
+                                    details: result.name.split(',').slice(1).join(',').trim(),
+                                    lat: result.lat,
+                                    lng: result.lng
+                                });
+                            } catch (geocodeError) {
+                                console.warn('All search methods failed:', geocodeError);
+                            }
+                        }
                     }
                     break;
             }
