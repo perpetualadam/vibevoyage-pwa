@@ -2741,6 +2741,12 @@ class VibeVoyageApp {
     }
 
     formatDistance(meters) {
+        // Validate distance input
+        if (isNaN(meters) || meters === null || meters === undefined) {
+            console.warn('⚠️ Invalid distance for formatting:', meters);
+            return '0 km'; // Default fallback
+        }
+
         const converted = this.convertDistance(meters);
         console.log('📏 formatDistance:', meters, 'meters →', converted, 'system:', this.units.system);
         return `${converted.value} ${converted.unit}`;
@@ -2762,6 +2768,12 @@ class VibeVoyageApp {
     }
 
     formatSpeed(kmh) {
+        // Validate speed input
+        if (isNaN(kmh) || kmh === null || kmh === undefined) {
+            console.warn('⚠️ Invalid speed for formatting:', kmh);
+            return '0 km/h'; // Default fallback
+        }
+
         const converted = this.convertSpeed(kmh);
         return `${converted.value} ${converted.unit}`;
     }
@@ -4440,26 +4452,28 @@ class VibeVoyageApp {
             let lat = startLat + (endLat - startLat) * ratio;
             let lng = startLng + (endLng - startLng) * ratio;
 
-            // Add more realistic and pronounced deviations to simulate road paths
-            const baseDeviation = 0.005; // Base deviation amount
+            // Add much more pronounced deviations to simulate realistic road paths
+            const baseDeviation = 0.02; // Increased base deviation for more visible curves
 
             // Handle NaN distance by using a default factor
             let distanceFactor;
             if (isNaN(distance) || distance <= 0) {
-                distanceFactor = 0.5; // Default factor for unknown distance
+                distanceFactor = 1.0; // Use full deviation for unknown distance
             } else {
-                distanceFactor = Math.min(distance / 10000, 1); // Scale with distance
+                distanceFactor = Math.min(distance / 5000, 1.5); // Scale with distance, allow up to 1.5x
             }
 
             const deviation = baseDeviation * distanceFactor;
 
-            // Create curved path with multiple sine waves for more realistic routing
-            const curve1 = Math.sin(ratio * Math.PI * 2) * deviation;
-            const curve2 = Math.sin(ratio * Math.PI * 4) * deviation * 0.5;
-            const randomOffset = (Math.random() - 0.5) * deviation * 0.3;
+            // Create much more curved path with multiple sine waves for realistic routing
+            const curve1 = Math.sin(ratio * Math.PI * 1.5) * deviation; // Primary curve
+            const curve2 = Math.sin(ratio * Math.PI * 3) * deviation * 0.7; // Secondary curve
+            const curve3 = Math.sin(ratio * Math.PI * 6) * deviation * 0.3; // Fine detail
+            const randomOffset = (Math.random() - 0.5) * deviation * 0.5; // More random variation
 
-            lat += curve1 + randomOffset;
-            lng += curve2 + randomOffset;
+            // Apply all curve components for much more realistic road-like path
+            lat += curve1 + curve3 + randomOffset;
+            lng += curve2 + curve3 + randomOffset;
 
             // Validate waypoint coordinates before adding
             if (isNaN(lat) || isNaN(lng)) {
@@ -4493,13 +4507,22 @@ class VibeVoyageApp {
             }
 
             // Create a more realistic route that approximates road paths
-            const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
-            const duration = Math.round((distance / 1000) / 50 * 3600); // Convert to km, then calculate duration
+            let distance = this.calculateDistance(startLat, startLng, endLat, endLng);
+
+            // If distance calculation fails, use a realistic default
+            if (!distance || distance === 0 || isNaN(distance)) {
+                console.warn('⚠️ Distance calculation failed, using realistic default');
+                distance = 15200; // 15.2 km default distance
+            }
+
+            const duration = Math.round((distance / 1000) / 50 * 3600); // Convert to km, then calculate duration (50 km/h average)
 
             console.log('🛣️ Creating demo route:', {
                 startLat, startLng, endLat, endLng,
                 distance: distance + 'm',
-                duration: duration + 's'
+                duration: duration + 's',
+                distanceKm: (distance / 1000).toFixed(1) + 'km',
+                durationMin: Math.round(duration / 60) + 'min'
             });
 
             // Create waypoints that approximate road routing
