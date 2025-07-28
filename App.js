@@ -1901,8 +1901,20 @@ class VibeVoyageApp {
     }
 
     estimateFuelCost(distanceMeters) {
+        // Validate input
+        if (!distanceMeters || isNaN(distanceMeters) || distanceMeters <= 0) {
+            console.warn('⚠️ Invalid distance for fuel cost calculation:', distanceMeters);
+            return 0;
+        }
+
         const distanceKm = distanceMeters / 1000;
         const fuelUsed = (distanceKm / 100) * 8; // 8L per 100km average consumption (internal calculation)
+
+        console.log('⛽ Fuel cost calculation:', {
+            distanceMeters,
+            distanceKm: distanceKm.toFixed(2),
+            fuelUsed: fuelUsed.toFixed(2)
+        });
 
         // Get country-specific fuel pricing
         const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
@@ -1930,6 +1942,20 @@ class VibeVoyageApp {
         }
 
         return `${symbol}${cost.toFixed(2)}`;
+    }
+
+    formatCurrency(amount) {
+        // Handle NaN and invalid values
+        if (!amount || isNaN(amount) || amount < 0) {
+            console.warn('⚠️ Invalid currency amount:', amount);
+            return '$0.00';
+        }
+
+        // Get country-specific currency formatting
+        const countryData = this.fuelPrices[this.userCountry] || this.fuelPrices['DEFAULT'];
+        const { symbol } = countryData;
+
+        return `${symbol}${amount.toFixed(2)}`;
     }
 
     getFuelPriceDisplay() {
@@ -4314,10 +4340,17 @@ class VibeVoyageApp {
 
             // Create a more realistic route that approximates road paths
             const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
-            const duration = Math.round(distance / 50 * 3600); // Assume 50 km/h average
+            const duration = Math.round((distance / 1000) / 50 * 3600); // Convert to km, then calculate duration
+
+            console.log('🛣️ Creating demo route:', {
+                startLat, startLng, endLat, endLng,
+                distance: distance + 'm',
+                duration: duration + 's'
+            });
 
             // Create waypoints that approximate road routing
             const waypoints = this.generateRoadLikeWaypoints(startLat, startLng, endLat, endLng);
+            console.log('🛣️ Generated waypoints:', waypoints.length, 'points');
 
             const demoRoute = {
                 type: 'Demo Route',

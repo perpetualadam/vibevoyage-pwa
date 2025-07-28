@@ -26,11 +26,11 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- JavaScript Services -->
-    <script src="src/services/HazardDetectionService.js?v=2025.21&nocache=true"></script>
-    <script src="src/services/GeocodingService.js?v=2025.21&nocache=true"></script>
-    <script src="src/services/VoiceNavigationService.js?v=2025.21&nocache=true"></script>
-    <script src="src/services/WakeWordService.js?v=2025.21&nocache=true"></script>
-    <script src="src/services/VoiceHazardReportService.js?v=2025.21&nocache=true"></script>
+    <script src="src/services/HazardDetectionService.js?v=2025.22&nocache=true&force=reload"></script>
+    <script src="src/services/GeocodingService.js?v=2025.22&nocache=true&force=reload"></script>
+    <script src="src/services/VoiceNavigationService.js?v=2025.22&nocache=true&force=reload"></script>
+    <script src="src/services/WakeWordService.js?v=2025.22&nocache=true&force=reload"></script>
+    <script src="src/services/VoiceHazardReportService.js?v=2025.22&nocache=true&force=reload"></script>
 
     <!-- Refactored Modular Architecture -->
     <!-- Core modules -->
@@ -50,7 +50,7 @@
     <script src="src/modules/HazardManager.js"></script>
 
     <!-- Main Application - Load App.js directly -->
-    <script src="App.js?v=2025.21&system=master&t=1737735204&nocache=true" defer></script>
+    <script src="App.js?v=2025.22&system=master&t=1737735205&nocache=true&force=reload" defer></script>
 
     <!-- Fallback for modular loading (if needed) -->
     <script>
@@ -59,7 +59,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=2025.21&system=master&t=' + Date.now() + '&nocache=true';
+                script.src = 'App.js?v=2025.22&system=master&t=' + Date.now() + '&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -2628,14 +2628,17 @@
             }
         });
 
-        // Override console.error to filter extension errors
+        // Override console.error to filter extension and location errors
         const originalConsoleError = console.error;
         console.error = function(...args) {
             const message = args.join(' ');
             if (message.includes('Could not establish connection') ||
                 message.includes('Extension context invalidated') ||
                 message.includes('Receiving end does not exist') ||
-                message.includes('Unchecked runtime.lastError')) {
+                message.includes('Unchecked runtime.lastError') ||
+                message.includes('Location error') ||
+                message.includes('GeolocationPositionError') ||
+                message.includes('Location tracking error')) {
                 return; // Suppress these errors
             }
             originalConsoleError.apply(console, args);
