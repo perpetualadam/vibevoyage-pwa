@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeVoyage - Minimal Version</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body {
@@ -160,8 +161,22 @@
                     alert(`✅ Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
                 },
                 function(error) {
-                    console.error('❌ Location error:', error);
-                    alert(`❌ Location error: ${error.message}`);
+                    let errorMsg = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'Location access denied by user';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'Location information unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'Location request timed out';
+                            break;
+                        default:
+                            errorMsg = 'Unknown location error';
+                    }
+                    console.error('❌ Location error:', errorMsg);
+                    alert(`❌ Location: ${errorMsg}`);
                 },
                 {
                     enableHighAccuracy: true,
