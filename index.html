@@ -2229,9 +2229,10 @@
                     <div class="input-row">
                         <div class="input-wrapper">
                             <input type="text" id="fromInput" class="search-input mobile-input"
-                                   placeholder="From: Address, company, postcode..."
+                                   placeholder="From: Address, company, postcode... (leave empty for current location)"
                                    onkeypress="handleFromSearchKeypress(event)"
-                                   oninput="handleAddressInput('from', this.value)">
+                                   oninput="handleAddressInput('from', this.value)"
+                                   title="Leave empty to use your current location, or type to search for a different starting point">
                             <button class="btn btn-secondary search-btn" onclick="searchFromLocation(document.getElementById('fromInput').value)">🔍</button>
                             <div class="address-suggestions" id="fromSuggestions"></div>
                         </div>

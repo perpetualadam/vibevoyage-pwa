@@ -1241,9 +1241,12 @@ class VibeVoyageApp {
                 console.warn('⚠️ Map not ready, location stored but not displayed');
             }
             
-            // Update UI
-            document.getElementById('fromInput').value = 'Current Location';
-            document.getElementById('fromInput').placeholder = 'From: Current Location';
+            // Update UI - only update placeholder, leave value empty so user can type over it
+            const fromInput = document.getElementById('fromInput');
+            if (fromInput && !fromInput.value.trim()) {
+                // Only update placeholder if input is empty, don't set value
+                fromInput.placeholder = 'From: Current Location (detected)';
+            }
             if (statusElement) {
                 statusElement.textContent = 'Location found';
                 statusElement.className = 'status-online';
@@ -1284,8 +1287,11 @@ class VibeVoyageApp {
                     .bindPopup('📍 Demo Location (NYC)')
                     .openPopup();
             }
-            document.getElementById('fromInput').value = 'Demo Location (NYC)';
-            document.getElementById('fromInput').placeholder = 'From: Demo Location (NYC)';
+            // Update placeholder only, don't set value so user can type over it
+            const fromInput = document.getElementById('fromInput');
+            if (fromInput && !fromInput.value.trim()) {
+                fromInput.placeholder = 'From: Demo Location (NYC)';
+            }
         }
     }
     
@@ -6407,9 +6413,10 @@ function toggleNavigationView() {
 function handleFromSearchKeypress(event) {
     if (event.key === 'Enter') {
         const value = event.target.value.trim();
-        if (value && app && app.geocodeLocation) {
+        if (app && app.geocodeLocation) {
+            // If empty, searchFromLocation will handle using current location
             searchFromLocation(value);
-        } else if (value) {
+        } else {
             console.error('❌ App not ready yet');
         }
     }
@@ -6428,6 +6435,17 @@ function handleToSearchKeypress(event) {
 
 async function searchFromLocation(query) {
     if (!app || !app.geocodeLocation) return;
+
+    // If query is empty or just whitespace, use current location
+    if (!query || !query.trim()) {
+        if (app.currentLocation) {
+            app.showNotification('✅ Using current location', 'success');
+            return;
+        } else {
+            app.showNotification('❌ No current location available. Please enable location services.', 'error');
+            return;
+        }
+    }
 
     try {
         app.showNotification(`🔍 Searching for "${query}"...`, 'info');
@@ -6453,8 +6471,12 @@ async function searchFromLocation(query) {
                 .openPopup();
         }
 
-        // Update input
-        document.getElementById('fromInput').value = location.name.split(',')[0];
+        // Update input - set as placeholder so user can easily type over it
+        const fromInput = document.getElementById('fromInput');
+        if (fromInput) {
+            fromInput.value = ''; // Clear the input
+            fromInput.placeholder = `From: ${location.name.split(',')[0]}`;
+        }
 
         app.showNotification(`✅ From location set: ${location.name.split(',')[0]}`, 'success');
 
