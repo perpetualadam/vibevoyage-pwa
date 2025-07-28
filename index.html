@@ -3021,8 +3021,8 @@
                             attribution: '© OpenStreetMap contributors'
                         }).addTo(map);
 
-                        // Add Star Trek triangle
-                        const starTrekIcon = L.divIcon({
+                        // Add futuristic vehicle marker
+                        const futuristicIcon = L.divIcon({
                             html: `
                                 <div style="
                                     width: 0;
@@ -3031,16 +3031,16 @@
                                     border-right: 12px solid transparent;
                                     border-bottom: 24px solid #00FF88;
                                     filter: drop-shadow(0 0 8px #00FF88);
-                                    animation: starTrekPulse 2s ease-in-out infinite;
+                                    animation: pulse 2s ease-in-out infinite;
                                 "></div>
                             `,
                             iconSize: [30, 30],
                             iconAnchor: [15, 20]
                         });
 
-                        L.marker([51.505, -0.09], { icon: starTrekIcon })
+                        L.marker([51.505, -0.09], { icon: futuristicIcon })
                             .addTo(map)
-                            .bindPopup('🛸 Star Trek Vehicle (Fallback Mode)');
+                            .bindPopup('🛸 Futuristic Vehicle (Fallback Mode)');
 
                         console.log('✅ Basic map initialized successfully');
                     }

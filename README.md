@@ -1,6 +1,6 @@
 # VibeVoyage - The Future of Navigation 🚀
 
-**VibeVoyage** is a revolutionary navigation app that goes beyond simple directions. Built with cutting-edge web technologies and powered by pure JavaScript, it delivers a Star Trek-inspired navigation experience that's both powerful and beautiful.
+**VibeVoyage** is a revolutionary navigation app that goes beyond simple directions. Built with cutting-edge web technologies and powered by pure JavaScript, it delivers a futuristic navigation experience with a sleek neon-green interface that's both powerful and beautiful.
 
 ## 🌟 What Makes VibeVoyage Different
 
@@ -15,7 +15,7 @@ Unlike traditional navigation apps, VibeVoyage combines **advanced safety featur
 ### 🛸 **Futuristic Vehicle Tracking**
 - **Breathing Chevron**: Your vehicle appears as a neon-green double-chevron with smooth pulsing animation
 - **Real-Time Orientation**: Vehicle marker rotates based on your actual heading direction
-- **Star Trek Aesthetics**: Inspired by sci-fi interfaces for an immersive experience
+- **Sci-Fi Aesthetics**: Futuristic interface design for an immersive navigation experience
 
 ### 📊 **Intelligent Speed Monitoring**
 - **Live Speedometer**: Real-time speed display with current speed limits
@@ -194,7 +194,7 @@ VibeVoyage/
 - ✅ **Cross-platform** - works on Android, Windows, and any browser
 - ✅ **Voice-activated features** beyond basic navigation
 - ✅ **Real-time hazard detection** with community reports
-- ✅ **Customizable interface** with neon-green sci-fi theme
+- ✅ **Customizable interface** with sleek neon-green futuristic theme
 
 ## 🤝 Contributing
 
