@@ -1,10 +1,10 @@
-# VibeVoyage - Smart Navigation PWA
+# VibeVoyage - Smart Navigation
 
 🌟 **VibeVoyage** is a next-generation navigation app designed for Gen Z and Millennials, featuring advanced route planning, voice guidance, and smart error handling.
 
 ## 🚀 Live Demo
 
-🌐 **Try VibeVoyage PWA**: [https://perpetualadam.github.io/vibevoyage-pwa](https://perpetualadam.github.io/vibevoyage-pwa)
+🌐 **Try VibeVoyage**: [https://perpetualadam.github.io/vibevoyage-pwa](https://perpetualadam.github.io/vibevoyage-pwa)
 
 ## 📱 Installation
 

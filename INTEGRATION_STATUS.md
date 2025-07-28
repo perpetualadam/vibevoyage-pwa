@@ -91,7 +91,7 @@ Visit your app and verify:
 VibeVoyage/
 ├── index.html          # Main HTML (loads App.js)
 ├── App.js              # Main application with ALL fixes
-├── manifest.json       # PWA manifest
+├── manifest.json       # App manifest
 ├── sw.js              # Service worker
 ├── src/               # TypeScript source files (for future)
 ├── public/            # Static assets
@@ -112,4 +112,4 @@ The app is now fully integrated and ready for testing. All the fixes are working
 
 **Test URL**: `https://perpetualadam.github.io/vibevoyage-pwa` (if GitHub Pages enabled)
 
-**Expected Result**: Fast-loading, fully functional navigation PWA with working buttons and reliable map system! 🎉
+**Expected Result**: Fast-loading, fully functional navigation app with working buttons and reliable map system! 🎉

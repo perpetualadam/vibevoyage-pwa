@@ -59,7 +59,7 @@ if (!fs.existsSync(appHtmlPath)) {
                         window.location.href = '/app.html';
                     } else {
                         console.log('app.html not found, staying on index.html');
-                        document.body.innerHTML += '<div style="text-align:center;margin-top:50px;"><h2>VibeVoyage PWA</h2><p>Navigation app loading...</p></div>';
+                        document.body.innerHTML += '<div style="text-align:center;margin-top:50px;"><h2>VibeVoyage</h2><p>Navigation app loading...</p></div>';
                     }
                 })
                 .catch(() => {

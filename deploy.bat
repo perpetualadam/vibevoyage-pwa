@@ -49,7 +49,7 @@ vercel --prod --yes
 echo.
 echo 🎉 Deployment Complete!
 echo ========================================
-echo Your VibeVoyage PWA is now live!
+echo Your VibeVoyage app is now live!
 echo.
 echo 📱 To install on your device:
 echo 1. Open the URL in your mobile browser

@@ -1,4 +1,4 @@
-# 🚀 **VibeVoyage PWA Deployment Guide**
+# 🚀 **VibeVoyage Deployment Guide**
 
 ## 📋 **Quick Deployment (5 Minutes)**
 
@@ -19,7 +19,7 @@
    vercel --prod
    ```
 
-4. **Your PWA will be live at:** `https://your-project-name.vercel.app`
+4. **Your app will be live at:** `https://your-project-name.vercel.app`
 
 ---
 
@@ -47,7 +47,7 @@
 1. **Push to GitHub:**
    ```bash
    git add .
-   git commit -m "Deploy VibeVoyage PWA"
+   git commit -m "Deploy VibeVoyage"
    git push origin main
    ```
 
@@ -96,7 +96,7 @@ npm start
 # Open http://localhost:3000
 ```
 
-### **Test PWA Features:**
+### **Test App Features:**
 ```bash
 # Validate manifest
 npm run validate
@@ -112,7 +112,7 @@ npm run validate
 
 ## 🌐 **Live Demo URLs**
 
-Once deployed, your VibeVoyage PWA will be available at:
+Once deployed, your VibeVoyage app will be available at:
 
 - **Vercel:** `https://vibevoyage.vercel.app`
 - **Netlify:** `https://vibevoyage.netlify.app`
@@ -120,7 +120,7 @@ Once deployed, your VibeVoyage PWA will be available at:
 
 ---
 
-## 📱 **PWA Features Available**
+## 📱 **App Features Available**
 
 ✅ **Offline Navigation** - Works without internet  
 ✅ **Install to Home Screen** - Like a native app  

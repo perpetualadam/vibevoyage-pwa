@@ -145,7 +145,7 @@ VibeVoyage/
 ├── public/                 # Static assets
 │   └── hazards.geojson    # Hazard data
 ├── sw.js                  # Service worker
-└── manifest.json          # PWA manifest
+└── manifest.json          # App manifest
 ```
 
 ## 🎙️ Voice Commands Guide
