@@ -166,23 +166,17 @@ class VibeVoyageApp {
         // Initialize JavaScript services
         this.initJavaScriptServices();
 
-        // Initialize map with proper sequencing
-        await this.initMapWithSequencing();
-
         // Load saved units
         this.loadUnitsFromStorage();
-
-        // Detect user country for currency
-        await this.detectUserCountry();
-
-        // Get user location
-        await this.getCurrentLocation();
 
         // Setup event listeners
         this.setupEventListeners();
 
         // Check online status
         this.updateConnectionStatus();
+
+        // Initialize async components after constructor
+        this.initializeAsync();
         
         // Initialize service worker
         this.initServiceWorker();
@@ -280,6 +274,28 @@ class VibeVoyageApp {
                 await this.initMap();
             }
         }, 1000);
+    }
+
+    // Async initialization method (called after constructor)
+    async initializeAsync() {
+        try {
+            console.log('🔄 Starting async initialization...');
+
+            // Initialize map with proper sequencing
+            await this.initMapWithSequencing();
+
+            // Detect user country for currency
+            await this.detectUserCountry();
+
+            // Get user location
+            await this.getCurrentLocation();
+
+            console.log('✅ Async initialization completed');
+
+        } catch (error) {
+            console.error('❌ Async initialization failed:', error);
+            this.showNotification('⚠️ Some features may not work properly', 'warning');
+        }
     }
 
     handleWakeWordDetected(data) {
@@ -1365,7 +1381,7 @@ class VibeVoyageApp {
         }
     }
     
-    setDestination(latlng) {
+    async setDestination(latlng) {
         this.destination = latlng;
 
         if (this.isUsingBackupMap && this.backupMap) {
