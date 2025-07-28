@@ -134,6 +134,13 @@ class RouteManager extends BaseModule {
 
     async fetchRoute(url, routeName) {
         try {
+            // Check if fetch is available
+            if (typeof fetch === 'undefined') {
+                throw new Error('Fetch API not available');
+            }
+
+            this.log(`Fetching route: ${routeName}`, 'debug');
+
             const response = await this.withTimeout(
                 fetch(url),
                 this.requestTimeout,
@@ -145,10 +152,12 @@ class RouteManager extends BaseModule {
             }
 
             const data = await response.json();
-            
+
             if (!data.routes || data.routes.length === 0) {
                 throw new Error('No routes in response');
             }
+
+            this.log(`Route fetched successfully: ${routeName}`, 'success');
 
             return {
                 ...data.routes[0],
@@ -157,6 +166,7 @@ class RouteManager extends BaseModule {
             };
 
         } catch (error) {
+            this.log(`Route fetch failed: ${routeName} - ${error.message}`, 'error');
             throw new Error(`Failed to fetch ${routeName}: ${error.message}`);
         }
     }

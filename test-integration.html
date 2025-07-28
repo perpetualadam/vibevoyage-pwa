@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage Integration Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .success { background: #2d5a2d; color: #90ee90; }
+        .error { background: #5a2d2d; color: #ff6b6b; }
+        .warning { background: #5a5a2d; color: #ffeb3b; }
+        .info { background: #2d2d5a; color: #87ceeb; }
+        #map { height: 300px; width: 100%; margin: 10px 0; }
+        button {
+            background: #00ff88;
+            color: black;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #00cc6a; }
+        .module-status {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 VibeVoyage Integration Test</h1>
+        
+        <div class="test-section">
+            <h2>📦 Module Loading Status</h2>
+            <div id="moduleStatus"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🗺️ Map Integration Test</h2>
+            <div id="map"></div>
+            <button onclick="testMapFunctionality()">Test Map</button>
+            <div id="mapResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📍 Location Services Test</h2>
+            <button onclick="testLocationServices()">Test Location</button>
+            <div id="locationResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🛣️ Route Calculation Test</h2>
+            <button onclick="testRouteCalculation()">Test Routes</button>
+            <div id="routeResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🎯 Navigation Test</h2>
+            <button onclick="testNavigation()">Test Navigation</button>
+            <div id="navigationResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚙️ Settings Test</h2>
+            <button onclick="testSettings()">Test Settings</button>
+            <div id="settingsResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🌍 Language Test</h2>
+            <button onclick="testLanguages()">Test Languages</button>
+            <div id="languageResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🎮 Gamification Test</h2>
+            <button onclick="testGamification()">Test Gamification</button>
+            <div id="gamificationResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚠️ Hazard Management Test</h2>
+            <button onclick="testHazards()">Test Hazards</button>
+            <div id="hazardResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔗 Integration Test</h2>
+            <button onclick="runFullIntegrationTest()">Run Full Test</button>
+            <div id="integrationResults"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Core modules -->
+    <script src="src/core/BaseModule.js"></script>
+    <script src="src/core/ModuleLoader.js"></script>
+    <script src="src/core/AppCore.js"></script>
+    
+    <!-- Application modules -->
+    <script src="src/modules/SettingsManager.js"></script>
+    <script src="src/modules/LanguageManager.js"></script>
+    <script src="src/modules/MapManager.js"></script>
+    <script src="src/modules/LocationManager.js"></script>
+    <script src="src/modules/RouteManager.js"></script>
+    <script src="src/modules/NavigationManager.js"></script>
+    <script src="src/modules/UIManager.js"></script>
+    <script src="src/modules/GamificationManager.js"></script>
+    <script src="src/modules/HazardManager.js"></script>
+    
+    <!-- Main application -->
+    <script src="VibeVoyageApp.js"></script>
+
+    <script>
+        let testApp = null;
+        
+        // Initialize test application
+        document.addEventListener('DOMContentLoaded', async () => {
+            checkModuleAvailability();
+            
+            try {
+                testApp = new VibeVoyageApp();
+                await testApp.initialize();
+                logResult('integrationResults', 'Application initialized successfully', 'success');
+            } catch (error) {
+                logResult('integrationResults', `Application initialization failed: ${error.message}`, 'error');
+            }
+        });
+        
+        function checkModuleAvailability() {
+            const modules = [
+                'BaseModule', 'ModuleLoader', 'AppCore',
+                'SettingsManager', 'LanguageManager', 'MapManager', 'LocationManager',
+                'RouteManager', 'NavigationManager', 'UIManager', 'GamificationManager', 'HazardManager'
+            ];
+            
+            const statusContainer = document.getElementById('moduleStatus');
+            statusContainer.innerHTML = '';
+            
+            modules.forEach(moduleName => {
+                const status = typeof window[moduleName] !== 'undefined' ? 'success' : 'error';
+                const statusText = status === 'success' ? '✅ Loaded' : '❌ Missing';
+                
+                const statusElement = document.createElement('span');
+                statusElement.className = `module-status ${status}`;
+                statusElement.textContent = `${moduleName}: ${statusText}`;
+                statusContainer.appendChild(statusElement);
+            });
+        }
+        
+        function logResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            container.appendChild(result);
+        }
+        
+        async function testMapFunctionality() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const mapManager = testApp.getModule('MapManager');
+                if (!mapManager) {
+                    throw new Error('MapManager not available');
+                }
+                
+                logResult('mapResults', 'Map module loaded successfully', 'success');
+                
+                // Test map readiness
+                if (mapManager.isReady()) {
+                    logResult('mapResults', 'Map is ready and functional', 'success');
+                } else {
+                    logResult('mapResults', 'Map not ready yet', 'warning');
+                }
+                
+            } catch (error) {
+                logResult('mapResults', `Map test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testLocationServices() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const locationManager = testApp.getModule('LocationManager');
+                if (!locationManager) {
+                    throw new Error('LocationManager not available');
+                }
+                
+                logResult('locationResults', 'Location module loaded successfully', 'success');
+                
+                // Test geolocation support
+                if (navigator.geolocation) {
+                    logResult('locationResults', 'Geolocation API available', 'success');
+                } else {
+                    logResult('locationResults', 'Geolocation API not available', 'warning');
+                }
+                
+            } catch (error) {
+                logResult('locationResults', `Location test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testRouteCalculation() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const routeManager = testApp.getModule('RouteManager');
+                if (!routeManager) {
+                    throw new Error('RouteManager not available');
+                }
+                
+                logResult('routeResults', 'Route module loaded successfully', 'success');
+                
+                // Test route options
+                const options = routeManager.getRouteDistance();
+                logResult('routeResults', 'Route options accessible', 'success');
+                
+            } catch (error) {
+                logResult('routeResults', `Route test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testNavigation() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const navigationManager = testApp.getModule('NavigationManager');
+                if (!navigationManager) {
+                    throw new Error('NavigationManager not available');
+                }
+                
+                logResult('navigationResults', 'Navigation module loaded successfully', 'success');
+                
+                // Test speech synthesis
+                if ('speechSynthesis' in window) {
+                    logResult('navigationResults', 'Speech synthesis available', 'success');
+                } else {
+                    logResult('navigationResults', 'Speech synthesis not available', 'warning');
+                }
+                
+            } catch (error) {
+                logResult('navigationResults', `Navigation test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testSettings() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const settingsManager = testApp.getModule('SettingsManager');
+                if (!settingsManager) {
+                    throw new Error('SettingsManager not available');
+                }
+                
+                logResult('settingsResults', 'Settings module loaded successfully', 'success');
+                
+                // Test settings access
+                const settings = settingsManager.getAllSettings();
+                logResult('settingsResults', `Settings loaded: ${Object.keys(settings).length} categories`, 'success');
+                
+            } catch (error) {
+                logResult('settingsResults', `Settings test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testLanguages() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const languageManager = testApp.getModule('LanguageManager');
+                if (!languageManager) {
+                    throw new Error('LanguageManager not available');
+                }
+                
+                logResult('languageResults', 'Language module loaded successfully', 'success');
+                
+                // Test language support
+                const languages = languageManager.getSupportedLanguages();
+                logResult('languageResults', `Supported languages: ${languages.length}`, 'success');
+                
+                // Test translation
+                const translation = languageManager.translate('startNavigation');
+                logResult('languageResults', `Translation test: "${translation}"`, 'success');
+                
+            } catch (error) {
+                logResult('languageResults', `Language test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testGamification() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const gamificationManager = testApp.getModule('GamificationManager');
+                if (!gamificationManager) {
+                    throw new Error('GamificationManager not available');
+                }
+                
+                logResult('gamificationResults', 'Gamification module loaded successfully', 'success');
+                
+                // Test user stats
+                const stats = gamificationManager.getUserStats();
+                logResult('gamificationResults', `User stats loaded: Level ${stats.level}`, 'success');
+                
+                // Test achievements
+                const achievements = gamificationManager.getAchievements();
+                logResult('gamificationResults', `Achievements available: ${achievements.length}`, 'success');
+                
+            } catch (error) {
+                logResult('gamificationResults', `Gamification test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testHazards() {
+            try {
+                if (!testApp || !testApp.isReady()) {
+                    throw new Error('Application not ready');
+                }
+                
+                const hazardManager = testApp.getModule('HazardManager');
+                if (!hazardManager) {
+                    throw new Error('HazardManager not available');
+                }
+                
+                logResult('hazardResults', 'Hazard module loaded successfully', 'success');
+                
+                // Test hazard types
+                const hazardTypes = hazardManager.getHazardTypes();
+                logResult('hazardResults', `Hazard types available: ${Object.keys(hazardTypes).length}`, 'success');
+                
+                // Test hazard settings
+                const settings = hazardManager.getHazardSettings();
+                logResult('hazardResults', 'Hazard settings accessible', 'success');
+                
+            } catch (error) {
+                logResult('hazardResults', `Hazard test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function runFullIntegrationTest() {
+            logResult('integrationResults', 'Starting full integration test...', 'info');
+            
+            try {
+                // Test application state
+                const state = testApp.getState();
+                logResult('integrationResults', `App state: ${state.initialized ? 'Ready' : 'Not Ready'}`, 
+                         state.initialized ? 'success' : 'error');
+                
+                // Test module health
+                const health = testApp.getModuleHealth();
+                logResult('integrationResults', 
+                         `Module health: ${health.healthy}/${health.total} healthy`, 
+                         health.healthy === health.total ? 'success' : 'warning');
+                
+                // Test dependency graph
+                const deps = testApp.getDependencyGraph();
+                logResult('integrationResults', 
+                         `Dependency graph: ${Object.keys(deps).length} modules`, 'success');
+                
+                logResult('integrationResults', 'Full integration test completed', 'success');
+                
+            } catch (error) {
+                logResult('integrationResults', `Integration test failed: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

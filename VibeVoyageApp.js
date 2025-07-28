@@ -227,6 +227,28 @@ class VibeVoyageApp {
      * Module access
      */
     getModule(moduleName) {
+        if (!this.app) {
+            return null;
+        }
+
+        // Map module names to app properties
+        const moduleMap = {
+            'SettingsManager': 'settingsManager',
+            'LanguageManager': 'languageManager',
+            'MapManager': 'mapManager',
+            'LocationManager': 'locationManager',
+            'RouteManager': 'routeManager',
+            'NavigationManager': 'navigationManager',
+            'UIManager': 'uiManager',
+            'GamificationManager': 'gamificationManager',
+            'HazardManager': 'hazardManager'
+        };
+
+        const propertyName = moduleMap[moduleName];
+        if (propertyName && this.app[propertyName]) {
+            return this.app[propertyName];
+        }
+
         return this.moduleLoader?.getLoadedModule(moduleName);
     }
 

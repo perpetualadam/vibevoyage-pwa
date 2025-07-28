@@ -35,19 +35,25 @@ class NavigationManager extends BaseModule {
     }
 
     initializeVoice() {
-        if ('speechSynthesis' in window) {
-            this.speechSynthesis = window.speechSynthesis;
-            
-            // Wait for voices to load
-            if (this.speechSynthesis.getVoices().length === 0) {
-                this.speechSynthesis.addEventListener('voiceschanged', () => {
+        try {
+            if ('speechSynthesis' in window) {
+                this.speechSynthesis = window.speechSynthesis;
+
+                // Wait for voices to load
+                if (this.speechSynthesis.getVoices().length === 0) {
+                    this.speechSynthesis.addEventListener('voiceschanged', () => {
+                        this.selectVoice();
+                    });
+                } else {
                     this.selectVoice();
-                });
+                }
             } else {
-                this.selectVoice();
+                this.log('Speech synthesis not supported', 'warning');
+                this.voiceEnabled = false;
             }
-        } else {
-            this.log('Speech synthesis not supported', 'warning');
+        } catch (error) {
+            this.handleError(error, 'Voice initialization failed');
+            this.voiceEnabled = false;
         }
     }
 

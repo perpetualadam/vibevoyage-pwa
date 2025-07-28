@@ -36,7 +36,19 @@ class AppCore {
     async initializeModules() {
         try {
             console.log('🔧 Initializing application modules...');
-            
+
+            // Check if all required classes are available
+            const requiredClasses = [
+                'SettingsManager', 'LanguageManager', 'MapManager', 'LocationManager',
+                'RouteManager', 'NavigationManager', 'UIManager', 'GamificationManager', 'HazardManager'
+            ];
+
+            for (const className of requiredClasses) {
+                if (typeof window[className] === 'undefined') {
+                    throw new Error(`Required class ${className} is not available`);
+                }
+            }
+
             // Initialize core modules in order
             this.settingsManager = new SettingsManager();
             this.languageManager = new LanguageManager();
@@ -48,10 +60,7 @@ class AppCore {
             this.gamificationManager = new GamificationManager();
             this.hazardManager = new HazardManager();
             
-            // Set up inter-module communication
-            this.setupModuleCommunication();
-            
-            // Initialize modules
+            // Initialize modules in dependency order
             await this.settingsManager.initialize();
             await this.languageManager.initialize();
             await this.mapManager.initialize();
@@ -61,6 +70,9 @@ class AppCore {
             await this.uiManager.initialize();
             await this.gamificationManager.initialize();
             await this.hazardManager.initialize();
+
+            // Set up inter-module communication after all modules are initialized
+            this.setupModuleCommunication();
             
             this.isInitialized = true;
             console.log('✅ All modules initialized successfully');
@@ -78,11 +90,25 @@ class AppCore {
      * Set up communication between modules
      */
     setupModuleCommunication() {
+        // Pass module references to each other
+        this.navigationManager.routeManager = this.routeManager;
+        this.navigationManager.locationManager = this.locationManager;
+        this.routeManager.settingsManager = this.settingsManager;
+        this.hazardManager.locationManager = this.locationManager;
+        this.hazardManager.settingsManager = this.settingsManager;
+
         // Location updates
         this.locationManager.on('location:updated', (location) => {
             this.currentLocation = location;
-            this.mapManager.updateCurrentLocation(location);
-            this.navigationManager.updateLocation(location);
+            if (this.mapManager && this.mapManager.isReady()) {
+                this.mapManager.updateCurrentLocation(location);
+            }
+            if (this.navigationManager) {
+                this.navigationManager.updateLocation(location);
+            }
+            if (this.hazardManager) {
+                this.hazardManager.checkHazardProximity(location);
+            }
             this.emit('location:changed', location);
         });
 

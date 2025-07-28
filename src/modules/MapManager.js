@@ -41,7 +41,12 @@ class MapManager extends BaseModule {
 
     async initializeMap() {
         this.log('Initializing Leaflet map...');
-        
+
+        // Check if Leaflet is available
+        if (typeof L === 'undefined') {
+            throw new Error('Leaflet library is not loaded');
+        }
+
         // Get map container
         this.mapContainer = document.getElementById('map');
         if (!this.mapContainer) {

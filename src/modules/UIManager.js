@@ -43,14 +43,18 @@ class UIManager extends BaseModule {
             'notificationContainer'
         ];
 
+        let foundElements = 0;
         elementIds.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 this.elements.set(id, element);
+                foundElements++;
             } else {
-                this.log(`Element not found: ${id}`, 'warning');
+                this.log(`Element not found: ${id}`, 'debug');
             }
         });
+
+        this.log(`Cached ${foundElements}/${elementIds.length} UI elements`, 'info');
     }
 
     setupEventHandlers() {
