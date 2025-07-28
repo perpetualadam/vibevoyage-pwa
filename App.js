@@ -746,30 +746,49 @@ class VibeVoyageApp {
                 return;
             }
 
-            // Check if container has Leaflet classes (indicating previous initialization)
-            if (mapContainer.classList.contains('leaflet-container')) {
-                console.log('🔄 Cleaning up previous map instance...');
+            // Aggressive cleanup of any existing map instance
+            console.log('🔄 Performing aggressive map cleanup...');
 
-                // Try to remove existing map instance if it exists
-                if (mapContainer._leaflet_id) {
-                    try {
-                        // Find and remove the existing map
-                        const existingMap = mapContainer._leaflet_map || this.map;
-                        if (existingMap && existingMap.remove) {
-                            existingMap.remove();
-                        }
-                    } catch (e) {
-                        console.warn('⚠️ Error removing existing map:', e);
-                    }
+            // Remove existing map instance if it exists
+            if (this.map && this.map.remove) {
+                try {
+                    this.map.remove();
+                    this.map = null;
+                } catch (e) {
+                    console.warn('⚠️ Error removing existing app map:', e);
                 }
+            }
 
-                // Clean up container
-                mapContainer.className = 'interactive-map';
-                mapContainer.innerHTML = '';
-                mapContainer.removeAttribute('tabindex');
-                mapContainer.style.cursor = '';
-                delete mapContainer._leaflet_id;
-                delete mapContainer._leaflet_map;
+            // Clean up any map instance attached to container
+            if (mapContainer._leaflet_id) {
+                try {
+                    // Find and remove the existing map
+                    const existingMap = mapContainer._leaflet_map;
+                    if (existingMap && existingMap.remove) {
+                        existingMap.remove();
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Error removing container map:', e);
+                }
+            }
+
+            // Complete container cleanup
+            mapContainer.className = 'interactive-map';
+            mapContainer.innerHTML = '';
+            mapContainer.removeAttribute('tabindex');
+            mapContainer.removeAttribute('style');
+            mapContainer.style.cssText = '';
+
+            // Remove all Leaflet-specific properties
+            Object.keys(mapContainer).forEach(key => {
+                if (key.startsWith('_leaflet')) {
+                    delete mapContainer[key];
+                }
+            });
+
+            // Force garbage collection hint
+            if (window.gc) {
+                window.gc();
             }
 
             // Initialize Leaflet map with enhanced mobile options
