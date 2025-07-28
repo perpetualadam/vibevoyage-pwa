@@ -2701,87 +2701,7 @@
         }
 
         // Global functions that work with the main App.js
-        function toggleHazardSettings() {
-            if (window.app && window.app.toggleHazardSettings) {
-                window.app.toggleHazardSettings();
-            } else {
-                // Fallback implementation
-                const container = document.getElementById('hazardAvoidanceContainer');
-                if (container) {
-                    if (container.style.display === 'none' || !container.style.display) {
-                        container.style.display = 'block';
-                        if (!container.innerHTML.trim()) {
-                            container.innerHTML = `
-                                <div style="background: #1a1a1a; border-radius: 12px; padding: 20px; color: #fff; border: 1px solid #333;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                        <h3 style="color: #00FF88; margin: 0;">🚨 Hazard Avoidance</h3>
-                                        <button onclick="toggleHazardSettings()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
-                                    </div>
-                                    <div style="margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 📷 Speed Cameras
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 🚦 Red Light Cameras
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 🚨 Police Reports
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox"> 🚧 Road Works
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 🚂 Railway Crossings
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 🛣️ Complex Junctions
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 🏫 School Zones
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 🏥 Hospital Zones
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox"> 💰 Toll Booths
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox"> 🌉 Bridges/Tunnels
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox" checked> 💥 Accident Reports
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox"> 🌧️ Weather Alerts
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox"> ⛰️ Steep Grades
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                            <input type="checkbox"> 🛤️ Narrow Roads
-                                        </label>
-                                    </div>
-                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
-                                        <button onclick="app.testHazardLoading()" style="
-                                            background: #00FF88;
-                                            color: #000;
-                                            border: none;
-                                            padding: 10px 20px;
-                                            border-radius: 8px;
-                                            cursor: pointer;
-                                            font-weight: bold;
-                                            width: 100%;
-                                        ">🧪 Test Hazard Detection</button>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    } else {
-                        container.style.display = 'none';
-                    }
-                }
-            }
-        }
+
 
         function recenterMap() {
             console.log('🎯 Recenter map button clicked');
@@ -2810,46 +2730,7 @@
             }
         }
 
-        function toggleSettings() {
-            console.log('Settings button clicked');
 
-            // Try the global function first
-            if (typeof window.toggleSettings === 'function') {
-                window.toggleSettings();
-            } else if (typeof window.showSimpleSettings === 'function') {
-                window.showSimpleSettings();
-            } else if (window.app && window.app.toggleSettings) {
-                window.app.toggleSettings();
-            } else {
-                console.log('Settings toggle - trying fallback');
-                // Fallback inline settings
-                const settingsDiv = document.createElement('div');
-                settingsDiv.innerHTML = `
-                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                                background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333;
-                                color: white; z-index: 10000; max-width: 300px;">
-                        <h3 style="color: #00FF88; margin: 0 0 15px 0;">⚙️ Settings</h3>
-                        <p style="color: #ccc;">Settings panel loaded!</p>
-                        <div style="margin-bottom: 15px;">
-                            <label style="color: #ccc;">Fuel Units:</label><br>
-                            <select style="width: 100%; padding: 8px; background: #333; color: #fff;">
-                                <option>L/100km</option>
-                                <option>MPG (US)</option>
-                                <option>LPM (Litres Per Mile)</option>
-                            </select>
-                        </div>
-                        <button onclick="this.parentElement.parentElement.remove()"
-                                style="background: #00FF88; color: #000; border: none; padding: 10px;
-                                       border-radius: 4px; cursor: pointer; width: 100%;">
-                            Close
-                        </button>
-                    </div>
-                `;
-                settingsDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999;';
-                settingsDiv.onclick = (e) => { if (e.target === settingsDiv) settingsDiv.remove(); };
-                document.body.appendChild(settingsDiv);
-            }
-        }
 
         function getCurrentLocation() {
             if (window.app && window.app.getCurrentLocation) {
