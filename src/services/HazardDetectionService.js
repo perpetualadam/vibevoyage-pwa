@@ -13,27 +13,45 @@ class HazardDetectionService {
 
     async loadHazards() {
         try {
-            // Load static hazards from GeoJSON
-            const response = await fetch('/public/hazards.geojson');
-            if (!response.ok) {
-                // Try alternative path
-                const altResponse = await fetch('/hazards.geojson');
-                if (!altResponse.ok) {
-                    throw new Error('Hazards file not found');
+            // Try multiple paths for the hazards file (same as App.js)
+            const paths = [
+                './public/hazards.geojson',
+                './hazards.geojson',
+                'public/hazards.geojson',
+                'hazards.geojson',
+                '/public/hazards.geojson',
+                '/hazards.geojson'
+            ];
+
+            let hazardsLoaded = false;
+
+            for (const path of paths) {
+                try {
+                    console.log(`🔍 HazardDetectionService: Trying to load hazards from: ${path}`);
+                    const response = await fetch(path);
+                    if (response.ok) {
+                        const geojson = await response.json();
+                        this.hazards = geojson.features || [];
+                        console.log(`✅ HazardDetectionService: Loaded ${this.hazards.length} hazards from ${path}`);
+                        hazardsLoaded = true;
+                        break;
+                    }
+                } catch (pathError) {
+                    console.warn(`⚠️ HazardDetectionService: Failed to load from ${path}:`, pathError.message);
                 }
-                const geojson = await altResponse.json();
-                this.hazards = geojson.features || [];
-            } else {
-                const geojson = await response.json();
-                this.hazards = geojson.features || [];
+            }
+
+            if (!hazardsLoaded) {
+                console.warn('⚠️ HazardDetectionService: No hazards file found, using empty array');
+                this.hazards = [];
             }
 
             // Load user-reported hazards
             await this.loadUserReportedHazards();
 
-            console.log(`✅ HazardDetectionService: Loaded ${this.hazards.length} total hazards`);
+            console.log(`✅ HazardDetectionService: Total hazards loaded: ${this.hazards.length}`);
         } catch (error) {
-            console.error('Error loading hazards:', error);
+            console.error('❌ HazardDetectionService: Error loading hazards:', error);
             this.hazards = [];
         }
     }

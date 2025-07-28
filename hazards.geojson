@@ -1,0 +1,168 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_001",
+        "type": "speed_camera",
+        "severity": "medium",
+        "description": "Speed camera - 30 mph limit",
+        "speed_limit": 30,
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0060, 40.7128]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_002",
+        "type": "red_light_camera",
+        "severity": "high",
+        "description": "Red light camera at major intersection",
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0070, 40.7138]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_003",
+        "type": "police_report",
+        "severity": "medium",
+        "description": "Police checkpoint reported",
+        "active": true,
+        "verified": false,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0050, 40.7118]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_004",
+        "type": "road_work",
+        "severity": "high",
+        "description": "Construction zone - lane closure",
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0080, 40.7148]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_005",
+        "type": "accident",
+        "severity": "high",
+        "description": "Traffic accident reported",
+        "active": true,
+        "verified": false,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0040, 40.7108]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_006",
+        "type": "school_zone",
+        "severity": "medium",
+        "description": "School zone - reduced speed limit",
+        "speed_limit": 15,
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0090, 40.7158]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_007",
+        "type": "railway_crossing",
+        "severity": "high",
+        "description": "Railway level crossing",
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0030, 40.7098]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_008",
+        "type": "weather_alert",
+        "severity": "medium",
+        "description": "Wet road conditions",
+        "active": true,
+        "verified": false,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0100, 40.7168]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_009",
+        "type": "steep_grade",
+        "severity": "low",
+        "description": "Steep hill - 8% grade",
+        "grade": 8,
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0020, 40.7088]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hazard_010",
+        "type": "narrow_road",
+        "severity": "medium",
+        "description": "Narrow road - single lane",
+        "active": true,
+        "verified": true,
+        "last_updated": "2025-01-28"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0110, 40.7178]
+      }
+    }
+  ]
+}

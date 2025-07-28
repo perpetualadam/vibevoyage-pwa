@@ -8919,13 +8919,7 @@ function toggleHazardSettings() {
     }
 }
 
-function toggleSettings() {
-    if (window.app && window.app.toggleSettings) {
-        window.app.toggleSettings();
-    } else {
-        console.error('❌ App not ready yet - toggleSettings');
-    }
-}
+
 
 // Test function for notifications
 function testNotifications() {
