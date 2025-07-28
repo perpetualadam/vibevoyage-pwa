@@ -187,6 +187,9 @@ class VibeVoyageApp {
         // Initialize service worker
         this.initServiceWorker();
 
+        // Add window resize handler for map
+        this.addMapResizeHandler();
+
         // Initialize map type
         this.currentMapType = 'street';
         this.followMode = true;
@@ -904,6 +907,12 @@ class VibeVoyageApp {
             }, 500);
 
             console.log('✅ Map initialized successfully');
+
+            // Fix map display issues
+            setTimeout(() => {
+                this.fixMapDisplay();
+            }, 1000);
+
         } catch (error) {
             console.error('❌ Map initialization failed:', error);
             this.showMapPlaceholder();
@@ -6156,6 +6165,45 @@ class VibeVoyageApp {
         return R * c; // Distance in meters
     }
 
+    // ===== MAP DISPLAY FIXES =====
+
+    fixMapDisplay() {
+        try {
+            const mapElement = document.getElementById('map');
+            if (mapElement) {
+                // Ensure map container has proper dimensions
+                mapElement.style.height = '400px';
+                mapElement.style.minHeight = '400px';
+                mapElement.style.width = '100%';
+                mapElement.style.display = 'block';
+                mapElement.style.visibility = 'visible';
+
+                // Force map resize if Leaflet map exists
+                if (this.map) {
+                    setTimeout(() => {
+                        this.map.invalidateSize();
+                        console.log('🔄 Map display fixed and resized');
+                    }, 100);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Error fixing map display:', error);
+        }
+    }
+
+    addMapResizeHandler() {
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.fixMapDisplay();
+                console.log('🔄 Map resized due to window resize');
+            }, 250);
+        });
+
+        console.log('📏 Map resize handler added');
+    }
+
     // ===== HAZARD AVOIDANCE SETTINGS =====
 
     initHazardAvoidanceSettings() {
@@ -8818,6 +8866,23 @@ function updateHazardAvoidanceSettings() {
         window.app.updateHazardAvoidanceSettings();
     } else {
         console.error('❌ App not ready yet');
+    }
+}
+
+// Global functions for button clicks
+function toggleHazardSettings() {
+    if (window.app && window.app.toggleHazardSettings) {
+        window.app.toggleHazardSettings();
+    } else {
+        console.error('❌ App not ready yet - toggleHazardSettings');
+    }
+}
+
+function toggleSettings() {
+    if (window.app && window.app.toggleSettings) {
+        window.app.toggleSettings();
+    } else {
+        console.error('❌ App not ready yet - toggleSettings');
     }
 }
 

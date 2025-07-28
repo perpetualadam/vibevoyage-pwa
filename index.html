@@ -276,9 +276,11 @@
         .map-section {
             flex: 1;
             position: relative;
-            min-height: 70vh;
-            height: 70vh;
+            min-height: 450px;
+            height: 450px;
             background: #1a1a1a;
+            margin: 20px;
+            padding: 20px;
         }
 
         .interactive-map {
@@ -290,10 +292,13 @@
 
         #map {
             width: 100%;
-            height: 100%;
+            height: 400px;
+            min-height: 400px;
             background: #1a1a1a;
             position: relative;
             z-index: 1;
+            border: 2px solid #00FF88;
+            border-radius: 8px;
         }
 
         /* Map Overlay Controls */
@@ -2340,11 +2345,7 @@
         <!-- Map Section -->
         <section class="map-section">
             <div id="map" class="interactive-map">
-                <div class="map-placeholder" id="mapPlaceholder">
-                    <div class="icon">🗺️</div>
-                    <div>Loading Interactive Map...</div>
-                    <small>Initializing GPS and map tiles...</small>
-                </div>
+                <!-- Map will be initialized here by Leaflet -->
             </div>
 
             <!-- Map Overlay Controls -->
