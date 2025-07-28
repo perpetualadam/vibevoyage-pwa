@@ -256,6 +256,9 @@ class VibeVoyageApp {
         // Initialize language system
         this.initLanguageSystem();
 
+        // Reset hazards counter on app start
+        this.resetHazardsCounter();
+
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
@@ -1472,6 +1475,9 @@ class VibeVoyageApp {
             console.warn('⚠️ Map not ready for route display, but continuing with calculation');
         }
 
+        // Clear existing hazards when calculating new route
+        this.clearAllHazards();
+
         try {
             // Calculate multiple routes with different preferences
             const routes = await this.calculateMultipleRoutes();
@@ -1485,6 +1491,9 @@ class VibeVoyageApp {
 
                 // Display all routes on map
                 this.displayMultipleRoutes(routes);
+
+                // Simulate hazard detection for the selected route
+                this.simulateRouteHazards(routes[0]);
 
                 console.log('✅ Multiple routes calculated:', routes.length);
 
@@ -5847,6 +5856,103 @@ class VibeVoyageApp {
 
         // Update other UI elements as needed
         console.log('🌍 UI language updated');
+    }
+
+    // ===== HAZARDS COUNTER MANAGEMENT =====
+
+    resetHazardsCounter() {
+        this.currentHazards = [];
+        this.updateHazardsDisplay();
+        console.log('🔄 Hazards counter reset on app start');
+    }
+
+    updateHazardsDisplay() {
+        const hazardTotal = document.getElementById('hazardTotal');
+        if (hazardTotal) {
+            const count = this.currentHazards ? this.currentHazards.length : 0;
+            hazardTotal.textContent = count === 0 ? 'None detected' :
+                                     count === 1 ? '1 ahead' :
+                                     `${count} ahead`;
+        }
+    }
+
+    addHazard(hazard) {
+        if (!this.currentHazards) this.currentHazards = [];
+
+        // Check if hazard already exists (avoid duplicates)
+        const exists = this.currentHazards.some(h =>
+            h.type === hazard.type &&
+            Math.abs(h.lat - hazard.lat) < 0.001 &&
+            Math.abs(h.lng - hazard.lng) < 0.001
+        );
+
+        if (!exists) {
+            this.currentHazards.push(hazard);
+            this.updateHazardsDisplay();
+            console.log(`⚠️ Hazard added: ${hazard.type} at ${hazard.lat.toFixed(4)}, ${hazard.lng.toFixed(4)}`);
+        }
+    }
+
+    removeHazard(hazardId) {
+        if (!this.currentHazards) return;
+
+        this.currentHazards = this.currentHazards.filter(h => h.id !== hazardId);
+        this.updateHazardsDisplay();
+        console.log(`✅ Hazard removed: ${hazardId}`);
+    }
+
+    clearAllHazards() {
+        this.currentHazards = [];
+        this.updateHazardsDisplay();
+        console.log('🧹 All hazards cleared');
+    }
+
+    simulateRouteHazards(route) {
+        // Clear existing hazards first
+        this.clearAllHazards();
+
+        if (!route || !route.geometry || !route.geometry.coordinates) {
+            return;
+        }
+
+        // Simulate hazards along the route
+        const coordinates = route.geometry.coordinates;
+        const routeLength = coordinates.length;
+
+        // Add 0-3 random hazards along the route
+        const hazardCount = Math.floor(Math.random() * 4); // 0-3 hazards
+
+        const hazardTypes = [
+            { type: 'speedCamera', icon: '📷', description: 'Speed Camera' },
+            { type: 'roadwork', icon: '🚧', description: 'Road Work' },
+            { type: 'accident', icon: '🚗💥', description: 'Accident Reported' },
+            { type: 'police', icon: '👮', description: 'Police Activity' },
+            { type: 'schoolZone', icon: '🏫', description: 'School Zone' }
+        ];
+
+        for (let i = 0; i < hazardCount; i++) {
+            // Pick a random point along the route
+            const randomIndex = Math.floor(Math.random() * routeLength);
+            const coord = coordinates[randomIndex];
+
+            // Pick a random hazard type
+            const hazardType = hazardTypes[Math.floor(Math.random() * hazardTypes.length)];
+
+            const hazard = {
+                id: `hazard_${Date.now()}_${i}`,
+                type: hazardType.type,
+                lat: coord[1],
+                lng: coord[0],
+                icon: hazardType.icon,
+                description: hazardType.description,
+                distance: Math.floor(Math.random() * 2000) + 100, // 100-2100m ahead
+                timestamp: Date.now()
+            };
+
+            this.addHazard(hazard);
+        }
+
+        console.log(`🎯 Simulated ${hazardCount} hazards for route`);
     }
 
     showLanguagePanel() {
