@@ -267,7 +267,11 @@ class VibeVoyageApp {
 
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
-        this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
+
+        // Test notification system
+        setTimeout(() => {
+            this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
+        }, 1000);
 
         // Force map initialization after a delay
         setTimeout(async () => {
@@ -2525,10 +2529,15 @@ class VibeVoyageApp {
 
     // Address Input and Geocoding Functions
     async handleAddressInput(inputType, query) {
+        console.log(`🔍 Address input: ${inputType} = "${query}"`);
+
         if (!query || query.length < 3) {
             this.hideSuggestions(inputType);
             return;
         }
+
+        // Show searching notification
+        this.showNotification(`🔍 Searching for "${query}"...`, 'info');
 
         // Detect input type and format
         const inputFormat = this.detectAddressFormat(query);
@@ -7588,13 +7597,29 @@ class VibeVoyageApp {
     }
     
     showNotification(message, type = 'info') {
+        console.log(`📢 Notification: ${message} (${type})`);
+
         const notification = document.getElementById('notification');
+        if (!notification) {
+            console.error('❌ Notification element not found!');
+            return;
+        }
+
+        // Clear any existing timeout
+        if (this.notificationTimeout) {
+            clearTimeout(this.notificationTimeout);
+        }
+
+        // Set content and show
         notification.textContent = message;
         notification.className = `notification ${type} show`;
-        
-        setTimeout(() => {
+
+        // Auto-hide after 4 seconds
+        this.notificationTimeout = setTimeout(() => {
             notification.classList.remove('show');
-        }, 3000);
+        }, 4000);
+
+        console.log(`✅ Notification displayed: "${message}"`);
     }
     
     speakInstruction(text) {
@@ -8883,6 +8908,18 @@ function toggleSettings() {
         window.app.toggleSettings();
     } else {
         console.error('❌ App not ready yet - toggleSettings');
+    }
+}
+
+// Test function for notifications
+function testNotifications() {
+    if (window.app && window.app.showNotification) {
+        window.app.showNotification('🧪 Test notification - Success!', 'success');
+        setTimeout(() => window.app.showNotification('🧪 Test notification - Info!', 'info'), 1000);
+        setTimeout(() => window.app.showNotification('🧪 Test notification - Warning!', 'warning'), 2000);
+        setTimeout(() => window.app.showNotification('🧪 Test notification - Error!', 'error'), 3000);
+    } else {
+        console.error('❌ App not ready for notification test');
     }
 }
 
