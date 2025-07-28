@@ -2256,14 +2256,15 @@
                 <span>VibeVoyage</span>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" id="hazardSettingsBtn" onclick="toggleHazardSettings()" title="Hazard Avoidance Settings">🚨</button>
-                <button class="btn btn-secondary" onclick="toggleSettings()" title="App Settings">⚙️</button>
+                <button class="btn btn-secondary" id="hazardSettingsBtn" onclick="console.log('🚨 Hazard button clicked'); toggleHazardSettings()" title="Hazard Avoidance Settings">🚨</button>
+                <button class="btn btn-secondary" onclick="console.log('⚙️ Settings button clicked'); toggleSettings()" title="App Settings">⚙️</button>
                 <button class="btn btn-secondary" onclick="showLanguageSelector()" title="Language / Idioma">🌍</button>
                 <button class="btn btn-secondary" onclick="getCurrentLocation()" title="Get Current Location">📍</button>
                 <button class="btn btn-secondary" onclick="shareCurrentRoute()" title="Share Current Route">📤</button>
                 <button class="btn btn-secondary" onclick="toggleFavorites()" title="Favorite Locations">⭐</button>
                 <button class="btn btn-secondary" onclick="showGamificationStats()" title="Stats & Achievements">🏆</button>
                 <button class="btn btn-voice" onclick="toggleVoiceReporting()" title="Voice Hazard Reporting" id="voiceReportingBtn">🎙️</button>
+                <button class="btn btn-secondary" onclick="testNotifications()" title="Test Notifications" style="background: #FF6B6B;">🧪</button>
             </div>
         </header>
 
@@ -2363,6 +2364,19 @@
         <section class="map-section">
             <div id="map" class="interactive-map">
                 <!-- Map will be initialized here by Leaflet -->
+                <div id="mapLoadingIndicator" style="
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: #00FF88;
+                    font-size: 18px;
+                    z-index: 1000;
+                    text-align: center;
+                ">
+                    🗺️ Loading Map...<br>
+                    <small style="color: #ccc;">Please wait while we initialize the interactive map</small>
+                </div>
             </div>
 
             <!-- Map Overlay Controls -->
@@ -2559,11 +2573,64 @@
     </div>
     
     <!-- Notification Container -->
-    <div id="notification" class="notification"></div>
+    <div id="notification" class="notification" style="
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: #1a1a1a;
+        color: #fff;
+        padding: 15px 20px;
+        border-radius: 8px;
+        border-left: 4px solid #00FF88;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        max-width: 350px;
+        min-width: 200px;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        z-index: 10000;
+        font-size: 14px;
+        font-weight: 500;
+        word-wrap: break-word;
+        display: block;
+    "></div>
     
     <!-- Leaflet JS is already loaded in the head section -->
 
     <script>
+        // CRITICAL: Global functions for button clicks - MUST be available immediately
+        function toggleHazardSettings() {
+            console.log('🚨 toggleHazardSettings called');
+            if (window.app && window.app.toggleHazardSettings) {
+                window.app.toggleHazardSettings();
+            } else {
+                console.error('❌ App not ready - toggleHazardSettings');
+                alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
+        function toggleSettings() {
+            console.log('⚙️ toggleSettings called');
+            if (window.app && window.app.toggleSettings) {
+                window.app.toggleSettings();
+            } else {
+                console.error('❌ App not ready - toggleSettings');
+                alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
+        function testNotifications() {
+            console.log('🧪 testNotifications called');
+            if (window.app && window.app.showNotification) {
+                window.app.showNotification('🧪 Test notification - Success!', 'success');
+                setTimeout(() => window.app.showNotification('🧪 Test notification - Info!', 'info'), 1000);
+                setTimeout(() => window.app.showNotification('🧪 Test notification - Warning!', 'warning'), 2000);
+                setTimeout(() => window.app.showNotification('🧪 Test notification - Error!', 'error'), 3000);
+            } else {
+                console.error('❌ App not ready for notification test');
+                alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
         // Global functions that work with the main App.js
         function toggleHazardSettings() {
             if (window.app && window.app.toggleHazardSettings) {
@@ -3057,7 +3124,26 @@
             // Wait a bit for App.js to load
             setTimeout(() => {
                 if (typeof initializeVibeVoyage === 'function') {
+                    console.log('✅ Calling initializeVibeVoyage...');
                     initializeVibeVoyage();
+
+                    // Test notifications after app loads
+                    setTimeout(() => {
+                        console.log('🧪 Testing notification system...');
+                        if (window.app && window.app.showNotification) {
+                            window.app.showNotification('🚗 Welcome to VibeVoyage! App loaded successfully.', 'success');
+
+                            // Hide map loading indicator
+                            const mapIndicator = document.getElementById('mapLoadingIndicator');
+                            if (mapIndicator) {
+                                mapIndicator.style.display = 'none';
+                            }
+                        } else {
+                            console.error('❌ App or showNotification not available after 3 seconds');
+                            console.log('window.app:', window.app);
+                        }
+                    }, 3000);
+
                 } else {
                     console.error('❌ initializeVibeVoyage function not found');
                     // Try manual initialization
@@ -3065,6 +3151,14 @@
                         if (typeof VibeVoyageApp !== 'undefined' && !window.app) {
                             console.log('🔧 Manual initialization...');
                             window.app = new VibeVoyageApp();
+
+                            // Test notifications after manual init
+                            setTimeout(() => {
+                                if (window.app && window.app.showNotification) {
+                                    window.app.showNotification('🚗 VibeVoyage initialized manually!', 'success');
+                                }
+                            }, 2000);
+
                         } else if (!window.app) {
                             console.error('❌ VibeVoyageApp class not found');
                             // Initialize a basic map as fallback
