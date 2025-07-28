@@ -2263,8 +2263,8 @@
                 <span>VibeVoyage</span>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" id="hazardSettingsBtn" onclick="console.log('🚨 Hazard button clicked'); toggleHazardSettings()" title="Hazard Avoidance Settings">🚨</button>
-                <button class="btn btn-secondary" onclick="console.log('⚙️ Settings button clicked'); toggleSettings()" title="App Settings">⚙️</button>
+                <button class="btn btn-secondary" id="hazardSettingsBtn" onclick="toggleHazardSettings()" title="Hazard Avoidance Settings">🚨</button>
+                <button class="btn btn-secondary" onclick="toggleSettings()" title="App Settings">⚙️</button>
                 <button class="btn btn-secondary" onclick="showLanguageSelector()" title="Language / Idioma">🌍</button>
                 <button class="btn btn-secondary" onclick="getCurrentLocation()" title="Get Current Location">📍</button>
                 <button class="btn btn-secondary" onclick="shareCurrentRoute()" title="Share Current Route">📤</button>
@@ -2606,21 +2606,23 @@
     <script>
         // CRITICAL: Global functions for button clicks - MUST be available immediately
         function toggleHazardSettings() {
-            console.log('🚨 toggleHazardSettings called');
-            if (window.app && window.app.toggleHazardSettings) {
+            console.log('🚨 Hazard button clicked');
+            if (window.app && typeof window.app.toggleHazardSettings === 'function') {
                 window.app.toggleHazardSettings();
             } else {
                 console.error('❌ App not ready - toggleHazardSettings');
+                console.log('window.app:', window.app);
                 alert('App is still loading. Please wait a moment and try again.');
             }
         }
 
         function toggleSettings() {
-            console.log('⚙️ toggleSettings called');
-            if (window.app && window.app.toggleSettings) {
+            console.log('⚙️ Settings button clicked');
+            if (window.app && typeof window.app.toggleSettings === 'function') {
                 window.app.toggleSettings();
             } else {
                 console.error('❌ App not ready - toggleSettings');
+                console.log('window.app:', window.app);
                 alert('App is still loading. Please wait a moment and try again.');
             }
         }
@@ -2635,6 +2637,66 @@
             } else {
                 console.error('❌ App not ready for notification test');
                 alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
+        function showLanguageSelector() {
+            console.log('🌍 Language selector clicked');
+            if (window.app && typeof window.app.showLanguageSelector === 'function') {
+                window.app.showLanguageSelector();
+            } else {
+                console.error('❌ App not ready - showLanguageSelector');
+                alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
+        function toggleVoiceReporting() {
+            console.log('🎙️ Voice reporting clicked');
+            if (window.app && typeof window.app.toggleVoiceReporting === 'function') {
+                window.app.toggleVoiceReporting();
+            } else {
+                console.error('❌ App not ready - toggleVoiceReporting');
+                alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
+        function showGamificationStats() {
+            console.log('🏆 Gamification stats clicked');
+            if (window.app && typeof window.app.showGamificationStats === 'function') {
+                window.app.showGamificationStats();
+            } else {
+                console.error('❌ App not ready - showGamificationStats');
+                alert('App is still loading. Please wait a moment and try again.');
+            }
+        }
+
+        // Debug function to check app status
+        function checkAppStatus() {
+            console.log('🔍 App Status Check:');
+            console.log('window.app exists:', !!window.app);
+            console.log('window.app type:', typeof window.app);
+            if (window.app) {
+                console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(window.app)));
+            }
+            console.log('VibeVoyageApp class:', typeof VibeVoyageApp);
+            console.log('initializeVibeVoyage function:', typeof initializeVibeVoyage);
+        }
+
+        // Force app initialization function
+        function forceInitializeApp() {
+            console.log('🔧 Force initializing app...');
+            if (typeof VibeVoyageApp !== 'undefined') {
+                try {
+                    window.app = new VibeVoyageApp();
+                    console.log('✅ Force initialization successful!');
+                    if (window.app.showNotification) {
+                        window.app.showNotification('🔧 App force-initialized!', 'success');
+                    }
+                } catch (error) {
+                    console.error('❌ Force initialization failed:', error);
+                }
+            } else {
+                console.error('❌ VibeVoyageApp class not available');
             }
         }
 
@@ -3160,23 +3222,48 @@
 
                 } else {
                     console.error('❌ initializeVibeVoyage function not found');
+                    console.log('Available functions:', Object.getOwnPropertyNames(window).filter(name => name.includes('Vibe')));
+
                     // Try manual initialization
                     setTimeout(() => {
-                        if (typeof VibeVoyageApp !== 'undefined' && !window.app) {
-                            console.log('🔧 Manual initialization...');
-                            window.app = new VibeVoyageApp();
+                        console.log('🔧 Attempting manual initialization...');
+                        console.log('typeof VibeVoyageApp:', typeof VibeVoyageApp);
+                        console.log('window.VibeVoyageApp:', typeof window.VibeVoyageApp);
 
-                            // Test notifications after manual init
-                            setTimeout(() => {
-                                if (window.app && window.app.showNotification) {
-                                    window.app.showNotification('🚗 VibeVoyage initialized manually!', 'success');
-                                }
-                            }, 2000);
+                        if (typeof VibeVoyageApp !== 'undefined' && !window.app) {
+                            try {
+                                console.log('🔧 Creating VibeVoyageApp instance...');
+                                window.app = new VibeVoyageApp();
+                                console.log('✅ Manual initialization successful!');
+
+                                // Test notifications after manual init
+                                setTimeout(() => {
+                                    if (window.app && window.app.showNotification) {
+                                        window.app.showNotification('🚗 VibeVoyage initialized manually!', 'success');
+                                    }
+                                }, 2000);
+
+                            } catch (error) {
+                                console.error('❌ Manual initialization failed:', error);
+                            }
 
                         } else if (!window.app) {
                             console.error('❌ VibeVoyageApp class not found');
-                            // Initialize a basic map as fallback
-                            initBasicMap();
+                            console.log('Trying to load App.js again...');
+
+                            // Try loading App.js again
+                            const script = document.createElement('script');
+                            script.src = 'App.js?v=' + Date.now();
+                            script.onload = () => {
+                                console.log('✅ App.js reloaded');
+                                setTimeout(() => {
+                                    if (typeof VibeVoyageApp !== 'undefined') {
+                                        window.app = new VibeVoyageApp();
+                                        console.log('✅ App created after reload');
+                                    }
+                                }, 500);
+                            };
+                            document.head.appendChild(script);
                         }
                     }, 1000);
                 }
