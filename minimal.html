@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage - Minimal Version</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00FF88;
+            text-align: center;
+        }
+        button {
+            background: #00FF88;
+            color: black;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            margin: 20px 0;
+            border: 2px solid #00FF88;
+        }
+        #status {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .success { color: #00FF88; }
+        .error { color: #FF6B6B; }
+        .warning { color: #FFB347; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 VibeVoyage - Minimal Test</h1>
+        
+        <div id="status">
+            <div id="loadingStatus">🔄 Loading...</div>
+        </div>
+        
+        <div>
+            <button onclick="getCurrentLocation()">📍 Get Location</button>
+            <button onclick="testVoice()">🎤 Test Voice</button>
+            <button onclick="testMap()">🗺️ Test Map</button>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div id="info">
+            <h3>Quick Status Check:</h3>
+            <div id="checks"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map = null;
+        
+        // Initialize immediately
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 VibeVoyage Minimal starting...');
+            
+            // Quick status check
+            const checks = [
+                { name: 'Leaflet', check: () => typeof L !== 'undefined' },
+                { name: 'Geolocation', check: () => 'geolocation' in navigator },
+                { name: 'Speech', check: () => 'speechSynthesis' in window },
+                { name: 'LocalStorage', check: () => typeof Storage !== 'undefined' },
+                { name: 'Fetch API', check: () => typeof fetch !== 'undefined' }
+            ];
+            
+            let checksHtml = '';
+            let allGood = true;
+            
+            checks.forEach(item => {
+                const result = item.check();
+                const icon = result ? '✅' : '❌';
+                const className = result ? 'success' : 'error';
+                checksHtml += `<div class="${className}">${icon} ${item.name}: ${result ? 'OK' : 'MISSING'}</div>`;
+                if (!result) allGood = false;
+            });
+            
+            document.getElementById('checks').innerHTML = checksHtml;
+            
+            if (allGood) {
+                document.getElementById('loadingStatus').innerHTML = '<span class="success">✅ All systems ready!</span>';
+                initializeMap();
+            } else {
+                document.getElementById('loadingStatus').innerHTML = '<span class="error">❌ Some features unavailable</span>';
+            }
+        });
+        
+        function initializeMap() {
+            try {
+                console.log('🗺️ Initializing map...');
+                
+                map = L.map('map').setView([40.7128, -74.0060], 13);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                console.log('✅ Map initialized successfully');
+                
+                // Add click handler
+                map.on('click', function(e) {
+                    console.log('Map clicked:', e.latlng);
+                    L.popup()
+                        .setLatLng(e.latlng)
+                        .setContent(`Clicked: ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`)
+                        .openOn(map);
+                });
+                
+            } catch (error) {
+                console.error('❌ Map initialization failed:', error);
+                document.getElementById('loadingStatus').innerHTML = '<span class="error">❌ Map failed to load</span>';
+            }
+        }
+        
+        function getCurrentLocation() {
+            console.log('📍 Getting current location...');
+            
+            if (!navigator.geolocation) {
+                alert('❌ Geolocation not supported');
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    console.log('✅ Location found:', lat, lng);
+                    
+                    if (map) {
+                        map.setView([lat, lng], 15);
+                        L.marker([lat, lng])
+                            .addTo(map)
+                            .bindPopup('Your Location')
+                            .openPopup();
+                    }
+                    
+                    alert(`✅ Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+                },
+                function(error) {
+                    console.error('❌ Location error:', error);
+                    alert(`❌ Location error: ${error.message}`);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+        
+        function testVoice() {
+            console.log('🎤 Testing voice synthesis...');
+            
+            if (!('speechSynthesis' in window)) {
+                alert('❌ Speech synthesis not supported');
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance('Hello from VibeVoyage! Voice synthesis is working.');
+            utterance.rate = 0.8;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.8;
+            
+            speechSynthesis.speak(utterance);
+            console.log('✅ Voice test initiated');
+            alert('🎤 Voice test started - you should hear audio');
+        }
+        
+        function testMap() {
+            console.log('🗺️ Testing map functionality...');
+            
+            if (!map) {
+                alert('❌ Map not available');
+                return;
+            }
+            
+            // Pan to a random location
+            const randomLat = 40.7128 + (Math.random() - 0.5) * 0.1;
+            const randomLng = -74.0060 + (Math.random() - 0.5) * 0.1;
+            
+            map.setView([randomLat, randomLng], 14);
+            
+            // Add a test marker
+            const marker = L.marker([randomLat, randomLng])
+                .addTo(map)
+                .bindPopup('Test Marker')
+                .openPopup();
+            
+            // Remove marker after 3 seconds
+            setTimeout(() => {
+                map.removeLayer(marker);
+            }, 3000);
+            
+            console.log('✅ Map test completed');
+            alert('🗺️ Map test completed - marker will disappear in 3 seconds');
+        }
+        
+        // Log any errors
+        window.addEventListener('error', function(e) {
+            console.error('❌ Global error:', e.error);
+        });
+        
+        console.log('📱 VibeVoyage Minimal loaded successfully');
+    </script>
+</body>
+</html>
