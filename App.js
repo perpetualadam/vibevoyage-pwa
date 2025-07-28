@@ -1576,10 +1576,16 @@ class VibeVoyageApp {
         const excludeParams = this.buildOSRMExcludeParams(exclusions);
         console.log('🚨 OSRM exclude parameters (before cleaning):', excludeParams);
 
-        // Clean any remaining :1 suffixes from all parameters
+        // Clean any remaining :1 suffixes from all parameters (multiple passes)
         Object.keys(excludeParams).forEach(key => {
             if (excludeParams[key]) {
-                const cleaned = excludeParams[key].replace(/:1/g, '');
+                let cleaned = excludeParams[key];
+                // Multiple cleaning passes to catch all variations
+                cleaned = cleaned.replace(/:1/g, '');
+                cleaned = cleaned.replace(/:\d+/g, ''); // Remove any :number suffixes
+                cleaned = cleaned.replace(/,+/g, ','); // Fix multiple commas
+                cleaned = cleaned.replace(/^,|,$/g, ''); // Remove leading/trailing commas
+
                 if (cleaned !== excludeParams[key]) {
                     console.log(`🧹 Cleaned ${key}: "${excludeParams[key]}" → "${cleaned}"`);
                     excludeParams[key] = cleaned;
@@ -2083,6 +2089,10 @@ class VibeVoyageApp {
         this.routeData = route;
         this.routeSteps = this.extractRouteSteps(route);
         this.currentStepIndex = 0;
+
+        // Set journey state to route-selected
+        this.journeyState = 'route-selected';
+        console.log('🎯 Journey state set to route-selected');
 
         // Clear all route lines
         this.clearRouteLines();
@@ -2605,12 +2615,17 @@ class VibeVoyageApp {
     }
 
     formatWindSpeed(kmh) {
+        console.log('🌬️ formatWindSpeed called:', { kmh, system: this.units.system });
         if (this.units.system === 'imperial') {
             // Convert km/h to mph
             const mph = kmh * 0.621371;
-            return `${Math.round(mph)} mph`;
+            const result = `${Math.round(mph)} mph`;
+            console.log('🌬️ Wind speed converted to imperial:', result);
+            return result;
         } else {
-            return `${kmh} km/h`;
+            const result = `${kmh} km/h`;
+            console.log('🌬️ Wind speed in metric:', result);
+            return result;
         }
     }
 
@@ -3453,10 +3468,18 @@ class VibeVoyageApp {
 
     startJourney() {
         console.log('🚗 Starting journey...');
+        console.log('🔍 Current journey state:', this.journeyState);
 
-        if (this.journeyState !== 'route-selected') {
-            this.showNotification('Please select a route first', 'error');
+        // If we have route data, allow starting journey
+        if (!this.routeData) {
+            this.showNotification('Please calculate a route first', 'error');
             return;
+        }
+
+        // Set journey state to route-selected if we have a route
+        if (this.routeData && this.journeyState !== 'route-selected') {
+            console.log('🔧 Setting journey state to route-selected');
+            this.journeyState = 'route-selected';
         }
 
         // Hide journey control panel
@@ -4255,15 +4278,46 @@ class VibeVoyageApp {
         };
     }
 
+    generateRoadLikeWaypoints(startLat, startLng, endLat, endLng) {
+        // Generate waypoints that approximate road routing instead of straight lines
+        const waypoints = [[startLng, startLat]];
+
+        // Calculate the number of intermediate points based on distance
+        const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
+        const numPoints = Math.max(3, Math.min(10, Math.floor(distance / 5000))); // 1 point per 5km
+
+        // Create waypoints with slight deviations to simulate road routing
+        for (let i = 1; i < numPoints; i++) {
+            const ratio = i / numPoints;
+
+            // Linear interpolation with road-like deviations
+            let lat = startLat + (endLat - startLat) * ratio;
+            let lng = startLng + (endLng - startLng) * ratio;
+
+            // Add realistic deviations to simulate road paths
+            const deviation = 0.01 * Math.sin(ratio * Math.PI * 3); // Sinusoidal deviation
+            lat += deviation * (Math.random() - 0.5);
+            lng += deviation * (Math.random() - 0.5);
+
+            waypoints.push([lng, lat]);
+        }
+
+        waypoints.push([endLng, endLat]);
+        return waypoints;
+    }
+
     createDemoRoute(start, end) {
         try {
             // Parse coordinates
             const [startLng, startLat] = start.split(',').map(Number);
             const [endLng, endLat] = end.split(',').map(Number);
 
-            // Create a simple straight-line route for demo purposes
+            // Create a more realistic route that approximates road paths
             const distance = this.calculateDistance(startLat, startLng, endLat, endLng);
             const duration = Math.round(distance / 50 * 3600); // Assume 50 km/h average
+
+            // Create waypoints that approximate road routing
+            const waypoints = this.generateRoadLikeWaypoints(startLat, startLng, endLat, endLng);
 
             const demoRoute = {
                 type: 'Demo Route',
@@ -4271,11 +4325,7 @@ class VibeVoyageApp {
                 duration: duration,
                 geometry: {
                     type: 'LineString',
-                    coordinates: [
-                        [startLng, startLat],
-                        [(startLng + endLng) / 2, (startLat + endLat) / 2], // Midpoint
-                        [endLng, endLat]
-                    ]
+                    coordinates: waypoints
                 },
                 steps: [
                     {
@@ -6112,8 +6162,11 @@ class VibeVoyageApp {
 
         // Filter hazard types based on avoidance settings
         const availableHazardTypes = hazardTypes.filter(hazardType => {
-            // If this hazard type is set to be avoided, don't include it in the route
-            return !this.shouldAvoidHazard(hazardType.type);
+            // Only include hazards that are NOT being avoided
+            // If avoidance is enabled for this hazard type, exclude it from simulation
+            const isAvoiding = this.shouldAvoidHazard(hazardType.type);
+            console.log(`🔍 Hazard ${hazardType.type}: avoiding=${isAvoiding}, will simulate=${!isAvoiding}`);
+            return !isAvoiding;
         });
 
         if (availableHazardTypes.length === 0) {
@@ -7718,11 +7771,11 @@ class VibeVoyageApp {
             const value = e.target.value.trim();
             document.getElementById('navigateBtn').disabled = !value;
 
-            // Handle address input with debouncing
+            // Handle address input with longer debouncing for better UX
             clearTimeout(this.toInputTimeout);
             this.toInputTimeout = setTimeout(() => {
                 this.handleAddressInput('to', value);
-            }, 300);
+            }, 500); // Increased from 300ms to 500ms
         });
 
         // From input handling
@@ -7730,11 +7783,11 @@ class VibeVoyageApp {
             fromInput.addEventListener('input', (e) => {
                 const value = e.target.value.trim();
 
-                // Handle address input with debouncing
+                // Handle address input with longer debouncing for better UX
                 clearTimeout(this.fromInputTimeout);
                 this.fromInputTimeout = setTimeout(() => {
                     this.handleAddressInput('from', value);
-                }, 300);
+                }, 500); // Increased from 300ms to 500ms
             });
         }
 
