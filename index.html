@@ -47,7 +47,7 @@
     <script src="src/modules/HazardManager.js"></script>
 
     <!-- Main Application - Load App.js directly -->
-    <script src="App.js?v=2025.19&system=master&t=1737735202" defer></script>
+    <script src="App.js?v=2025.20&system=master&t=1737735203" defer></script>
 
     <!-- Fallback for modular loading (if needed) -->
     <script>
@@ -56,7 +56,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=2025.19&system=master&t=' + Date.now();
+                script.src = 'App.js?v=2025.20&system=master&t=' + Date.now();
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -2604,6 +2604,24 @@
     <!-- Leaflet JS is already loaded in the head section -->
 
     <script>
+        // Suppress browser extension runtime connection errors
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('Could not establish connection')) {
+                e.preventDefault();
+                return true;
+            }
+        });
+
+        // Suppress unhandled promise rejections for extension errors
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && e.reason.message && e.reason.message.includes('Could not establish connection')) {
+                e.preventDefault();
+                return true;
+            }
+        });
+    </script>
+
+    <script>
         // CRITICAL: Global functions for button clicks - MUST be available immediately
         function toggleHazardSettings() {
             console.log('🚨 Hazard button clicked');
@@ -2698,6 +2716,28 @@
             } else {
                 console.error('❌ VibeVoyageApp class not available');
             }
+        }
+
+        // Test notification system directly
+        function testNotificationSystem() {
+            console.log('🧪 Testing notification system...');
+            const notification = document.getElementById('notification');
+            if (!notification) {
+                console.error('❌ Notification element not found!');
+                return;
+            }
+
+            console.log('✅ Notification element found');
+
+            // Test direct notification
+            notification.textContent = '🧪 Direct notification test!';
+            notification.className = 'notification success show';
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+
+            console.log('✅ Direct notification test completed');
         }
 
         // Global functions that work with the main App.js
