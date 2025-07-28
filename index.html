@@ -1,6 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- IMMEDIATE NUCLEAR ERROR SUPPRESSION - MUST BE FIRST -->
+    <script>
+        (function() {
+            // Block chrome.runtime immediately before anything else
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                try {
+                    Object.defineProperty(chrome.runtime, 'lastError', {
+                        get: function() { return undefined; },
+                        set: function() {},
+                        configurable: false
+                    });
+                    chrome.runtime.sendMessage = function() { return Promise.resolve(); };
+                    chrome.runtime.connect = function() { return { postMessage: () => {}, disconnect: () => {}, onMessage: { addListener: () => {} }, onDisconnect: { addListener: () => {} } }; };
+                } catch (e) {}
+            }
+
+            // Override console.error immediately
+            const originalError = console.error;
+            console.error = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('Unchecked runtime.lastError') || message.includes('Could not establish connection') || message.includes('Receiving end does not exist')) {
+                    return;
+                }
+                originalError.apply(console, args);
+            };
+
+            // Override window.onerror immediately
+            window.onerror = function(message) {
+                if (message && (message.includes('Unchecked runtime.lastError') || message.includes('Could not establish connection') || message.includes('Receiving end does not exist'))) {
+                    return true;
+                }
+                return false;
+            };
+        })();
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
