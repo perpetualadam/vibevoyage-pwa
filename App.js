@@ -253,6 +253,9 @@ class VibeVoyageApp {
         // Initialize gamification system
         this.initGamificationSystem();
 
+        // Initialize language system
+        this.initLanguageSystem();
+
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
         this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
@@ -814,20 +817,21 @@ class VibeVoyageApp {
             }
 
             // Initialize Leaflet map with enhanced mobile options
-        this.map = L.map('map', {
-            center: [40.7128, -74.0060], // Default to NYC
-            zoom: 13,
-            zoomControl: false,
-            attributionControl: false,
-            // Mobile-specific options
-            tap: true,
-            tapTolerance: 15,
-            touchZoom: true,
-            doubleClickZoom: true,
-            scrollWheelZoom: 'center',
-            boxZoom: false,
-            keyboard: true,
-            dragging: true,
+            console.log('🗺️ Creating new Leaflet map instance...');
+            this.map = L.map('map', {
+                center: [40.7128, -74.0060], // Default to NYC
+                zoom: 13,
+                zoomControl: false,
+                attributionControl: false,
+                // Mobile-specific options
+                tap: true,
+                tapTolerance: 15,
+                touchZoom: true,
+                doubleClickZoom: true,
+                scrollWheelZoom: 'center',
+                boxZoom: false,
+                keyboard: true,
+                dragging: true,
             maxZoom: 22,
             minZoom: 3,
             // Mobile performance options
@@ -837,6 +841,12 @@ class VibeVoyageApp {
             bounceAtZoomLimits: false,
             worldCopyJump: false
         });
+
+            // Verify map was created successfully
+            if (!this.map) {
+                throw new Error('Failed to create Leaflet map instance');
+            }
+            console.log('✅ Leaflet map instance created successfully');
 
             // Add OpenStreetMap tiles
             this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1457,6 +1467,11 @@ class VibeVoyageApp {
             throw new Error('Missing start or end location');
         }
 
+        // Check if map is ready for route display
+        if (!this.map) {
+            console.warn('⚠️ Map not ready for route display, but continuing with calculation');
+        }
+
         try {
             // Calculate multiple routes with different preferences
             const routes = await this.calculateMultipleRoutes();
@@ -1874,6 +1889,12 @@ class VibeVoyageApp {
     }
 
     displayMultipleRoutes(routes) {
+        // Check if map is ready
+        if (!this.map) {
+            console.warn('⚠️ Map not ready, cannot display routes');
+            return;
+        }
+
         // Clear existing route lines
         this.clearRouteLines();
 
@@ -4075,14 +4096,19 @@ class VibeVoyageApp {
             }
         }
 
-        const baseExclusionString = baseExclusions.length > 0 ? `,${baseExclusions.join(',')}` : '';
+        // Helper function to build clean exclusion strings
+        const buildExclusionString = (additionalExclusions = []) => {
+            const allExclusions = [...baseExclusions, ...additionalExclusions];
+            const uniqueExclusions = [...new Set(allExclusions)]; // Remove duplicates
+            return uniqueExclusions.length > 0 ? uniqueExclusions.join(',') : '';
+        };
 
         return {
-            fastest: baseExclusionString,
-            noHighway: baseExclusionString + ',motorway', // Avoid highways for safer route
-            shortest: baseExclusionString,
-            noLights: baseExclusionString + ',trunk,secondary', // Avoid roads with many traffic lights
-            noRailway: baseExclusionString + (settings.railwayCrossings ? ',trunk,secondary' : '')
+            fastest: buildExclusionString(),
+            noHighway: buildExclusionString(['motorway']), // Avoid highways for safer route
+            shortest: buildExclusionString(),
+            noLights: buildExclusionString(['trunk', 'secondary']), // Avoid roads with many traffic lights
+            noRailway: buildExclusionString(settings.railwayCrossings ? ['trunk', 'secondary'] : [])
         };
     }
 
@@ -4092,8 +4118,8 @@ class VibeVoyageApp {
             if (!exclusionString || exclusionString.length === 0) {
                 return '';
             }
-            // Remove leading comma and build exclude parameter
-            const cleanExclusions = exclusionString.startsWith(',') ? exclusionString.substring(1) : exclusionString;
+            // Clean the exclusion string and build parameter
+            const cleanExclusions = exclusionString.trim();
             return cleanExclusions ? `&exclude=${cleanExclusions}` : '';
         };
 
@@ -5604,6 +5630,292 @@ class VibeVoyageApp {
 
         // Remove existing panel
         const existingPanel = document.getElementById('gamificationPanel');
+        if (existingPanel) existingPanel.remove();
+
+        // Add new panel
+        document.body.insertAdjacentHTML('beforeend', panelHTML);
+    }
+
+    // ===== MULTI-LANGUAGE SUPPORT =====
+
+    initLanguageSystem() {
+        // Load saved language or detect from browser
+        this.currentLanguage = this.loadLanguage();
+        this.translations = this.getTranslations();
+        console.log(`🌍 Language system initialized: ${this.currentLanguage}`);
+    }
+
+    loadLanguage() {
+        try {
+            const saved = localStorage.getItem('vibeVoyage_language');
+            if (saved) {
+                return saved;
+            }
+        } catch (error) {
+            console.warn('Error loading language:', error);
+        }
+
+        // Auto-detect from browser
+        const browserLang = navigator.language || navigator.userLanguage;
+        const langCode = browserLang.split('-')[0].toLowerCase();
+
+        // Support common languages
+        const supportedLanguages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'pl', 'ru'];
+        return supportedLanguages.includes(langCode) ? langCode : 'en';
+    }
+
+    saveLanguage(language) {
+        try {
+            localStorage.setItem('vibeVoyage_language', language);
+            this.currentLanguage = language;
+            console.log(`🌍 Language saved: ${language}`);
+        } catch (error) {
+            console.error('Error saving language:', error);
+        }
+    }
+
+    getTranslations() {
+        return {
+            en: {
+                // Navigation
+                startNavigation: 'Start Navigation',
+                stopNavigation: 'Stop Navigation',
+                currentLocation: 'Current Location',
+                destination: 'Destination',
+                calculating: 'Calculating route...',
+                routeFound: 'Route found',
+                navigationStarted: 'Navigation started',
+                navigationStopped: 'Navigation stopped',
+
+                // Directions
+                turnLeft: 'Turn left',
+                turnRight: 'Turn right',
+                goStraight: 'Go straight',
+                arrive: 'You have arrived',
+
+                // Features
+                favorites: 'Favorites',
+                recentSearches: 'Recent Searches',
+                settings: 'Settings',
+                achievements: 'Achievements',
+
+                // Hazards
+                speedCamera: 'Speed Camera',
+                accident: 'Accident',
+                roadwork: 'Road Work',
+
+                // Units
+                kilometers: 'km',
+                miles: 'mi',
+                meters: 'm',
+                feet: 'ft'
+            },
+            es: {
+                // Navigation
+                startNavigation: 'Iniciar Navegación',
+                stopNavigation: 'Detener Navegación',
+                currentLocation: 'Ubicación Actual',
+                destination: 'Destino',
+                calculating: 'Calculando ruta...',
+                routeFound: 'Ruta encontrada',
+                navigationStarted: 'Navegación iniciada',
+                navigationStopped: 'Navegación detenida',
+
+                // Directions
+                turnLeft: 'Gire a la izquierda',
+                turnRight: 'Gire a la derecha',
+                goStraight: 'Siga recto',
+                arrive: 'Ha llegado',
+
+                // Features
+                favorites: 'Favoritos',
+                recentSearches: 'Búsquedas Recientes',
+                settings: 'Configuración',
+                achievements: 'Logros',
+
+                // Hazards
+                speedCamera: 'Cámara de Velocidad',
+                accident: 'Accidente',
+                roadwork: 'Obras',
+
+                // Units
+                kilometers: 'km',
+                miles: 'mi',
+                meters: 'm',
+                feet: 'ft'
+            },
+            fr: {
+                // Navigation
+                startNavigation: 'Démarrer Navigation',
+                stopNavigation: 'Arrêter Navigation',
+                currentLocation: 'Position Actuelle',
+                destination: 'Destination',
+                calculating: 'Calcul de l\'itinéraire...',
+                routeFound: 'Itinéraire trouvé',
+                navigationStarted: 'Navigation démarrée',
+                navigationStopped: 'Navigation arrêtée',
+
+                // Directions
+                turnLeft: 'Tournez à gauche',
+                turnRight: 'Tournez à droite',
+                goStraight: 'Continuez tout droit',
+                arrive: 'Vous êtes arrivé',
+
+                // Features
+                favorites: 'Favoris',
+                recentSearches: 'Recherches Récentes',
+                settings: 'Paramètres',
+                achievements: 'Succès',
+
+                // Hazards
+                speedCamera: 'Radar',
+                accident: 'Accident',
+                roadwork: 'Travaux',
+
+                // Units
+                kilometers: 'km',
+                miles: 'mi',
+                meters: 'm',
+                feet: 'ft'
+            },
+            de: {
+                // Navigation
+                startNavigation: 'Navigation Starten',
+                stopNavigation: 'Navigation Stoppen',
+                currentLocation: 'Aktueller Standort',
+                destination: 'Ziel',
+                calculating: 'Route wird berechnet...',
+                routeFound: 'Route gefunden',
+                navigationStarted: 'Navigation gestartet',
+                navigationStopped: 'Navigation gestoppt',
+
+                // Directions
+                turnLeft: 'Links abbiegen',
+                turnRight: 'Rechts abbiegen',
+                goStraight: 'Geradeaus fahren',
+                arrive: 'Sie sind angekommen',
+
+                // Features
+                favorites: 'Favoriten',
+                recentSearches: 'Letzte Suchen',
+                settings: 'Einstellungen',
+                achievements: 'Erfolge',
+
+                // Hazards
+                speedCamera: 'Blitzer',
+                accident: 'Unfall',
+                roadwork: 'Baustelle',
+
+                // Units
+                kilometers: 'km',
+                miles: 'mi',
+                meters: 'm',
+                feet: 'ft'
+            }
+        };
+    }
+
+    translate(key) {
+        const translations = this.translations[this.currentLanguage] || this.translations['en'];
+        return translations[key] || key;
+    }
+
+    changeLanguage(language) {
+        this.saveLanguage(language);
+        this.translations = this.getTranslations();
+        this.updateUILanguage();
+        this.showNotification(`🌍 Language changed to ${language.toUpperCase()}`, 'success');
+    }
+
+    updateUILanguage() {
+        // Update navigation button
+        const navBtn = document.getElementById('navigateBtn');
+        if (navBtn && !this.isNavigating) {
+            navBtn.textContent = `🚗 ${this.translate('startNavigation')}`;
+        }
+
+        // Update input placeholders
+        const fromInput = document.getElementById('fromInput');
+        const toInput = document.getElementById('toInput');
+
+        if (fromInput) {
+            fromInput.placeholder = this.translate('currentLocation');
+        }
+        if (toInput) {
+            toInput.placeholder = this.translate('destination');
+        }
+
+        // Update other UI elements as needed
+        console.log('🌍 UI language updated');
+    }
+
+    showLanguagePanel() {
+        const languages = [
+            { code: 'en', name: 'English', flag: '🇺🇸' },
+            { code: 'es', name: 'Español', flag: '🇪🇸' },
+            { code: 'fr', name: 'Français', flag: '🇫🇷' },
+            { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+            { code: 'pt', name: 'Português', flag: '🇵🇹' },
+            { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+            { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+            { code: 'ru', name: 'Русский', flag: '🇷🇺' }
+        ];
+
+        const panelHTML = `
+            <div id="languagePanel" style="
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                max-width: 400px;
+                background: rgba(0, 0, 0, 0.95);
+                border: 2px solid #00FF88;
+                border-radius: 12px;
+                padding: 20px;
+                color: white;
+                z-index: 10000;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #00FF88; margin: 0;">🌍 Select Language</h3>
+                    <button onclick="closeLanguagePanel()" style="background: #FF6B6B; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+                </div>
+
+                <div style="display: grid; gap: 8px;">
+                    ${languages.map(lang => `
+                        <button onclick="changeLanguage('${lang.code}')" style="
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                            padding: 12px;
+                            background: ${this.currentLanguage === lang.code ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+                            border: 1px solid ${this.currentLanguage === lang.code ? '#00FF88' : '#333'};
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            width: 100%;
+                            text-align: left;
+                        " onmouseover="this.style.background='rgba(0, 255, 136, 0.1)'" onmouseout="this.style.background='${this.currentLanguage === lang.code ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.05)'}'">
+                            <span style="font-size: 24px;">${lang.flag}</span>
+                            <div>
+                                <div style="font-weight: bold;">${lang.name}</div>
+                                <div style="font-size: 12px; color: #888;">${lang.code.toUpperCase()}</div>
+                            </div>
+                            ${this.currentLanguage === lang.code ? '<span style="margin-left: auto; color: #00FF88;">✓</span>' : ''}
+                        </button>
+                    `).join('')}
+                </div>
+
+                <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #888;">
+                    Current: ${languages.find(l => l.code === this.currentLanguage)?.name || 'English'}
+                </div>
+            </div>
+        `;
+
+        // Remove existing panel
+        const existingPanel = document.getElementById('languagePanel');
         if (existingPanel) existingPanel.remove();
 
         // Add new panel
@@ -8071,6 +8383,26 @@ function resetGamificationStats() {
         window.app.showGamificationPanel();
         window.app.showNotification('🔄 Stats reset successfully!', 'info');
     }
+}
+
+function showLanguageSelector() {
+    if (window.app && window.app.showLanguagePanel) {
+        window.app.showLanguagePanel();
+    } else {
+        console.error('❌ App not ready yet');
+    }
+}
+
+function changeLanguage(language) {
+    if (window.app && window.app.changeLanguage) {
+        window.app.changeLanguage(language);
+        closeLanguagePanel();
+    }
+}
+
+function closeLanguagePanel() {
+    const panel = document.getElementById('languagePanel');
+    if (panel) panel.remove();
 }
 
 function findNearby(type) {
