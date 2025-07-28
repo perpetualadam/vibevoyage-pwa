@@ -1254,6 +1254,12 @@ class VibeVoyageApp {
             return this.locationRequestPromise;
         }
 
+        // If location was already denied, don't keep trying
+        if (this.locationDenied) {
+            console.log('📍 Location access was denied, using demo location');
+            return;
+        }
+
         this.locationRequestInProgress = true;
         const statusElement = document.getElementById('locationStatus');
 
@@ -1350,9 +1356,11 @@ class VibeVoyageApp {
             if (error.code === 1) {
                 errorMessage = 'Using demo location';
                 notificationMessage = 'Using demo location (NYC). Enable location for better experience.';
+                this.locationDenied = true; // Prevent further attempts
             } else if (error.code === 2) {
                 errorMessage = 'Location unavailable';
                 notificationMessage = 'Location services unavailable. Using demo location (NYC).';
+                this.locationDenied = true; // Prevent further attempts
             } else if (error.code === 3) {
                 errorMessage = 'Location timeout';
                 notificationMessage = 'Location request timed out. Using demo location (NYC).';
@@ -1566,7 +1574,20 @@ class VibeVoyageApp {
 
         // Build exclusion parameters for OSRM API
         const excludeParams = this.buildOSRMExcludeParams(exclusions);
-        console.log('🚨 OSRM exclude parameters:', excludeParams);
+        console.log('🚨 OSRM exclude parameters (before cleaning):', excludeParams);
+
+        // Clean any remaining :1 suffixes from all parameters
+        Object.keys(excludeParams).forEach(key => {
+            if (excludeParams[key]) {
+                const cleaned = excludeParams[key].replace(/:1/g, '');
+                if (cleaned !== excludeParams[key]) {
+                    console.log(`🧹 Cleaned ${key}: "${excludeParams[key]}" → "${cleaned}"`);
+                    excludeParams[key] = cleaned;
+                }
+            }
+        });
+
+        console.log('🚨 OSRM exclude parameters (after cleaning):', excludeParams);
 
         // Show user notification about active hazard avoidance
         const activeHazards = this.getActiveHazardTypes();
