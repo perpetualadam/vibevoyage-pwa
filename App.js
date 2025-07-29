@@ -3590,8 +3590,8 @@ class VibeVoyageApp {
                             return a.priority - b.priority;
                         }
 
-                        const distanceA = this.calculateDistance({ lat, lng }, { lat: a.lat, lng: a.lng });
-                        const distanceB = this.calculateDistance({ lat, lng }, { lat: b.lat, lng: b.lng });
+                        const distanceA = this.calculateDistanceBetweenPoints({ lat, lng }, { lat: a.lat, lng: a.lng });
+                        const distanceB = this.calculateDistanceBetweenPoints({ lat, lng }, { lat: b.lat, lng: b.lng });
                         return distanceA - distanceB;
                     })
                     .slice(0, 5); // Limit to 5 results
@@ -7115,8 +7115,8 @@ class VibeVoyageApp {
         }
     }
 
-    // Helper function for distance calculation
-    calculateDistance(from, to) {
+    // Helper function for distance calculation between coordinate objects
+    calculateDistanceBetweenPoints(from, to) {
         const R = 6371e3; // Earth's radius in meters
         const φ1 = from.lat * Math.PI / 180;
         const φ2 = to.lat * Math.PI / 180;
