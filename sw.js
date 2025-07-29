@@ -481,4 +481,101 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Background Sync - Keep user actions in sync when network returns
+self.addEventListener('sync', (event) => {
+  console.log('🔄 Background sync triggered:', event.tag);
+
+  if (event.tag === 'background-sync-routes') {
+    event.waitUntil(syncRouteRequests());
+  } else if (event.tag === 'background-sync-hazards') {
+    event.waitUntil(syncHazardReports());
+  } else if (event.tag === 'background-sync-locations') {
+    event.waitUntil(syncLocationUpdates());
+  }
+});
+
+// Sync route requests made while offline
+async function syncRouteRequests() {
+  try {
+    console.log('🔄 Syncing offline route requests...');
+    const cache = await caches.open(OFFLINE_CACHE);
+    const requests = await cache.keys();
+
+    for (const request of requests) {
+      if (request.url.includes('route') || request.url.includes('navigation')) {
+        try {
+          // Retry the request now that we're online
+          const response = await fetch(request);
+          if (response.ok) {
+            await cache.put(request, response.clone());
+            console.log('✅ Synced route request:', request.url);
+          }
+        } catch (error) {
+          console.log('⚠️ Failed to sync route request:', error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Background sync failed for routes:', error);
+  }
+}
+
+// Sync hazard reports made while offline
+async function syncHazardReports() {
+  try {
+    console.log('🔄 Syncing offline hazard reports...');
+    // Get stored hazard reports from IndexedDB or cache
+    const cache = await caches.open(OFFLINE_CACHE);
+    const storedReports = await cache.match('offline-hazard-reports');
+
+    if (storedReports) {
+      const reports = await storedReports.json();
+      for (const report of reports) {
+        try {
+          // Submit the hazard report now that we're online
+          const response = await fetch('/api/hazards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(report)
+          });
+
+          if (response.ok) {
+            console.log('✅ Synced hazard report:', report.id);
+          }
+        } catch (error) {
+          console.log('⚠️ Failed to sync hazard report:', error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Background sync failed for hazards:', error);
+  }
+}
+
+// Sync location updates made while offline
+async function syncLocationUpdates() {
+  try {
+    console.log('🔄 Syncing offline location updates...');
+    // Sync any location-based data that was cached while offline
+    const cache = await caches.open(DYNAMIC_CACHE);
+    const locationRequests = await cache.keys();
+
+    for (const request of locationRequests) {
+      if (request.url.includes('location') || request.url.includes('geocode')) {
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            await cache.put(request, response.clone());
+            console.log('✅ Synced location data:', request.url);
+          }
+        } catch (error) {
+          console.log('⚠️ Failed to sync location data:', error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Background sync failed for locations:', error);
+  }
+}
+
 console.log('VibeVoyage Service Worker loaded successfully');

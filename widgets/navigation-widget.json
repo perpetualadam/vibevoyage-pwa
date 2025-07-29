@@ -1,0 +1,46 @@
+{
+  "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "🚗 VibeVoyage",
+          "weight": "Bolder",
+          "size": "Medium",
+          "color": "Accent"
+        },
+        {
+          "type": "TextBlock",
+          "text": "Quick Navigation",
+          "size": "Small",
+          "color": "Default",
+          "spacing": "None"
+        },
+        {
+          "type": "Input.Text",
+          "id": "destination",
+          "placeholder": "Where to?",
+          "style": "Text"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Navigate",
+      "url": "/?action=navigate&destination=${destination.value}",
+      "style": "positive"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Find Gas",
+      "url": "/?action=gas",
+      "style": "default"
+    }
+  ]
+}

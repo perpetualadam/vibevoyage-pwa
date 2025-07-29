@@ -315,6 +315,9 @@ class VibeVoyageApp {
         // Initialize offline detection
         this.initOfflineDetection();
 
+        // Handle widget actions from URL parameters
+        this.handleWidgetActions();
+
         // Initialize IndexedDB for offline storage
         this.initOfflineStorage();
 
@@ -9843,12 +9846,99 @@ class VibeVoyageApp {
                     if (registration.waiting) {
                         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
                     }
+
+                    // Initialize background sync
+                    this.initBackgroundSync(registration);
                 })
                 .catch(error => {
                     console.error('❌ SW registration failed:', error);
                 });
         } else {
             console.warn('⚠️ Service Worker not supported');
+        }
+    }
+
+    initBackgroundSync(registration) {
+        if ('sync' in window.ServiceWorkerRegistration.prototype) {
+            console.log('✅ Background Sync supported');
+            this.serviceWorkerRegistration = registration;
+
+            // Listen for online/offline events to trigger sync
+            window.addEventListener('online', () => {
+                console.log('🔄 Back online - triggering background sync');
+                this.triggerBackgroundSync();
+            });
+
+        } else {
+            console.warn('⚠️ Background Sync not supported');
+        }
+    }
+
+    async triggerBackgroundSync() {
+        if (this.serviceWorkerRegistration && 'sync' in window.ServiceWorkerRegistration.prototype) {
+            try {
+                // Register background sync for different types of data
+                await this.serviceWorkerRegistration.sync.register('background-sync-routes');
+                await this.serviceWorkerRegistration.sync.register('background-sync-hazards');
+                await this.serviceWorkerRegistration.sync.register('background-sync-locations');
+                console.log('✅ Background sync registered for all data types');
+            } catch (error) {
+                console.error('❌ Background sync registration failed:', error);
+            }
+        }
+    }
+
+    // Handle widget actions from URL parameters
+    handleWidgetActions() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+        const destination = urlParams.get('destination');
+
+        console.log('🔍 Checking for widget actions:', { action, destination });
+
+        if (action) {
+            setTimeout(() => {
+                switch (action) {
+                    case 'navigate':
+                        if (destination) {
+                            console.log('🚗 Widget navigation request:', destination);
+                            const toInput = document.getElementById('toInput');
+                            if (toInput) {
+                                toInput.value = destination;
+                                this.calculateRoute();
+                            }
+                        } else {
+                            // Focus on destination input for manual entry
+                            const toInput = document.getElementById('toInput');
+                            if (toInput) {
+                                toInput.focus();
+                            }
+                        }
+                        break;
+
+                    case 'gas':
+                        console.log('⛽ Widget gas station request');
+                        this.findNearbyServices('fuel');
+                        break;
+
+                    case 'repair':
+                        console.log('🔧 Widget repair shop request');
+                        this.findNearbyServices('repair');
+                        break;
+
+                    case 'report':
+                        console.log('⚠️ Widget hazard report request');
+                        // Open hazard reporting interface
+                        const reportBtn = document.querySelector('[onclick*="reportHazard"]');
+                        if (reportBtn) {
+                            reportBtn.click();
+                        }
+                        break;
+
+                    default:
+                        console.log('❓ Unknown widget action:', action);
+                }
+            }, 1000); // Wait for app to fully initialize
         }
     }
 }

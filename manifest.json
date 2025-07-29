@@ -85,21 +85,70 @@
       "short_name": "Navigate",
       "description": "Start navigation to a destination",
       "url": "/?action=navigate",
-      "icons": [{ "src": "./icons/icon.svg", "sizes": "96x96" }]
+      "icons": [{ "src": "icon.svg", "sizes": "96x96" }]
     },
     {
       "name": "Find Gas Stations",
       "short_name": "Gas",
       "description": "Find nearby gas stations",
       "url": "/?action=gas",
-      "icons": [{ "src": "./icons/icon.svg", "sizes": "96x96" }]
+      "icons": [{ "src": "icon.svg", "sizes": "96x96" }]
     },
     {
       "name": "Report Hazard",
       "short_name": "Report",
       "description": "Report a road hazard",
       "url": "/?action=report",
-      "icons": [{ "src": "./icons/icon.svg", "sizes": "96x96" }]
+      "icons": [{ "src": "icon.svg", "sizes": "96x96" }]
+    }
+  ],
+
+  "widgets": [
+    {
+      "name": "Quick Navigation",
+      "short_name": "Navigate",
+      "description": "Start navigation quickly from your home screen",
+      "tag": "quick-nav",
+      "template": "quick-navigation",
+      "ms_ac_template": "adaptive",
+      "data": "widgets/navigation-widget.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "icon.svg",
+          "sizes": "256x256",
+          "label": "Quick Navigation Widget"
+        }
+      ],
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "256x256"
+        }
+      ]
+    },
+    {
+      "name": "Nearby Services",
+      "short_name": "Services",
+      "description": "Find nearby gas stations and services",
+      "tag": "nearby-services",
+      "template": "nearby-services",
+      "ms_ac_template": "adaptive",
+      "data": "widgets/services-widget.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "icon.svg",
+          "sizes": "256x256",
+          "label": "Nearby Services Widget"
+        }
+      ],
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "256x256"
+        }
+      ]
     }
   ],
   

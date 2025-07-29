@@ -1,0 +1,73 @@
+{
+  "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "⛽ Nearby Services",
+          "weight": "Bolder",
+          "size": "Medium",
+          "color": "Accent"
+        },
+        {
+          "type": "TextBlock",
+          "text": "Find services near you",
+          "size": "Small",
+          "color": "Default",
+          "spacing": "None"
+        },
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "⛽ Gas Stations",
+                  "size": "Small"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "🔧 Repairs",
+                  "size": "Small"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Find Gas",
+      "url": "/?action=gas",
+      "style": "positive"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Find Repairs",
+      "url": "/?action=repair",
+      "style": "default"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Open App",
+      "url": "/",
+      "style": "default"
+    }
+  ]
+}
