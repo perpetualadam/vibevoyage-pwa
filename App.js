@@ -1737,6 +1737,12 @@ class VibeVoyageApp {
         const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
         const end = `${this.destination.lng},${this.destination.lat}`;
 
+        // Extract individual coordinates for service URLs
+        const startLat = this.currentLocation.lat;
+        const startLng = this.currentLocation.lng;
+        const endLat = this.destination.lat;
+        const endLng = this.destination.lng;
+
         console.log('🗺️ Route calculation coordinates:', { start, end });
         console.log('🗺️ Current location:', this.currentLocation);
         console.log('🗺️ Destination:', this.destination);
@@ -1747,23 +1753,10 @@ class VibeVoyageApp {
             throw new Error(`Invalid coordinate format: start=${start}, end=${end}`);
         }
 
-        // Build exclusion list based on hazard avoidance settings
-        const exclusions = this.buildRouteExclusions();
-        console.log('🚨 Route exclusions based on hazard settings:', exclusions);
-
-        // Build exclusion parameters for OSRM API
-        const excludeParams = this.buildOSRMExcludeParams(exclusions);
-        console.log('🚨 OSRM exclude parameters (before cleaning):', excludeParams);
-
-        // Debug: Log coordinates and parameters
+        // Log coordinates for debugging
         console.log('🔍 Route calculation coordinates:', { start, end });
         console.log('🔍 Current location:', this.currentLocation);
         console.log('🔍 Destination:', this.destination);
-
-        // Debug: Log each parameter before and after cleaning
-        Object.keys(excludeParams).forEach(key => {
-            console.log(`🔍 Before cleaning ${key}:`, excludeParams[key]);
-        });
 
         // Clean any remaining :1 suffixes from all parameters (multiple passes)
         Object.keys(excludeParams).forEach(key => {
@@ -2038,8 +2031,8 @@ class VibeVoyageApp {
                 this.selectRoute(0);
 
                 // Update UI
-                this.updateRouteDisplay();
-                this.showRouteOptions();
+                this.showRouteSelection(routes);
+                this.displayMultipleRoutes(routes);
 
                 return;
             }
@@ -2056,7 +2049,8 @@ class VibeVoyageApp {
         if (demoRoute) {
             this.availableRoutes = [demoRoute];
             this.selectRoute(0);
-            this.updateRouteDisplay();
+            this.showRouteSelection([demoRoute]);
+            this.displayMultipleRoutes([demoRoute]);
             console.log('✅ Demo route created as final fallback');
         } else {
             console.error('❌ Failed to create demo route');
