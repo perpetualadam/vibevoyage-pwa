@@ -7357,8 +7357,9 @@ class VibeVoyageApp {
         indicator.id = 'connectionStatus';
 
         // Use individual style properties to avoid CSS conflicts
+        // Position below header to avoid covering mic button
         indicator.style.position = 'fixed';
-        indicator.style.top = '15px';
+        indicator.style.top = '60px';  // Below the header (header height ~50px)
         indicator.style.right = '15px';
         indicator.style.padding = '8px 12px';
         indicator.style.borderRadius = '15px';
