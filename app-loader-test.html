@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Loader Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        
+        .result {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        .info { background: #2d4a5a; }
+    </style>
+</head>
+<body>
+    <h1>🔍 App.js Loading Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="testDirectLoad()" style="background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+        🧪 Test Direct Load
+    </button>
+    
+    <button onclick="testWithCache()" style="background: #28a745; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+        🔄 Test With Cache Bust
+    </button>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            resultsDiv.appendChild(div);
+            console.log(message);
+        }
+        
+        function testDirectLoad() {
+            addResult('🧪 Testing direct App.js load...', 'info');
+            
+            // Clear any existing classes
+            if (typeof VibeVoyageApp !== 'undefined') {
+                addResult('⚠️ VibeVoyageApp already exists, clearing...', 'warning');
+                delete window.VibeVoyageApp;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'App.js?direct=' + Date.now();
+            
+            script.onload = () => {
+                addResult('✅ App.js loaded successfully', 'success');
+                
+                // Check if class is defined
+                if (typeof VibeVoyageApp !== 'undefined') {
+                    addResult('✅ VibeVoyageApp class is available', 'success');
+                    
+                    try {
+                        const testApp = new VibeVoyageApp();
+                        addResult('✅ VibeVoyageApp can be instantiated', 'success');
+                        
+                        // Check if it has expected methods
+                        if (typeof testApp.initMap === 'function') {
+                            addResult('✅ initMap method exists', 'success');
+                        } else {
+                            addResult('❌ initMap method missing', 'error');
+                        }
+                        
+                        if (typeof testApp.initLeafletMap === 'function') {
+                            addResult('✅ initLeafletMap method exists', 'success');
+                        } else {
+                            addResult('❌ initLeafletMap method missing', 'error');
+                        }
+                        
+                    } catch (error) {
+                        addResult(`❌ Failed to instantiate VibeVoyageApp: ${error.message}`, 'error');
+                    }
+                    
+                } else {
+                    addResult('❌ VibeVoyageApp class not defined after load', 'error');
+                }
+            };
+            
+            script.onerror = () => {
+                addResult('❌ Failed to load App.js', 'error');
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        function testWithCache() {
+            addResult('🔄 Testing App.js with cache busting...', 'info');
+            
+            // Clear any existing classes
+            if (typeof VibeVoyageApp !== 'undefined') {
+                addResult('⚠️ VibeVoyageApp already exists, clearing...', 'warning');
+                delete window.VibeVoyageApp;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'App.js?v=' + Date.now() + '&t=' + Date.now() + '&test=true';
+            
+            script.onload = () => {
+                addResult('✅ App.js loaded with cache busting', 'success');
+                
+                // Check if class is defined
+                if (typeof VibeVoyageApp !== 'undefined') {
+                    addResult('✅ VibeVoyageApp class is available', 'success');
+                    
+                    // Check if initializeVibeVoyage function exists
+                    if (typeof initializeVibeVoyage !== 'undefined') {
+                        addResult('✅ initializeVibeVoyage function exists', 'success');
+                        
+                        try {
+                            addResult('🚀 Attempting to initialize app...', 'info');
+                            const app = initializeVibeVoyage();
+                            
+                            if (app) {
+                                addResult('✅ App initialized successfully', 'success');
+                                window.testApp = app;
+                                
+                                // Check app state
+                                setTimeout(() => {
+                                    if (app.map) {
+                                        addResult('✅ App has map instance', 'success');
+                                    } else {
+                                        addResult('⚠️ App has no map instance yet', 'warning');
+                                    }
+                                    
+                                    if (app.mapInitialized) {
+                                        addResult('✅ App reports map as initialized', 'success');
+                                    } else {
+                                        addResult('⚠️ App reports map as not initialized', 'warning');
+                                    }
+                                }, 2000);
+                                
+                            } else {
+                                addResult('❌ initializeVibeVoyage returned null/undefined', 'error');
+                            }
+                            
+                        } catch (error) {
+                            addResult(`❌ Failed to initialize app: ${error.message}`, 'error');
+                        }
+                        
+                    } else {
+                        addResult('❌ initializeVibeVoyage function not found', 'error');
+                    }
+                    
+                } else {
+                    addResult('❌ VibeVoyageApp class not defined after load', 'error');
+                }
+            };
+            
+            script.onerror = () => {
+                addResult('❌ Failed to load App.js with cache busting', 'error');
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        // Auto-run initial checks
+        document.addEventListener('DOMContentLoaded', () => {
+            addResult('🚀 App loader test ready', 'success');
+            
+            // Check current state
+            if (typeof VibeVoyageApp !== 'undefined') {
+                addResult('✅ VibeVoyageApp already available', 'success');
+            } else {
+                addResult('❌ VibeVoyageApp not currently available', 'error');
+            }
+            
+            if (typeof initializeVibeVoyage !== 'undefined') {
+                addResult('✅ initializeVibeVoyage already available', 'success');
+            } else {
+                addResult('❌ initializeVibeVoyage not currently available', 'error');
+            }
+            
+            if (typeof window.app !== 'undefined') {
+                addResult('✅ window.app already exists', 'success');
+            } else {
+                addResult('❌ window.app does not exist', 'error');
+            }
+        });
+        
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            addResult(`❌ Global error: ${event.error?.message || event.message}`, 'error');
+        });
+    </script>
+</body>
+</html>

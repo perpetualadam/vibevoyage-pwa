@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage - Hotfix Applied</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .status {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .success { background: #2d5a2d; }
+        .warning { background: #5a5a2d; }
+        .error { background: #5a2d2d; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .console-output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .instructions {
+            background: #2d4a5a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 VibeVoyage Hotfix</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ol>
+                <li><strong>Open your main VibeVoyage page</strong> in another tab</li>
+                <li><strong>Open Developer Tools</strong> (F12)</li>
+                <li><strong>Go to Console tab</strong></li>
+                <li><strong>Copy and paste</strong> the hotfix code from below</li>
+                <li><strong>Press Enter</strong> to apply the fix</li>
+                <li><strong>Refresh your main page</strong> - the errors should be gone!</li>
+            </ol>
+        </div>
+        
+        <div class="status" id="status">
+            Status: Loading hotfix...
+        </div>
+        
+        <button onclick="copyHotfixCode()">📋 Copy Hotfix Code</button>
+        <button onclick="testHotfix()">🧪 Test Hotfix</button>
+        <button onclick="openMainPage()">🚀 Open Main Page</button>
+        
+        <div class="console-output" id="console">
+            Console output will appear here...
+        </div>
+        
+        <h3>🔧 Hotfix Code (Copy this to your main page's console):</h3>
+        <textarea id="hotfixCode" style="width: 100%; height: 200px; background: #000; color: #0f0; font-family: monospace; padding: 10px;" readonly></textarea>
+    </div>
+
+    <!-- Load the hotfix script -->
+    <script src="hotfix.js"></script>
+    
+    <script>
+        // Capture console output
+        const originalLog = console.log;
+        const consoleDiv = document.getElementById('console');
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.join(' ');
+            consoleDiv.innerHTML += message + '\n';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+        
+        // Load hotfix code into textarea
+        fetch('hotfix.js')
+            .then(response => response.text())
+            .then(code => {
+                document.getElementById('hotfixCode').value = code;
+                document.getElementById('status').textContent = 'Status: Hotfix code loaded and ready to copy';
+                document.getElementById('status').className = 'status success';
+            })
+            .catch(error => {
+                document.getElementById('status').textContent = 'Status: Error loading hotfix code';
+                document.getElementById('status').className = 'status error';
+            });
+        
+        function copyHotfixCode() {
+            const textarea = document.getElementById('hotfixCode');
+            textarea.select();
+            document.execCommand('copy');
+            
+            document.getElementById('status').textContent = 'Status: Hotfix code copied to clipboard! Paste it in your main page console.';
+            document.getElementById('status').className = 'status success';
+        }
+        
+        function testHotfix() {
+            console.log('🧪 Testing hotfix...');
+            if (typeof VibeVoyageApp !== 'undefined') {
+                console.log('✅ VibeVoyageApp class is available');
+                if (window.app) {
+                    console.log('✅ App instance is available');
+                    if (window.app.recenterMap) {
+                        console.log('✅ recenterMap function is available');
+                        console.log('🧪 Testing recenterMap function...');
+                        try {
+                            window.app.recenterMap();
+                            console.log('✅ recenterMap function executed without errors!');
+                        } catch (error) {
+                            console.log('❌ recenterMap function failed:', error);
+                        }
+                    } else {
+                        console.log('❌ recenterMap function not found');
+                    }
+                } else {
+                    console.log('❌ App instance not found');
+                }
+            } else {
+                console.log('❌ VibeVoyageApp class not found');
+            }
+        }
+        
+        function openMainPage() {
+            window.open('index.html', '_blank');
+        }
+    </script>
+</body>
+</html>

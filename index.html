@@ -161,8 +161,18 @@
     <script src="src/modules/GamificationManager.js"></script>
     <script src="src/modules/HazardManager.js"></script>
 
-    <!-- Main Application - Load App.js directly -->
-    <script src="App.js?v=2025.22&system=master&t=1737735205&nocache=true&force=reload" defer></script>
+    <!-- Main Application - Load App.js directly with aggressive cache busting -->
+    <script>
+        // Force load App.js with current timestamp to bypass all caching
+        const appScript = document.createElement('script');
+        appScript.src = 'App.js?v=1753792801956&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
+        appScript.defer = true;
+        document.head.appendChild(appScript);
+        console.log('🔧 Loading App.js with timestamp:', appScript.src);
+
+        // Set a global flag to indicate app is loading
+        window.vibeVoyageLoading = true;
+    </script>
 
     <!-- Fallback for modular loading (if needed) -->
     <script>
@@ -171,7 +181,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=2025.22&system=master&t=' + Date.now() + '&nocache=true&force=reload';
+                script.src = 'App.js?v=1753792801956&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -3502,7 +3512,7 @@
 
                             // Try loading App.js again
                             const script = document.createElement('script');
-                            script.src = 'App.js?v=' + Date.now();
+                            script.src = 'App.js?v=1753792801956&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                             script.onload = () => {
                                 console.log('✅ App.js reloaded');
                                 setTimeout(() => {

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage PWA - Fixed Version</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="controls">
+        <button onclick="testRecenterMap()">Test Recenter Map</button>
+        <button onclick="testGetLocation()">Test Get Location</button>
+    </div>
+    
+    <div class="status">
+        <div>Status: <span id="status">Loading...</span></div>
+        <div>Version: Fixed 2025.01.29</div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Load the fixed App.js -->
+    <script>
+        console.log('🔧 Loading App-Fixed.js with timestamp:', Date.now());
+    </script>
+    <script src="App-Fixed.js"></script>
+    
+    <script>
+        // Test functions
+        function testRecenterMap() {
+            console.log('🧪 Testing recenterMap function...');
+            if (window.app && window.app.recenterMap) {
+                window.app.recenterMap();
+                document.getElementById('status').textContent = 'Recenter Map called';
+            } else {
+                console.error('❌ App or recenterMap function not available');
+                document.getElementById('status').textContent = 'Error: App not available';
+            }
+        }
+        
+        function testGetLocation() {
+            console.log('🧪 Testing getCurrentLocation function...');
+            if (window.app && window.app.getCurrentLocation) {
+                window.app.getCurrentLocation().then(location => {
+                    console.log('✅ Location obtained:', location);
+                    document.getElementById('status').textContent = `Location: ${location.lat}, ${location.lng}`;
+                });
+            } else {
+                console.error('❌ App or getCurrentLocation function not available');
+                document.getElementById('status').textContent = 'Error: App not available';
+            }
+        }
+        
+        // Update status when app is ready
+        setTimeout(() => {
+            if (window.app) {
+                document.getElementById('status').textContent = 'App loaded successfully';
+            } else {
+                document.getElementById('status').textContent = 'App failed to load';
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

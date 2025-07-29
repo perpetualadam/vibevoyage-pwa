@@ -103,8 +103,9 @@ class RouteManager extends BaseModule {
     buildRouteVariants(from, to, options) {
         const start = `${from.lng},${from.lat}`;
         const end = `${to.lng},${to.lat}`;
-        const baseParams = 'overview=full&geometries=geojson&steps=true&voice_instructions=true';
-        
+        // Remove invalid OSRM parameters: voice_instructions is not supported by OSRM
+        const baseParams = 'overview=full&geometries=geojson&steps=true';
+
         const variants = [
             {
                 name: 'Fastest Route',
@@ -114,6 +115,7 @@ class RouteManager extends BaseModule {
         ];
 
         // Add highway-avoiding route if not already avoiding
+        // Note: OSRM supports exclude parameter with specific road types
         if (!options.avoidHighways) {
             variants.push({
                 name: 'No Highways',
@@ -122,10 +124,10 @@ class RouteManager extends BaseModule {
             });
         }
 
-        // Add shortest route
+        // Add shortest route - remove continue_straight parameter as it's not valid for OSRM
         variants.push({
             name: 'Shortest Route',
-            url: `${this.osrmEndpoint}/${start};${end}?${baseParams}&continue_straight=false`,
+            url: `${this.osrmEndpoint}/${start};${end}?${baseParams}`,
             type: 'shortest'
         });
 
@@ -140,6 +142,7 @@ class RouteManager extends BaseModule {
             }
 
             this.log(`Fetching route: ${routeName}`, 'debug');
+            this.log(`Request URL: ${url}`, 'debug');
 
             const response = await this.withTimeout(
                 fetch(url),

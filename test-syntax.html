@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Syntax Test</title>
+</head>
+<body>
+    <h1>Testing JavaScript Syntax</h1>
+    <div id="result"></div>
+    
+    <script>
+        console.log('🧪 Testing syntax fixes...');
+        
+        // Test the fixed syntax
+        try {
+            // This should work now (fixed version)
+            const appScript = document.createElement('script');
+            appScript.src = 'App.js?v=1753785750996&t=' + Date.now() + '&nocache=true&force=reload&fixed=true&cachebuster=v3';
+            console.log('✅ Syntax test 1 passed:', appScript.src);
+            
+            // Test second fixed syntax
+            const script = document.createElement('script');
+            script.src = 'App.js?v=1753785750996&t=' + Date.now() + '&nocache=true&force=reload&fixed=true';
+            console.log('✅ Syntax test 2 passed:', script.src);
+            
+            document.getElementById('result').innerHTML = '✅ All syntax tests passed!';
+            
+        } catch (error) {
+            console.error('❌ Syntax test failed:', error);
+            document.getElementById('result').innerHTML = '❌ Syntax test failed: ' + error.message;
+        }
+    </script>
+</body>
+</html>

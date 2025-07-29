@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage - Standalone Working Version</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .header {
+            background: #333;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .status {
+            background: #2d5a2d;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        #map {
+            height: 400px;
+            margin: 20px;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .red { background: #dc3545; }
+        .red:hover { background: #c82333; }
+        
+        .console {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 VibeVoyage PWA - Standalone Version</h1>
+        <p>Working version that bypasses all service worker issues</p>
+    </div>
+    
+    <div class="status">
+        ✅ SUCCESS! This page loaded without any service worker interference!
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="controls">
+        <button onclick="initMap()">🗺️ Initialize Map</button>
+        <button onclick="testLocation()">📍 Get My Location</button>
+        <button onclick="clearServiceWorker()" class="red">🚫 Fix Service Worker</button>
+        <button onclick="testNavigation()">🧭 Test Route</button>
+    </div>
+    
+    <div class="console" id="console">
+        🚀 Standalone version loaded successfully!<br>
+        📍 Default location: Sheffield, UK<br>
+        🔧 Click buttons above to test functionality<br>
+    </div>
+
+    <!-- Load Leaflet directly from CDN (bypasses service worker) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Prevent service worker registration
+        if ('serviceWorker' in navigator) {
+            // Don't register any new service workers
+            console.log('🚫 Service worker registration blocked');
+        }
+        
+        // Console logging
+        function log(message, type = 'info') {
+            const consoleDiv = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                success: '#0f0',
+                error: '#f00',
+                warning: '#ff0',
+                info: '#0ff'
+            };
+            
+            consoleDiv.innerHTML += `<div style="color: ${colors[type]}">[${timestamp}] ${message}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        // Global variables
+        let map = null;
+        let currentLocation = { lat: 53.3811, lng: -1.4701 }; // Sheffield, UK
+        
+        // Initialize map
+        function initMap() {
+            log('🗺️ Initializing map...', 'info');
+            
+            try {
+                if (map) {
+                    map.remove();
+                }
+                
+                map = L.map('map').setView([currentLocation.lat, currentLocation.lng], 13);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                
+                // Add a marker
+                L.marker([currentLocation.lat, currentLocation.lng])
+                    .addTo(map)
+                    .bindPopup('📍 Default Location (Sheffield, UK)')
+                    .openPopup();
+                
+                log('✅ Map initialized successfully!', 'success');
+                
+            } catch (error) {
+                log(`❌ Map initialization failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test location services
+        function testLocation() {
+            log('📍 Getting your location...', 'info');
+            
+            if (!navigator.geolocation) {
+                log('❌ Geolocation not supported', 'error');
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    log(`✅ Location: ${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}`, 'success');
+                    
+                    if (map) {
+                        map.setView([currentLocation.lat, currentLocation.lng], 15);
+                        
+                        // Clear existing markers
+                        map.eachLayer((layer) => {
+                            if (layer instanceof L.Marker) {
+                                map.removeLayer(layer);
+                            }
+                        });
+                        
+                        // Add new marker
+                        L.marker([currentLocation.lat, currentLocation.lng])
+                            .addTo(map)
+                            .bindPopup('📍 Your actual location!')
+                            .openPopup();
+                    }
+                },
+                (error) => {
+                    log(`⚠️ Location error: ${error.message}`, 'warning');
+                    log('Using default location instead', 'info');
+                }
+            );
+        }
+        
+        // Clear service worker and fix issues
+        async function clearServiceWorker() {
+            log('🔧 Fixing service worker issues...', 'info');
+            
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    if (registrations.length === 0) {
+                        log('✅ No problematic service workers found', 'success');
+                    } else {
+                        for (let registration of registrations) {
+                            await registration.unregister();
+                            log(`✅ Removed: ${registration.scope}`, 'success');
+                        }
+                    }
+                }
+                
+                // Clear caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    for (let cacheName of cacheNames) {
+                        await caches.delete(cacheName);
+                        log(`🧹 Cleared cache: ${cacheName}`, 'success');
+                    }
+                }
+                
+                // Clear storage
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                log('✅ All issues fixed!', 'success');
+                log('🔄 Now try opening your main app again', 'info');
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test navigation functionality
+        function testNavigation() {
+            log('🧭 Creating test route...', 'info');
+            
+            if (!map) {
+                log('❌ Initialize map first', 'error');
+                return;
+            }
+            
+            // Create a simple route
+            const start = [currentLocation.lat, currentLocation.lng];
+            const end = [currentLocation.lat + 0.01, currentLocation.lng + 0.01];
+            
+            // Clear existing routes
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            // Add route line
+            const routeLine = L.polyline([start, end], {
+                color: '#007bff',
+                weight: 5,
+                opacity: 0.8
+            }).addTo(map);
+            
+            // Add destination marker
+            L.marker(end)
+                .addTo(map)
+                .bindPopup('🎯 Test Destination')
+                .openPopup();
+            
+            // Fit map to show route
+            map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+            
+            log('✅ Test route created!', 'success');
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Standalone version loaded!', 'success');
+            log('🔧 This bypasses all service worker issues', 'info');
+            
+            // Auto-initialize map after 1 second
+            setTimeout(() => {
+                initMap();
+                log('🗺️ Map auto-initialized', 'success');
+            }, 1000);
+        });
+        
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            log(`❌ Error: ${event.error?.message || 'Unknown error'}`, 'error');
+        });
+        
+        log('📱 Standalone script loaded successfully', 'success');
+    </script>
+</body>
+</html>

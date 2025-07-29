@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disable Service Worker - VibeVoyage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px;
+            background: #333;
+            border-radius: 10px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        .info { background: #2d4a5a; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .red { background: #dc3545; }
+        .red:hover { background: #c82333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Service Worker Issues</h1>
+        
+        <div class="status info">
+            <h3>🔍 Problem Identified:</h3>
+            <p>The Service Worker (sw.js) is intercepting requests and causing 503 errors.</p>
+        </div>
+        
+        <div id="swStatus" class="status warning">
+            <p>Checking Service Worker status...</p>
+        </div>
+        
+        <div>
+            <button onclick="disableServiceWorker()" class="red">🚫 Disable Service Worker</button>
+            <button onclick="clearCache()">🧹 Clear All Cache</button>
+            <button onclick="testPages()">🧪 Test Pages</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <div class="status info">
+            <h3>📋 After Fixing:</h3>
+            <p>Try these pages:</p>
+            <ul style="text-align: left;">
+                <li><a href="/test-fixed.html" style="color: #007bff;">✅ Test Fixed Version (Recommended)</a></li>
+                <li><a href="/App-Fixed.js" style="color: #007bff;">📄 Fixed App Script</a></li>
+                <li><a href="/hotfix.html" style="color: #007bff;">🆘 Emergency Hotfix</a></li>
+                <li><a href="/index-modern.html" style="color: #007bff;">✨ Modern Version</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<p>${message}</p>`;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function disableServiceWorker() {
+            addResult('🔧 Attempting to disable Service Worker...', 'info');
+            
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    if (registrations.length === 0) {
+                        addResult('✅ No Service Workers found to disable', 'success');
+                    } else {
+                        for (let registration of registrations) {
+                            await registration.unregister();
+                            addResult(`✅ Unregistered Service Worker: ${registration.scope}`, 'success');
+                        }
+                    }
+                    
+                    // Clear service worker cache
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        for (let cacheName of cacheNames) {
+                            await caches.delete(cacheName);
+                            addResult(`🧹 Deleted cache: ${cacheName}`, 'success');
+                        }
+                    }
+                    
+                    addResult('🎉 Service Worker disabled! Refresh the page.', 'success');
+                    
+                    // Auto-refresh after 2 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                    
+                } else {
+                    addResult('ℹ️ Service Workers not supported in this browser', 'info');
+                }
+            } catch (error) {
+                addResult(`❌ Error disabling Service Worker: ${error.message}`, 'error');
+            }
+        }
+        
+        async function clearCache() {
+            addResult('🧹 Clearing all browser cache...', 'info');
+            
+            try {
+                // Clear caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    for (let cacheName of cacheNames) {
+                        await caches.delete(cacheName);
+                        addResult(`🧹 Deleted cache: ${cacheName}`, 'success');
+                    }
+                }
+                
+                // Clear localStorage
+                localStorage.clear();
+                addResult('🧹 Cleared localStorage', 'success');
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                addResult('🧹 Cleared sessionStorage', 'success');
+                
+                addResult('✅ All cache cleared! Hard refresh recommended (Ctrl+Shift+R)', 'success');
+                
+            } catch (error) {
+                addResult(`❌ Error clearing cache: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testPages() {
+            addResult('🧪 Testing page accessibility...', 'info');
+            
+            const pages = [
+                { url: '/test-fixed.html', name: 'Test Fixed Version' },
+                { url: '/App-Fixed.js', name: 'Fixed App Script' },
+                { url: '/hotfix.html', name: 'Hotfix Page' },
+                { url: '/index-modern.html', name: 'Modern Version' }
+            ];
+            
+            for (let page of pages) {
+                try {
+                    const response = await fetch(page.url);
+                    if (response.ok) {
+                        addResult(`✅ ${page.name} is accessible`, 'success');
+                    } else {
+                        addResult(`❌ ${page.name} returned ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    addResult(`❌ ${page.name} failed: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        // Check Service Worker status on load
+        async function checkServiceWorkerStatus() {
+            const statusDiv = document.getElementById('swStatus');
+            
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    if (registrations.length === 0) {
+                        statusDiv.innerHTML = '<p>✅ No Service Workers currently registered</p>';
+                        statusDiv.className = 'status success';
+                    } else {
+                        statusDiv.innerHTML = `<p>⚠️ Found ${registrations.length} Service Worker(s) - This is likely causing the 503 errors!</p>`;
+                        statusDiv.className = 'status warning';
+                    }
+                } else {
+                    statusDiv.innerHTML = '<p>ℹ️ Service Workers not supported</p>';
+                    statusDiv.className = 'status info';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p>❌ Error checking Service Workers: ${error.message}</p>`;
+                statusDiv.className = 'status error';
+            }
+        }
+        
+        // Run on page load
+        checkServiceWorkerStatus();
+        
+        console.log('🔧 Service Worker fix page loaded');
+        console.log('📍 Current URL:', window.location.href);
+    </script>
+</body>
+</html>

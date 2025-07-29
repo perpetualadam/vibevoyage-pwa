@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Diagnostic</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        
+        .diagnostic {
+            background: #333;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        #map {
+            width: 100%;
+            height: 400px;
+            background: #444;
+            border: 2px solid #007bff;
+            margin: 20px 0;
+        }
+        
+        .result {
+            background: #2d4a5a;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+    </style>
+</head>
+<body>
+    <h1>🔍 VibeVoyage Map Diagnostic</h1>
+    
+    <div class="diagnostic">
+        <h3>📋 Diagnostic Results:</h3>
+        <div id="results"></div>
+    </div>
+    
+    <div class="diagnostic">
+        <h3>🗺️ Test Map:</h3>
+        <div id="map"></div>
+    </div>
+    
+    <div class="diagnostic">
+        <h3>🔧 Actions:</h3>
+        <button onclick="testBasicMap()" style="background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+            🧪 Test Basic Map
+        </button>
+        <button onclick="testYourApp()" style="background: #28a745; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+            🚀 Test Your App
+        </button>
+        <button onclick="inspectContainer()" style="background: #ffc107; color: black; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+            🔍 Inspect Container
+        </button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            resultsDiv.appendChild(div);
+            console.log(message);
+        }
+        
+        function testBasicMap() {
+            addResult('🧪 Testing basic Leaflet map...', 'info');
+            
+            try {
+                const mapContainer = document.getElementById('map');
+                
+                // Clear any existing map
+                if (window.testMap) {
+                    window.testMap.remove();
+                    window.testMap = null;
+                }
+                
+                // Clear container
+                mapContainer.innerHTML = '';
+                
+                // Create basic map
+                window.testMap = L.map('map').setView([53.3811, -1.4701], 13);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(window.testMap);
+                
+                // Add a marker
+                L.marker([53.3811, -1.4701])
+                    .addTo(window.testMap)
+                    .bindPopup('🧪 Test marker - Sheffield, UK')
+                    .openPopup();
+                
+                addResult('✅ Basic map created successfully!', 'success');
+                
+                // Check if map is visible
+                setTimeout(() => {
+                    const mapElement = document.getElementById('map');
+                    const rect = mapElement.getBoundingClientRect();
+                    addResult(`📐 Map dimensions: ${rect.width}x${rect.height}`, 'info');
+                    
+                    if (rect.width > 0 && rect.height > 0) {
+                        addResult('✅ Map container has proper dimensions', 'success');
+                    } else {
+                        addResult('❌ Map container has zero dimensions', 'error');
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                addResult(`❌ Basic map test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function testYourApp() {
+            addResult('🚀 Testing your VibeVoyage app...', 'info');
+            
+            try {
+                // Check if your app is available
+                if (typeof window.app !== 'undefined') {
+                    addResult('✅ VibeVoyage app found in window.app', 'success');
+                    
+                    if (window.app.map) {
+                        addResult('✅ App has map instance', 'success');
+                        
+                        if (window.app.map._loaded) {
+                            addResult('✅ App map is loaded', 'success');
+                        } else {
+                            addResult('⚠️ App map exists but not loaded', 'warning');
+                        }
+                        
+                        if (window.app.map._container) {
+                            addResult('✅ App map has container', 'success');
+                            const container = window.app.map._container;
+                            const rect = container.getBoundingClientRect();
+                            addResult(`📐 App map dimensions: ${rect.width}x${rect.height}`, 'info');
+                        } else {
+                            addResult('❌ App map has no container', 'error');
+                        }
+                        
+                    } else {
+                        addResult('❌ App has no map instance', 'error');
+                    }
+                    
+                    // Check app flags
+                    if (window.app.mapInitialized) {
+                        addResult('✅ App reports map as initialized', 'success');
+                    } else {
+                        addResult('⚠️ App reports map as not initialized', 'warning');
+                    }
+                    
+                    if (window.app.mapInitializing) {
+                        addResult('⚠️ App is currently initializing map', 'warning');
+                    }
+                    
+                } else {
+                    addResult('❌ VibeVoyage app not found', 'error');
+                    
+                    // Check for VibeVoyageApp class
+                    if (typeof VibeVoyageApp !== 'undefined') {
+                        addResult('✅ VibeVoyageApp class is available', 'success');
+                    } else {
+                        addResult('❌ VibeVoyageApp class not found', 'error');
+                    }
+                }
+                
+            } catch (error) {
+                addResult(`❌ App test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function inspectContainer() {
+            addResult('🔍 Inspecting map container...', 'info');
+            
+            try {
+                const mapContainer = document.getElementById('map');
+                
+                if (mapContainer) {
+                    addResult('✅ Map container found', 'success');
+                    
+                    const rect = mapContainer.getBoundingClientRect();
+                    addResult(`📐 Container dimensions: ${rect.width}x${rect.height}`, 'info');
+                    addResult(`📍 Container position: ${rect.left}, ${rect.top}`, 'info');
+                    
+                    const styles = window.getComputedStyle(mapContainer);
+                    addResult(`🎨 Display: ${styles.display}`, 'info');
+                    addResult(`🎨 Visibility: ${styles.visibility}`, 'info');
+                    addResult(`🎨 Opacity: ${styles.opacity}`, 'info');
+                    addResult(`🎨 Z-index: ${styles.zIndex}`, 'info');
+                    
+                    // Check for Leaflet classes
+                    if (mapContainer.classList.contains('leaflet-container')) {
+                        addResult('✅ Container has leaflet-container class', 'success');
+                    } else {
+                        addResult('⚠️ Container missing leaflet-container class', 'warning');
+                    }
+                    
+                    // Check children
+                    addResult(`👶 Container children: ${mapContainer.children.length}`, 'info');
+                    
+                    if (mapContainer._leaflet_id) {
+                        addResult(`🆔 Leaflet ID: ${mapContainer._leaflet_id}`, 'info');
+                    } else {
+                        addResult('⚠️ No Leaflet ID found', 'warning');
+                    }
+                    
+                } else {
+                    addResult('❌ Map container not found', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Container inspection failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run basic diagnostics
+        document.addEventListener('DOMContentLoaded', () => {
+            addResult('🚀 Map diagnostic tool loaded', 'success');
+            addResult('📱 Click buttons above to run tests', 'info');
+            
+            // Auto-inspect container
+            setTimeout(inspectContainer, 500);
+        });
+    </script>
+</body>
+</html>

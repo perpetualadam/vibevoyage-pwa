@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Map Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        #map {
+            width: 100%;
+            height: 400px;
+            background: #444;
+            border: 2px solid #007bff;
+            margin: 20px 0;
+        }
+        
+        .info {
+            background: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ Simple Map Test</h1>
+    
+    <div class="info">
+        <h3>🎯 Goal: Create a working map that your main app can use as reference</h3>
+        <p>This will help us understand what's different between working and non-working maps.</p>
+    </div>
+    
+    <div id="status" class="info">
+        📋 Status: Ready to test
+    </div>
+    
+    <div>
+        <button onclick="createBasicMap()">🧪 Create Basic Map</button>
+        <button onclick="createAdvancedMap()">🚀 Create Advanced Map</button>
+        <button onclick="clearMap()">🗑️ Clear Map</button>
+        <button onclick="inspectMap()">🔍 Inspect Map</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div id="results" class="info">
+        📊 Results will appear here...
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let testMap = null;
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = `📋 ${message}`;
+            statusDiv.className = `info ${type}`;
+            console.log(message);
+        }
+        
+        function addResult(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<div>${new Date().toLocaleTimeString()} - ${message}</div>`;
+        }
+        
+        function clearMap() {
+            updateStatus('Clearing map...', 'warning');
+            
+            try {
+                if (testMap) {
+                    testMap.remove();
+                    testMap = null;
+                    addResult('✅ Map removed successfully');
+                }
+                
+                const mapContainer = document.getElementById('map');
+                mapContainer.innerHTML = '';
+                
+                // Clear all Leaflet properties
+                if (mapContainer._leaflet_id) {
+                    delete mapContainer._leaflet_id;
+                }
+                if (mapContainer._leaflet_map) {
+                    delete mapContainer._leaflet_map;
+                }
+                
+                // Remove Leaflet classes
+                mapContainer.className = mapContainer.className.replace(/leaflet-[^\s]*/g, '');
+                
+                updateStatus('Map cleared successfully', 'success');
+                addResult('🗑️ Map container cleaned');
+                
+            } catch (error) {
+                updateStatus(`Error clearing map: ${error.message}`, 'error');
+                addResult(`❌ Clear error: ${error.message}`);
+            }
+        }
+        
+        function createBasicMap() {
+            updateStatus('Creating basic map...', 'info');
+            
+            try {
+                // Clear any existing map first
+                clearMap();
+                
+                // Create basic map
+                testMap = L.map('map').setView([53.3811, -1.4701], 13);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(testMap);
+                
+                // Add a marker
+                L.marker([53.3811, -1.4701])
+                    .addTo(testMap)
+                    .bindPopup('🧪 Test marker - Sheffield, UK')
+                    .openPopup();
+                
+                updateStatus('Basic map created successfully!', 'success');
+                addResult('✅ Basic map with marker created');
+                
+                // Test map properties
+                setTimeout(() => {
+                    if (testMap._loaded) {
+                        addResult('✅ Map is loaded and ready');
+                    } else {
+                        addResult('⚠️ Map created but not loaded');
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                updateStatus(`Error creating basic map: ${error.message}`, 'error');
+                addResult(`❌ Basic map error: ${error.message}`);
+            }
+        }
+        
+        function createAdvancedMap() {
+            updateStatus('Creating advanced map (like VibeVoyage)...', 'info');
+            
+            try {
+                // Clear any existing map first
+                clearMap();
+                
+                // Create map with VibeVoyage-like options
+                testMap = L.map('map', {
+                    center: [53.3811, -1.4701],
+                    zoom: 13,
+                    zoomControl: false,
+                    attributionControl: false,
+                    tap: true,
+                    tapTolerance: 15,
+                    touchZoom: true,
+                    doubleClickZoom: true,
+                    scrollWheelZoom: 'center',
+                    boxZoom: false,
+                    keyboard: true,
+                    dragging: true,
+                    maxZoom: 22,
+                    minZoom: 3,
+                    preferCanvas: false,
+                    renderer: L.svg(),
+                    bounceAtZoomLimits: false,
+                    worldCopyJump: false
+                });
+                
+                // Add tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 20,
+                    crossOrigin: true
+                }).addTo(testMap);
+                
+                // Create layers like VibeVoyage
+                const markersLayer = L.layerGroup().addTo(testMap);
+                const routeLayer = L.layerGroup().addTo(testMap);
+                const hazardsLayer = L.layerGroup().addTo(testMap);
+                const vehicleLayer = L.layerGroup().addTo(testMap);
+                
+                // Add click handler
+                testMap.on('click', (e) => {
+                    addResult(`🎯 Map clicked at: ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`);
+                });
+                
+                // Add a marker to markersLayer
+                L.marker([53.3811, -1.4701])
+                    .addTo(markersLayer)
+                    .bindPopup('🚗 VibeVoyage-style marker')
+                    .openPopup();
+                
+                updateStatus('Advanced map created successfully!', 'success');
+                addResult('✅ Advanced map with layers created');
+                
+                // Force resize like VibeVoyage does
+                setTimeout(() => {
+                    if (testMap) {
+                        testMap.invalidateSize();
+                        addResult('🗺️ Map size invalidated');
+                    }
+                }, 100);
+                
+                setTimeout(() => {
+                    if (testMap) {
+                        testMap.invalidateSize();
+                        addResult('🗺️ Map final resize completed');
+                    }
+                }, 500);
+                
+            } catch (error) {
+                updateStatus(`Error creating advanced map: ${error.message}`, 'error');
+                addResult(`❌ Advanced map error: ${error.message}`);
+            }
+        }
+        
+        function inspectMap() {
+            updateStatus('Inspecting map...', 'info');
+            
+            try {
+                const mapContainer = document.getElementById('map');
+                
+                addResult('🔍 Map Container Inspection:');
+                addResult(`- Element exists: ${!!mapContainer}`);
+                addResult(`- Has _leaflet_id: ${!!mapContainer._leaflet_id}`);
+                addResult(`- _leaflet_id value: ${mapContainer._leaflet_id || 'none'}`);
+                addResult(`- Has _leaflet_map: ${!!mapContainer._leaflet_map}`);
+                addResult(`- Classes: ${mapContainer.className}`);
+                addResult(`- Children count: ${mapContainer.children.length}`);
+                
+                const rect = mapContainer.getBoundingClientRect();
+                addResult(`- Dimensions: ${rect.width}x${rect.height}`);
+                addResult(`- Position: ${rect.left}, ${rect.top}`);
+                
+                if (testMap) {
+                    addResult('🗺️ Map Instance Inspection:');
+                    addResult(`- Map exists: ${!!testMap}`);
+                    addResult(`- Map loaded: ${!!testMap._loaded}`);
+                    addResult(`- Map container: ${!!testMap._container}`);
+                    addResult(`- Map zoom: ${testMap.getZoom()}`);
+                    addResult(`- Map center: ${testMap.getCenter()}`);
+                } else {
+                    addResult('⚠️ No map instance found');
+                }
+                
+                updateStatus('Inspection completed', 'success');
+                
+            } catch (error) {
+                updateStatus(`Error inspecting map: ${error.message}`, 'error');
+                addResult(`❌ Inspection error: ${error.message}`);
+            }
+        }
+        
+        // Auto-run on load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('Simple map test ready', 'success');
+            addResult('🚀 Test page loaded - click buttons to test maps');
+        });
+    </script>
+</body>
+</html>

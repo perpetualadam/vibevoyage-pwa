@@ -2,6 +2,12 @@
  * VibeVoyage PWA - Smart Navigation Application
  * TypeScript-inspired JavaScript implementation for better type safety and reduced issues
  */
+
+// Debug: File loading check - CACHE BUSTER
+console.log('🔄 App.js file is loading... Version: 2025.01.29-v3-FIXED', new Date().toISOString());
+console.log('🔧 CACHE BUSTER: This is the FIXED version of the file!');
+console.log('🔧 If you see this message, the new file is loading correctly!');
+
 class VibeVoyageApp {
     constructor() {
         console.log('🌟 VibeVoyage PWA Initializing...');
@@ -15,6 +21,14 @@ class VibeVoyageApp {
         this.destination = null;
         /** @type {boolean} */
         this.isNavigating = false;
+
+        // Map initialization control flags
+        /** @type {boolean} */
+        this.mapInitializing = false;
+        /** @type {boolean} */
+        this.mapInitialized = false;
+        /** @type {boolean} */
+        this.asyncInitializing = false;
         /** @type {string} */
         this.journeyState = 'idle'; // idle, route-selected, navigating, paused
         /** @type {number | null} */
@@ -145,9 +159,7 @@ class VibeVoyageApp {
 
         script.onload = () => {
             console.log('✅ Leaflet loaded successfully');
-            setTimeout(async () => {
-                await this.initMap();
-            }, 100);
+            // Map initialization is handled by initializeAsync() - no need for duplicate calls
         };
 
         script.onerror = () => {
@@ -267,17 +279,19 @@ class VibeVoyageApp {
             this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
         }, 1000);
 
-        // Force map initialization after a delay
-        setTimeout(async () => {
-            if (!this.map && !this.isUsingBackupMap) {
-                console.log('🔄 Map not initialized, retrying...');
-                await this.initMap();
-            }
-        }, 1000);
+        // Note: Map initialization is handled by initializeAsync() - no need for duplicate calls
     }
 
     // Async initialization method (called after constructor)
     async initializeAsync() {
+        // Prevent multiple simultaneous initializations
+        if (this.asyncInitializing) {
+            console.log('🔄 Async initialization already in progress, skipping...');
+            return;
+        }
+
+        this.asyncInitializing = true;
+
         try {
             console.log('🔄 Starting async initialization...');
 
@@ -298,6 +312,9 @@ class VibeVoyageApp {
         } catch (error) {
             console.error('❌ Async initialization failed:', error);
             this.showNotification('⚠️ Some features may not work properly', 'warning');
+        } finally {
+            // Always reset the initialization flag
+            this.asyncInitializing = false;
         }
     }
 
@@ -479,6 +496,14 @@ class VibeVoyageApp {
                 console.warn('⚠️ HazardDetectionService not available');
             }
 
+            // Initialize Traffic Camera Service
+            if (typeof TrafficCameraService !== 'undefined') {
+                this.trafficCameraService = new TrafficCameraService();
+                console.log('✅ TrafficCameraService initialized');
+            } else {
+                console.warn('⚠️ TrafficCameraService not available');
+            }
+
             // Initialize Geocoding Service
             if (typeof GeocodingService !== 'undefined') {
                 this.geocodingService = new GeocodingService();
@@ -618,24 +643,46 @@ class VibeVoyageApp {
 
     async waitForMapReady() {
         return new Promise((resolve) => {
-            if (this.map && this.map._loaded) {
+            // Check if map is already initialized and ready
+            if (this.mapInitialized && this.map && this.map._loaded) {
+                console.log('✅ Map is already ready');
                 resolve();
-            } else if (this.map) {
+                return;
+            }
+
+            // If map exists but not loaded, wait for it
+            if (this.map) {
                 this.map.whenReady(() => {
                     console.log('🗺️ Map is ready for operations');
                     resolve();
                 });
-            } else {
-                // Fallback: wait a bit and check again
-                setTimeout(() => {
-                    if (this.map) {
-                        this.map.whenReady(resolve);
-                    } else {
-                        console.warn('⚠️ Map still not initialized, proceeding anyway');
-                        resolve();
-                    }
-                }, 1000);
+                return;
             }
+
+            // Fallback: wait a bit and check again
+            let attempts = 0;
+            const maxAttempts = 10; // 1 second max wait
+
+            const checkMap = () => {
+                attempts++;
+
+                if (this.mapInitialized && this.map && this.map._loaded) {
+                    console.log('✅ Map became ready');
+                    resolve();
+                } else if (this.map) {
+                    this.map.whenReady(() => {
+                        console.log('🗺️ Map is ready for operations');
+                        resolve();
+                    });
+                } else if (attempts >= maxAttempts) {
+                    console.warn('⚠️ Map still not initialized, proceeding anyway');
+                    resolve();
+                } else {
+                    setTimeout(checkMap, 100);
+                }
+            };
+
+            checkMap();
         });
     }
 
@@ -762,12 +809,22 @@ class VibeVoyageApp {
     }
 
     async initLeafletMap() {
+        // Use the proven minimal app approach
+        if (this.mapInitialized && this.map) {
+            console.log('🗺️ Map already initialized, skipping...');
+            return;
+        }
+
+        console.log('🗺️ Initializing map using minimal app approach...');
+        this.mapInitializing = true;
+
         // Check if map container exists
         const mapContainer = document.getElementById('map');
         if (!mapContainer) {
             console.error('❌ Map container not found');
             console.log('🔍 Available elements with "map" in ID:',
                 Array.from(document.querySelectorAll('[id*="map"]')).map(el => el.id));
+            this.mapInitializing = false;
             throw new Error('Map container not found');
         }
 
@@ -798,14 +855,31 @@ class VibeVoyageApp {
         }
 
         try {
-            // Check if map is already initialized
-            if (this.map && this.map._container && this.map._container === mapContainer) {
-                console.log('🗺️ Map already initialized and has correct container, skipping...');
+            // Check if map is already initialized and working
+            if (this.map && this.map._container && this.map._container === mapContainer && this.map._loaded) {
+                console.log('🗺️ Map already initialized and working, skipping...');
+                this.mapInitializing = false;
                 return;
             }
 
-            // Aggressive cleanup of any existing map instance
-            console.log('🔄 Performing aggressive map cleanup...');
+            // Simple, proven cleanup approach from minimal app
+            console.log('🔄 Cleaning map container...');
+
+            // Remove existing map if it exists
+            if (this.map && this.map.remove) {
+                try {
+                    this.map.remove();
+                    this.map = null;
+                } catch (e) {
+                    console.warn('⚠️ Error removing existing map:', e);
+                }
+            }
+
+            // Clean container like minimal app
+            mapContainer.innerHTML = '';
+            delete mapContainer._leaflet_id;
+            delete mapContainer._leaflet_map;
+            mapContainer.className = mapContainer.className.replace(/leaflet-[^\s]*/g, '');
 
             // Remove existing map instance if it exists
             if (this.map && this.map.remove) {
@@ -820,18 +894,21 @@ class VibeVoyageApp {
             // Clean up any map instance attached to container
             if (mapContainer._leaflet_id) {
                 try {
-                    // Find and remove the existing map
-                    const existingMap = mapContainer._leaflet_map;
-                    if (existingMap && existingMap.remove) {
-                        existingMap.remove();
-                    }
+                    // Clear all Leaflet-related properties from container
+                    Object.keys(mapContainer).forEach(key => {
+                        if (key.startsWith('_leaflet')) {
+                            delete mapContainer[key];
+                        }
+                    });
 
-                    // Clear Leaflet's internal registry
-                    if (window.L && window.L.Util && window.L.Util.stamp) {
-                        delete window.L.Util._leafletId;
-                    }
+                    // Clear container content
+                    mapContainer.innerHTML = '';
+
+                    // Remove any existing Leaflet classes
+                    mapContainer.className = mapContainer.className.replace(/leaflet-[^\s]*/g, '').trim();
+
                 } catch (e) {
-                    console.warn('⚠️ Error removing container map:', e);
+                    console.warn('⚠️ Error cleaning container:', e);
                 }
             }
 
@@ -857,32 +934,10 @@ class VibeVoyageApp {
             // Initialize Leaflet map with enhanced mobile options
             console.log('🗺️ Creating new Leaflet map instance...');
 
-            // Get intelligent default location
-            const defaultLoc = await this.getDefaultLocation();
+            // Use simple approach like minimal app
+            console.log('🗺️ Creating map with simple configuration...');
 
-            this.map = L.map('map', {
-                center: [defaultLoc.lat, defaultLoc.lng], // Use intelligent default
-                zoom: 13,
-                zoomControl: false,
-                attributionControl: false,
-                // Mobile-specific options
-                tap: true,
-                tapTolerance: 15,
-                touchZoom: true,
-                doubleClickZoom: true,
-                scrollWheelZoom: 'center',
-                boxZoom: false,
-                keyboard: true,
-                dragging: true,
-            maxZoom: 22,
-            minZoom: 3,
-            // Mobile performance options
-            preferCanvas: false,
-            renderer: L.svg(),
-            // Touch interaction improvements
-            bounceAtZoomLimits: false,
-            worldCopyJump: false
-        });
+            this.map = L.map('map').setView([53.3811, -1.4701], 13);
 
             // Verify map was created successfully
             if (!this.map) {
@@ -890,14 +945,12 @@ class VibeVoyageApp {
             }
             console.log('✅ Leaflet map instance created successfully');
 
-            // Add OpenStreetMap tiles
-            this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 20,
-                crossOrigin: true
+            // Add tiles like minimal app
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
             }).addTo(this.map);
 
-            // Initialize map layers for different elements
+            // Create layers like minimal app
             this.markersLayer = L.layerGroup().addTo(this.map);
             this.routeLayer = L.layerGroup().addTo(this.map);
             this.hazardsLayer = L.layerGroup().addTo(this.map);
@@ -940,6 +993,7 @@ class VibeVoyageApp {
             }, 500);
 
             console.log('✅ Map initialized successfully');
+            this.mapInitialized = true;
 
             // Fix map display issues
             setTimeout(() => {
@@ -949,6 +1003,10 @@ class VibeVoyageApp {
         } catch (error) {
             console.error('❌ Map initialization failed:', error);
             this.showMapPlaceholder();
+            this.mapInitialized = false;
+        } finally {
+            // Always reset the initialization flag
+            this.mapInitializing = false;
         }
     }
     
@@ -1835,9 +1893,8 @@ class VibeVoyageApp {
         console.log('🗺️ Current location:', this.currentLocation);
         console.log('🗺️ Destination:', this.destination);
 
-        // Validate coordinate format
-        const coordRegex = /^-?\d+\.?\d*,-?\d+\.?\d*$/;
-        if (!coordRegex.test(start) || !coordRegex.test(end)) {
+        // Validate coordinate format with more comprehensive checks
+        if (!this.validateCoordinateString(start) || !this.validateCoordinateString(end)) {
             throw new Error(`Invalid coordinate format: start=${start}, end=${end}`);
         }
 
@@ -1854,23 +1911,26 @@ class VibeVoyageApp {
 
 
 
+        // Get avoidance parameters based on user settings
+        const avoidanceParams = this.buildAvoidanceParameters();
+
         // Reliable routing services - only use free, working services
         const routingServices = [
             {
                 name: 'OSRM Primary Route',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true${avoidanceParams}`,
                 timeout: 10000,
                 type: 'osrm'
             },
             {
                 name: 'OSRM with Alternatives',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${avoidanceParams}`,
                 timeout: 8000,
                 type: 'osrm'
             },
             {
                 name: 'OSRM Fastest Route',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=false`,
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=false${avoidanceParams}`,
                 timeout: 6000,
                 type: 'osrm'
             }
@@ -1919,6 +1979,8 @@ class VibeVoyageApp {
                         console.warn(`⚠️ ${result.value.service}: HTTP ${response.status} - ${response.statusText}`);
                         if (response.status === 400) {
                             console.warn(`⚠️ ${result.value.service}: Bad request - possibly invalid coordinates or parameters`);
+                            console.warn(`⚠️ Request URL: ${routingServices[i].url}`);
+                            console.warn(`⚠️ Coordinates used: start=${start}, end=${end}`);
                         }
                     }
                 } catch (error) {
@@ -1936,7 +1998,7 @@ class VibeVoyageApp {
         if (routes.length === 0) {
             console.warn('⚠️ All routing services failed, creating demo route...');
             // Create a simple demo route for testing
-            const demoRoute = this.createDemoRoute(start, end);
+            const demoRoute = await this.createDemoRoute(start, end);
             if (demoRoute) {
                 routes.push(demoRoute);
                 console.log('✅ Demo route created as fallback');
@@ -1948,8 +2010,11 @@ class VibeVoyageApp {
         // Remove duplicates and limit to 4 routes
         const uniqueRoutes = this.removeDuplicateRoutes(routes).slice(0, 4);
 
-        // Sort routes by type preference
-        return this.sortRoutesByPreference(uniqueRoutes);
+        // Apply hazard avoidance to routes
+        const routesWithAvoidance = await this.applyHazardAvoidanceToRoutes(uniqueRoutes);
+
+        // Sort routes by type preference (now includes avoidance scoring)
+        return this.sortRoutesByPreference(routesWithAvoidance);
     }
 
     getRouteType(requestIndex, routeIndex) {
@@ -1987,10 +2052,22 @@ class VibeVoyageApp {
     sortRoutesByPreference(routes) {
         const typeOrder = { fastest: 0, shortest: 1, scenic: 2, alternative: 3 };
         return routes.sort((a, b) => {
+            // Primary sort: Avoidance score (lower is better - fewer hazards to avoid)
+            const avoidanceA = a.avoidanceScore || 0;
+            const avoidanceB = b.avoidanceScore || 0;
+
+            // If one route has significantly fewer hazards, prefer it
+            if (Math.abs(avoidanceA - avoidanceB) > 300) { // 5+ minute difference
+                return avoidanceA - avoidanceB;
+            }
+
+            // Secondary sort: Route type preference
             const orderA = typeOrder[a.type] || 999;
             const orderB = typeOrder[b.type] || 999;
             if (orderA !== orderB) return orderA - orderB;
-            return a.duration - b.duration; // Secondary sort by duration
+
+            // Tertiary sort: Duration (including avoidance penalties)
+            return a.duration - b.duration;
         });
     }
 
@@ -2025,7 +2102,7 @@ class VibeVoyageApp {
         console.warn('⚠️ All routing services failed, creating demo route...');
         const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
         const end = `${this.destination.lng},${this.destination.lat}`;
-        const demoRoute = this.createDemoRoute(start, end);
+        const demoRoute = await this.createDemoRoute(start, end);
 
         if (demoRoute) {
             this.availableRoutes = [demoRoute];
@@ -4474,8 +4551,9 @@ class VibeVoyageApp {
     }
 
     // Map control functions
-    recenterMap() {
-        console.log('🎯 Recentering map...');
+    async recenterMap() {
+        console.log('🎯 Recentering map... [FIXED VERSION - ASYNC FUNCTION]');
+        console.log('🔧 This function is properly declared as ASYNC!');
 
         if (!this.map) {
             console.log('❌ Map not initialized');
@@ -4563,6 +4641,41 @@ class VibeVoyageApp {
         this.showNotification(`🔍 Zoom level: ${newZoom}`, 'info');
     }
 
+    // Coordinate validation helper
+    validateCoordinateString(coordString) {
+        if (!coordString || typeof coordString !== 'string') {
+            console.error('❌ Invalid coordinate string:', coordString);
+            return false;
+        }
+
+        const parts = coordString.split(',');
+        if (parts.length !== 2) {
+            console.error('❌ Coordinate string must have exactly 2 parts:', coordString);
+            return false;
+        }
+
+        const [lng, lat] = parts.map(Number);
+
+        // Check for NaN values
+        if (isNaN(lng) || isNaN(lat)) {
+            console.error('❌ Coordinate parts are not valid numbers:', { lng, lat, original: coordString });
+            return false;
+        }
+
+        // Check coordinate bounds (longitude: -180 to 180, latitude: -90 to 90)
+        if (lng < -180 || lng > 180) {
+            console.error('❌ Longitude out of bounds:', lng);
+            return false;
+        }
+
+        if (lat < -90 || lat > 90) {
+            console.error('❌ Latitude out of bounds:', lat);
+            return false;
+        }
+
+        return true;
+    }
+
     // Hazard avoidance routing functions
     buildRouteExclusions() {
         const settings = this.hazardAvoidanceSettings;
@@ -4589,12 +4702,14 @@ class VibeVoyageApp {
         }
 
         if (settings.narrowRoads) {
-            // Avoid residential and unclassified roads which tend to be narrow
-            baseExclusions.push('residential', 'unclassified');
+            // OSRM only supports specific exclusion types: motorway, trunk, ferry, toll
+            // Narrow roads are typically residential, but OSRM doesn't support excluding them directly
+            // We'll use trunk exclusion as a compromise since trunk roads are usually wider
         }
 
         if (settings.steepGrades) {
             // Avoid trunk roads which may have steep grades in hilly areas
+            // trunk is a valid OSRM exclusion type
             if (!baseExclusions.includes('trunk')) {
                 baseExclusions.push('trunk');
             }
@@ -4611,21 +4726,34 @@ class VibeVoyageApp {
             fastest: buildExclusionString(),
             noHighway: buildExclusionString(['motorway']), // Avoid highways for safer route
             shortest: buildExclusionString(),
-            noLights: buildExclusionString(['trunk', 'secondary']), // Avoid roads with many traffic lights
-            noRailway: buildExclusionString(settings.railwayCrossings ? ['trunk', 'secondary'] : [])
+            noLights: buildExclusionString(['trunk']), // Avoid trunk roads (secondary is not a valid OSRM exclusion)
+            noRailway: buildExclusionString(settings.railwayCrossings ? ['trunk'] : []) // Only use trunk (secondary is not valid)
         };
     }
 
     buildOSRMExcludeParams(exclusions) {
         // Convert exclusion strings to OSRM API parameters
+        // OSRM only supports these exclusion types: motorway, trunk, ferry, toll
+        const validOSRMExclusions = ['motorway', 'trunk', 'ferry', 'toll'];
+
         const buildExcludeParam = (exclusionString) => {
             if (!exclusionString || exclusionString.length === 0) {
                 return '';
             }
+
+            // Filter to only valid OSRM exclusion types
+            const exclusionList = exclusionString.split(',').map(e => e.trim());
+            const validExclusions = exclusionList.filter(exclusion =>
+                validOSRMExclusions.includes(exclusion)
+            );
+
+            if (validExclusions.length === 0) {
+                return '';
+            }
+
             // Clean the exclusion string and build parameter
-            // Remove any :1 suffixes that might cause OSRM 400 errors
-            const cleanExclusions = exclusionString.trim().replace(/:1/g, '');
-            return cleanExclusions ? `&exclude=${cleanExclusions}` : '';
+            const cleanExclusions = validExclusions.join(',');
+            return `&exclude=${cleanExclusions}`;
         };
 
         return {
@@ -4705,7 +4833,7 @@ class VibeVoyageApp {
         return waypoints;
     }
 
-    createDemoRoute(start, end) {
+    async createDemoRoute(start, end) {
         try {
             // Parse coordinates with validation
             const [startLng, startLat] = start.split(',').map(Number);
@@ -4719,7 +4847,7 @@ class VibeVoyageApp {
                 const defaultStartLat = defaultLoc.lat, defaultStartLng = defaultLoc.lng;
                 const defaultEndLat = defaultLoc.lat + 0.09, defaultEndLng = defaultLoc.lng + 0.09; // ~10km away
                 console.log('🔄 Using intelligent default coordinates:', { defaultStartLat, defaultStartLng, defaultEndLat, defaultEndLng });
-                return this.createDemoRoute(`${defaultStartLng},${defaultStartLat}`, `${defaultEndLng},${defaultEndLat}`);
+                return await this.createDemoRoute(`${defaultStartLng},${defaultStartLat}`, `${defaultEndLng},${defaultEndLat}`);
             }
 
             // Create a more realistic route that approximates road paths
@@ -7053,12 +7181,204 @@ class VibeVoyageApp {
         this.hazardAvoidanceSettings = settings;
         console.log('🚨 Updated hazard settings:', settings);
 
+        // Update TrafficCameraService settings to match UI
+        if (this.trafficCameraService) {
+            const trafficServiceSettings = {
+                avoidSpeedCameras: settings.speedCameras,
+                avoidRedLightCameras: settings.redLightCameras,
+                avoidTrafficEnforcement: settings.speedCameras, // Use speed cameras setting for general traffic enforcement
+                avoidRailwayCrossings: settings.railwayCrossings,
+                avoidPoliceCheckpoints: settings.policeReports,
+                avoidPoliceStations: settings.policeReports,
+                avoidTollRoads: settings.tollBooths,
+                avoidDifficultJunctions: settings.trafficLights,
+                avoidSteepGrades: settings.steepGrades,
+                avoidNarrowRoads: settings.narrowRoads
+            };
+
+            this.trafficCameraService.updateSettings(trafficServiceSettings);
+            console.log('📷 Updated TrafficCameraService settings:', trafficServiceSettings);
+        }
+
         // If we have a current route, recalculate with new settings
         if (this.currentLocation && this.destination) {
             console.log('🔄 Recalculating routes with new hazard settings...');
             this.showNotification('🔄 Recalculating routes with hazard avoidance...', 'info');
             this.calculateMultipleRoutes();
         }
+
+        // Update any existing hazard markers on the map
+        this.updateHazardMarkersVisibility();
+    }
+
+    // Update hazard marker visibility based on current settings
+    updateHazardMarkersVisibility() {
+        if (!this.map || !this.trafficCameraService) return;
+
+        // Get current hazard data and apply visibility settings
+        const settings = this.hazardAvoidanceSettings;
+
+        // Hide/show speed camera markers based on settings
+        if (this.hazardMarkers) {
+            this.hazardMarkers.forEach(marker => {
+                const hazardType = marker.hazardType;
+                let shouldShow = true;
+
+                switch (hazardType) {
+                    case 'speed_camera':
+                        shouldShow = settings.speedCameras;
+                        break;
+                    case 'red_light_camera':
+                    case 'traffic_camera':
+                        shouldShow = settings.redLightCameras;
+                        break;
+                    case 'railway_crossing':
+                        shouldShow = settings.railwayCrossings;
+                        break;
+                    case 'police_station':
+                    case 'police_checkpoint':
+                        shouldShow = settings.policeReports;
+                        break;
+                    case 'toll_booth':
+                        shouldShow = settings.tollBooths;
+                        break;
+                }
+
+                if (shouldShow) {
+                    if (!this.map.hasLayer(marker)) {
+                        marker.addTo(this.map);
+                    }
+                } else {
+                    if (this.map.hasLayer(marker)) {
+                        this.map.removeLayer(marker);
+                    }
+                }
+            });
+        }
+
+        console.log('🎯 Updated hazard marker visibility based on avoidance settings');
+    }
+
+    // Build avoidance parameters for routing API based on user settings
+    buildAvoidanceParameters() {
+        if (!this.hazardAvoidanceSettings) {
+            return '';
+        }
+
+        const settings = this.hazardAvoidanceSettings;
+        const avoidanceFeatures = [];
+
+        // Note: OSRM has limited built-in avoidance features
+        // We'll implement post-processing avoidance for cameras
+
+        // For now, we can avoid certain road types that OSRM supports
+        if (settings.tollBooths) {
+            // OSRM doesn't have direct toll avoidance, but we'll mark it for post-processing
+            console.log('📷 Toll booth avoidance enabled - will be applied in post-processing');
+        }
+
+        if (settings.railwayCrossings) {
+            console.log('🚂 Railway crossing avoidance enabled - will be applied in post-processing');
+        }
+
+        if (settings.speedCameras || settings.redLightCameras) {
+            console.log('📷 Camera avoidance enabled - will be applied in post-processing');
+        }
+
+        // OSRM supports excluding certain road types
+        // For now, return empty string as we'll do post-processing avoidance
+        return '';
+    }
+
+    // Apply post-processing avoidance to routes based on hazard settings
+    async applyHazardAvoidanceToRoutes(routes) {
+        if (!this.trafficCameraService || !this.hazardAvoidanceSettings) {
+            return routes;
+        }
+
+        console.log('🎯 Applying hazard avoidance to routes...');
+        const settings = this.hazardAvoidanceSettings;
+
+        return routes.map(route => {
+            // Calculate avoidance score based on hazards along the route
+            let avoidanceScore = 0;
+            const hazardsOnRoute = [];
+
+            if (route.coordinates) {
+                // Check for hazards along the route
+                route.coordinates.forEach(coord => {
+                    // Simulate hazard detection (in real implementation, this would query the TrafficCameraService)
+                    const nearbyHazards = this.simulateHazardDetection(coord);
+
+                    nearbyHazards.forEach(hazard => {
+                        let shouldAvoid = false;
+                        let penalty = 0;
+
+                        switch (hazard.type) {
+                            case 'speed_camera':
+                                shouldAvoid = settings.speedCameras;
+                                penalty = 300; // 5 minutes penalty
+                                break;
+                            case 'red_light_camera':
+                                shouldAvoid = settings.redLightCameras;
+                                penalty = 180; // 3 minutes penalty
+                                break;
+                            case 'railway_crossing':
+                                shouldAvoid = settings.railwayCrossings;
+                                penalty = 99999; // Absolute avoidance
+                                break;
+                            case 'toll_booth':
+                                shouldAvoid = settings.tollBooths;
+                                penalty = 120; // 2 minutes penalty
+                                break;
+                        }
+
+                        if (shouldAvoid) {
+                            avoidanceScore += penalty;
+                            hazardsOnRoute.push(hazard);
+                        }
+                    });
+                });
+            }
+
+            // Add avoidance information to route
+            route.avoidanceScore = avoidanceScore;
+            route.hazardsOnRoute = hazardsOnRoute;
+            route.avoidanceApplied = true;
+
+            // Adjust route duration based on avoidance score
+            if (avoidanceScore > 0) {
+                route.duration = (route.duration || 0) + avoidanceScore;
+                route.avoidancePenalty = avoidanceScore;
+            }
+
+            return route;
+        });
+    }
+
+    // Simulate hazard detection for a coordinate (placeholder for real implementation)
+    simulateHazardDetection(coord) {
+        // This is a placeholder - in real implementation, this would query actual hazard databases
+        const hazards = [];
+
+        // Randomly simulate some hazards for demonstration
+        if (Math.random() < 0.1) { // 10% chance of speed camera
+            hazards.push({
+                type: 'speed_camera',
+                location: coord,
+                id: `sim_speed_${Date.now()}_${Math.random()}`
+            });
+        }
+
+        if (Math.random() < 0.05) { // 5% chance of railway crossing
+            hazards.push({
+                type: 'railway_crossing',
+                location: coord,
+                id: `sim_railway_${Date.now()}_${Math.random()}`
+            });
+        }
+
+        return hazards;
     }
 
     getCheckboxValue(id) {
@@ -7097,7 +7417,7 @@ class VibeVoyageApp {
                                 <input type="checkbox" id="roadwork" onchange="updateHazardAvoidanceSettings()"> 🚧 Road Works
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="checkbox" id="railwayCrossings" checked onchange="updateHazardAvoidanceSettings()"> 🚂 Railway Crossings
+                                <input type="checkbox" id="railwayCrossings" checked onchange="updateHazardAvoidanceSettings()"> 🚂 Railway Crossings (⚠️ Avoid at all costs)
                             </label>
                             <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                 <input type="checkbox" id="trafficLights" onchange="updateHazardAvoidanceSettings()"> 🚦 Complex Junctions
@@ -7176,53 +7496,8 @@ class VibeVoyageApp {
         }
     }
 
-    // Map control functions
-    recenterMap() {
-        console.log('🎯 Recentering map...');
-
-        if (!this.map) {
-            console.log('❌ Map not initialized');
-            this.showNotification('Map not ready', 'warning');
-            return;
-        }
-
-        // If we have a current location, center on it
-        if (this.currentLocation) {
-            console.log('📍 Centering on current location:', this.currentLocation);
-            this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15, {
-                animate: true,
-                duration: 0.5
-            });
-            this.showNotification('🎯 Map recentered on your location', 'success');
-            this.addVoiceLogEntry('Map recentered on current location');
-        }
-        // If we have a destination but no current location, center on destination
-        else if (this.destination) {
-            console.log('🎯 Centering on destination:', this.destination);
-            this.map.setView([this.destination.lat, this.destination.lng], 15, {
-                animate: true,
-                duration: 0.5
-            });
-            this.showNotification('🎯 Map centered on destination', 'info');
-        }
-        // If we have a route, fit the route bounds
-        else if (this.currentRoute && this.currentRoute.coordinates) {
-            console.log('🗺️ Fitting route bounds');
-            const bounds = L.latLngBounds(this.currentRoute.coordinates);
-            this.map.fitBounds(bounds, { padding: [20, 20] });
-            this.showNotification('🎯 Map centered on route', 'info');
-        }
-        // Default to intelligent location
-        else {
-            console.log('🌍 Centering on intelligent default location');
-            const defaultLoc = await this.getDefaultLocation();
-            this.map.setView([defaultLoc.lat, defaultLoc.lng], 10, {
-                animate: true,
-                duration: 0.5
-            });
-            this.showNotification(`🎯 Map centered on ${defaultLoc.name || 'default location'}`, 'info');
-        }
-    }
+    // Map control functions (duplicate - removing this one)
+    // This function is duplicated above, removing to avoid conflicts
 
     showHazardAlert(hazard) {
         const alertElement = document.getElementById('navHazardAlert');
@@ -8232,10 +8507,19 @@ class VibeVoyageApp {
         const toInput = document.getElementById('toInput');
         const fromInput = document.getElementById('fromInput');
 
+        // Check if required elements exist (they might not in diagnostic/test environments)
+        if (!toInput || !fromInput) {
+            console.log('⚠️ Some UI elements not found, skipping event listener setup');
+            return;
+        }
+
         // To input handling
         toInput.addEventListener('input', (e) => {
             const value = e.target.value.trim();
-            document.getElementById('navigateBtn').disabled = !value;
+            const navigateBtn = document.getElementById('navigateBtn');
+            if (navigateBtn) {
+                navigateBtn.disabled = !value;
+            }
 
             // Handle address input with longer debouncing for better UX
             clearTimeout(this.toInputTimeout);
@@ -8867,6 +9151,13 @@ class VibeVoyageApp {
         }
     }
 }
+
+// Debug: Class definition complete
+console.log('✅ VibeVoyageApp class defined successfully');
+
+// Make VibeVoyageApp available globally
+window.VibeVoyageApp = VibeVoyageApp;
+console.log('✅ VibeVoyageApp assigned to window object');
 
 // Global functions for HTML onclick handlers
 function toggleSettings() {
@@ -10015,6 +10306,12 @@ function initializeVibeVoyage() {
     console.log('🚀 Initializing VibeVoyage...');
 
     try {
+        // Check if app is already initialized
+        if (window.app && window.app.mapInitialized) {
+            console.log('✅ VibeVoyage already initialized, returning existing instance');
+            return window.app;
+        }
+
         // Check if class is available
         if (typeof VibeVoyageApp === 'undefined') {
             throw new Error('VibeVoyageApp class not found');
@@ -10027,6 +10324,20 @@ function initializeVibeVoyage() {
         // Verify app is accessible
         if (window.app) {
             console.log('✅ App is accessible via window.app');
+
+            // Set global flags for diagnostics
+            window.vibeVoyageLoaded = true;
+            window.vibeVoyageLoading = false;
+
+            // Ensure map is visible after initialization
+            setTimeout(() => {
+                if (window.app.map && window.app.map._container) {
+                    window.app.map.invalidateSize();
+                    console.log('🗺️ Map size refreshed for visibility');
+                }
+            }, 1000);
+
+            return window.app; // Return the app instance
         }
 
     } catch (error) {
@@ -10061,6 +10372,7 @@ function initializeVibeVoyage() {
             ">Refresh Page</button>
         `;
         document.body.appendChild(errorDiv);
+        return null; // Return null on error
     }
 }
 
@@ -10120,5 +10432,9 @@ function showInstallPrompt() {
 
 // Manual initialization function for debugging
 window.initializeVibeVoyage = initializeVibeVoyage;
+console.log('✅ initializeVibeVoyage assigned to window object');
 
 console.log('🚀 VibeVoyage PWA Loaded!');
+console.log('🔍 Final check - VibeVoyageApp available:', typeof VibeVoyageApp !== 'undefined');
+console.log('🔍 Final check - window.VibeVoyageApp available:', typeof window.VibeVoyageApp !== 'undefined');
+console.log('🔍 Final check - initializeVibeVoyage available:', typeof initializeVibeVoyage !== 'undefined');

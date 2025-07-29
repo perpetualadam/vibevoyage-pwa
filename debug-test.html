@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoyage - Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px;
+            background: #333;
+            border-radius: 10px;
+        }
+        
+        .status {
+            background: #2d5a2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 VibeVoyage PWA - Debug Test</h1>
+        
+        <div class="status">
+            ✅ SUCCESS! The development server is working correctly!
+        </div>
+        
+        <p><strong>Server URL:</strong> http://localhost:3000</p>
+        <p><strong>Current Time:</strong> <span id="currentTime"></span></p>
+        
+        <h3>📋 Try These Pages:</h3>
+        <div>
+            <button onclick="window.open('/', '_blank')">🏠 Main App</button>
+            <button onclick="window.open('/test-fixed.html', '_blank')">🔧 Fixed Version</button>
+            <button onclick="window.open('/hotfix.html', '_blank')">🆘 Hotfix Page</button>
+            <button onclick="window.open('/index-modern.html', '_blank')">✨ Modern Version</button>
+        </div>
+        
+        <h3>🔍 Troubleshooting:</h3>
+        <div style="text-align: left; background: #2d2d2d; padding: 15px; border-radius: 5px;">
+            <p><strong>If the main app doesn't appear:</strong></p>
+            <ol>
+                <li><strong>Check Console:</strong> Press F12 → Console tab</li>
+                <li><strong>Hard Refresh:</strong> Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)</li>
+                <li><strong>Try Different Pages:</strong> Use buttons above</li>
+                <li><strong>Check Terminal:</strong> Make sure <code>npm run dev</code> is running</li>
+                <li><strong>Clear Cache:</strong> Run <code>npm run cache-bust</code></li>
+            </ol>
+        </div>
+        
+        <h3>🎯 Most Likely Solutions:</h3>
+        <div style="text-align: left; background: #2d4a5a; padding: 15px; border-radius: 5px;">
+            <p><strong>1. Try the Fixed Version:</strong></p>
+            <p>Click "🔧 Fixed Version" button above - this bypasses all cache issues.</p>
+            
+            <p><strong>2. Use the Hotfix:</strong></p>
+            <p>Click "🆘 Hotfix Page" button above - this provides emergency fixes.</p>
+            
+            <p><strong>3. Check Browser Console:</strong></p>
+            <p>Press F12, go to Console tab, and look for any red error messages.</p>
+        </div>
+    </div>
+
+    <script>
+        // Update current time
+        function updateTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString();
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        console.log('🚀 Debug test page loaded successfully!');
+        console.log('📍 Current URL:', window.location.href);
+        console.log('🕐 Load time:', new Date().toISOString());
+    </script>
+</body>
+</html>

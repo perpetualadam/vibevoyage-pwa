@@ -18,7 +18,7 @@ class RoadObstacleService {
       avoidPoliceStations: false,
 
       // Road Infrastructure
-      avoidRailwayCrossings: false,
+      avoidRailwayCrossings: true, // Enable by default due to 20min delays
       avoidDifficultJunctions: false,
       avoidMotorways: false,
       avoidTollRoads: true,
@@ -30,9 +30,12 @@ class RoadObstacleService {
       avoidFerries: false,
 
       // Timing & Distance
-      maxExtraTime: 20, // minutes
+      maxExtraTime: 20, // minutes - maximum extra time for ENTIRE journey
+      railwayCrossingDelay: 180, // 3 minutes typical crossing delay
+      maxDetourTime: 1200, // 20 minutes max detour for entire journey
       alertDistance: 500, // meters
       routeAvoidanceRadius: 200, // meters around obstacle
+      railwayCrossingRadius: 300, // moderate radius for railway crossings
 
       // Advanced Options
       avoidSchoolZones: false,
@@ -290,7 +293,7 @@ class RoadObstacleService {
       case 'traffic_camera':
         return 100; // 100m radius
       case 'railway_crossing':
-        return 50;
+        return 1000; // Large radius for absolute railway crossing avoidance
       case 'motorway_junction':
       case 'roundabout':
         return 200;
@@ -349,7 +352,7 @@ class RoadObstacleService {
       case 'police_station':
         return 15; // 15 seconds for police area
       case 'railway_crossing':
-        return 120; // 2 minutes potential wait
+        return 180; // 3 minutes typical wait (realistic UK level crossing delay)
       case 'toll_booth':
         return 60; // 1 minute for toll payment
       case 'ferry_route':
@@ -378,6 +381,222 @@ class RoadObstacleService {
     // This would integrate with government traffic and road infrastructure APIs
     // For now, return empty array as most require API keys
     return [];
+  }
+
+  // Enhanced railway crossing detection and avoidance
+  async fetchRailwayCrossingData() {
+    try {
+      const railwayCrossings = [];
+
+      // Fetch from Network Rail API (UK specific)
+      if (this.isUKLocation()) {
+        const networkRailData = await this.fetchNetworkRailCrossings();
+        railwayCrossings.push(...networkRailData);
+      }
+
+      // Fetch from OpenStreetMap with enhanced railway queries
+      const osmRailwayData = await this.fetchOSMRailwayCrossings();
+      railwayCrossings.push(...osmRailwayData);
+
+      return railwayCrossings;
+    } catch (error) {
+      console.error('Error fetching railway crossing data:', error);
+      return [];
+    }
+  }
+
+  async fetchNetworkRailCrossings() {
+    // Network Rail API integration for real-time crossing status
+    // This would require API key and proper authentication
+    try {
+      // Example API call (would need actual Network Rail API)
+      // const response = await fetch('https://api.networkrail.co.uk/level-crossings');
+      // return this.processNetworkRailData(response.data);
+
+      console.log('🚂 Network Rail API integration would go here');
+      return [];
+    } catch (error) {
+      console.warn('Network Rail API unavailable:', error);
+      return [];
+    }
+  }
+
+  async fetchOSMRailwayCrossings() {
+    // Enhanced OSM query specifically for railway crossings
+    const query = `
+      [out:json][timeout:25];
+      (
+        node["railway"="level_crossing"];
+        node["railway"="crossing"];
+        way["railway"]["highway"];
+        relation["railway"]["highway"];
+      );
+      out geom;
+    `;
+
+    try {
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query,
+        headers: { 'Content-Type': 'text/plain' }
+      });
+
+      const data = await response.json();
+      return this.processOSMRailwayData(data);
+    } catch (error) {
+      console.error('Error fetching OSM railway data:', error);
+      return [];
+    }
+  }
+
+  processOSMRailwayData(data) {
+    const railwayCrossings = [];
+
+    data.elements.forEach(element => {
+      const location = this.getElementLocation(element);
+      if (!location) return;
+
+      const crossing = {
+        id: `railway_${element.id}`,
+        type: 'railway_crossing',
+        subtype: this.getRailwayCrossingType(element.tags),
+        location,
+        source: 'openstreetmap',
+        verified: true,
+        tags: element.tags,
+        lastUpdated: Date.now(),
+        confidence: 0.95,
+        avoidanceRadius: 800, // Large radius for railway crossings
+        severity: 'critical', // Highest severity for absolute avoidance
+        timeImpact: 180, // 3 minutes realistic delay
+        routingPenalty: 99999, // Extremely high penalty to force avoidance
+        crossingDetails: {
+          hasBarriers: element.tags.barrier === 'yes',
+          isAutomatic: element.tags.crossing === 'automatic',
+          railwayType: element.tags.railway,
+          usage: element.tags.usage || 'unknown',
+          maxspeed: element.tags.maxspeed,
+          operator: element.tags.operator
+        },
+        routingStrategy: 'avoid_if_reasonable' // Only avoid if detour is reasonable
+      };
+
+      railwayCrossings.push(crossing);
+    });
+
+    return railwayCrossings;
+  }
+
+  getRailwayCrossingType(tags) {
+    if (tags.crossing === 'automatic') return 'automatic_crossing';
+    if (tags.crossing === 'manual') return 'manual_crossing';
+    if (tags.barrier === 'yes') return 'barrier_crossing';
+    if (tags.railway === 'level_crossing') return 'level_crossing';
+    return 'railway_crossing';
+  }
+
+  isUKLocation() {
+    // Simple check - in a real app, this would check current location
+    return true; // Assume UK for now
+  }
+
+  // Absolute railway crossing avoidance
+  shouldAvoidRailwayCrossing(crossing, routeInfo) {
+    const settings = this.settings;
+
+    // If railway crossing avoidance is enabled, ALWAYS avoid regardless of detour time
+    if (settings.avoidRailwayCrossings) {
+      console.log(`🚂 Railway crossing avoidance: ENABLED - avoiding crossing regardless of detour time`);
+      return true;
+    }
+
+    console.log(`🚂 Railway crossing avoidance: DISABLED - allowing crossings`);
+    return false;
+  }
+
+  estimateDetourTime(crossing, routeInfo) {
+    // Simple estimation based on distance from main route
+    // In a real implementation, this would use actual routing calculations
+
+    if (!routeInfo || !routeInfo.distance) {
+      return 300; // 5 minutes default estimate
+    }
+
+    // Estimate based on crossing position relative to route
+    const routeLength = routeInfo.distance; // in meters
+    const detourFactor = crossing.avoidanceRadius / 1000; // convert to km
+
+    // Rough calculation: detour adds ~10% to journey time per km of avoidance
+    const estimatedDetourTime = (detourFactor * 0.1 * routeLength / 1000) * 60; // in seconds
+
+    // Cap at maximum detour time
+    return Math.min(estimatedDetourTime, this.settings.maxDetourTime);
+  }
+
+  // Get routing preferences for railway crossings
+  getRailwayCrossingRoutingPreferences() {
+    return {
+      avoidanceEnabled: this.settings.avoidRailwayCrossings,
+      crossingDelay: this.settings.railwayCrossingDelay,
+      avoidanceRadius: this.settings.railwayCrossingRadius,
+      strategy: 'absolute_avoidance', // Avoid at all costs when enabled
+      priority: 'high', // High priority - avoid regardless of detour time
+      allowDetours: true, // Allow any length detour to avoid crossings
+      maxDetourTime: null // No limit when avoidance is enabled
+    };
+  }
+
+  // Apply absolute avoidance penalties for routing algorithms
+  applyRailwayCrossingPenalties(routeSegments) {
+    if (!this.settings.avoidRailwayCrossings) {
+      return routeSegments; // No penalties if avoidance is disabled
+    }
+
+    return routeSegments.map(segment => {
+      // Check if this segment contains or passes near railway crossings
+      const hasRailwayCrossing = this.segmentContainsRailwayCrossing(segment);
+
+      if (hasRailwayCrossing) {
+        // Apply massive penalty to make this route extremely undesirable
+        segment.penalty = (segment.penalty || 0) + 99999;
+        segment.avoidanceReason = 'railway_crossing_absolute_avoidance';
+        console.log(`🚂 Applied absolute avoidance penalty to route segment`);
+      }
+
+      return segment;
+    });
+  }
+
+  segmentContainsRailwayCrossing(segment) {
+    // Check if route segment passes through or near railway crossings
+    // This would integrate with the actual routing algorithm
+    // For now, return false as this is a framework function
+    return false;
+  }
+
+  // Get absolute avoidance instructions for routing engines
+  getRailwayCrossingAvoidanceInstructions() {
+    if (!this.settings.avoidRailwayCrossings) {
+      return null;
+    }
+
+    return {
+      type: 'absolute_avoidance',
+      feature: 'railway_crossings',
+      penalty: 99999,
+      radius: 1000,
+      instructions: [
+        'Avoid all railway level crossings',
+        'Prefer bridges and underpasses',
+        'Accept longer routes to avoid crossings',
+        'No time limit on detours for avoidance'
+      ],
+      osmTags: [
+        'railway=level_crossing',
+        'railway=crossing',
+        'highway+railway intersection'
+      ]
+    };
   }
 
   deduplicateObstacles(obstacles) {

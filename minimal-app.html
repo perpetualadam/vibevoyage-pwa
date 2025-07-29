@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal VibeVoyage</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            background: #007bff;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .controls {
+            background: #333;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        #map {
+            width: 100%;
+            height: 400px;
+            background: #444;
+        }
+        
+        .status {
+            background: #2d4a5a;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Minimal VibeVoyage</h1>
+        <p>Simplified version to test core functionality</p>
+    </div>
+    
+    <div class="controls">
+        <button onclick="initializeMap()">🗺️ Initialize Map</button>
+        <button onclick="getCurrentLocation()">📍 Get Location</button>
+        <button onclick="addTestMarker()">📌 Add Marker</button>
+        <button onclick="clearMap()">🗑️ Clear Map</button>
+        <button onclick="testFeatures()">🧪 Test Features</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div id="status" class="status">
+        📋 Ready to initialize...
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Minimal VibeVoyage App
+        class MinimalVibeVoyage {
+            constructor() {
+                this.map = null;
+                this.currentLocation = null;
+                this.markersLayer = null;
+                this.routeLayer = null;
+                this.initialized = false;
+                
+                this.log('🌟 Minimal VibeVoyage initialized');
+            }
+            
+            log(message, type = 'info') {
+                const statusDiv = document.getElementById('status');
+                const timestamp = new Date().toLocaleTimeString();
+                statusDiv.innerHTML = `${timestamp} - ${message}`;
+                statusDiv.className = `status ${type}`;
+                console.log(message);
+            }
+            
+            async initializeMap() {
+                if (this.initialized) {
+                    this.log('⚠️ Map already initialized', 'warning');
+                    return;
+                }
+                
+                try {
+                    this.log('🗺️ Initializing map...');
+                    
+                    // Clear container completely
+                    const mapContainer = document.getElementById('map');
+                    mapContainer.innerHTML = '';
+                    
+                    // Remove any Leaflet properties
+                    delete mapContainer._leaflet_id;
+                    delete mapContainer._leaflet_map;
+                    mapContainer.className = mapContainer.className.replace(/leaflet-[^\s]*/g, '');
+                    
+                    // Create map
+                    this.map = L.map('map').setView([53.3811, -1.4701], 13);
+                    
+                    // Add tiles
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(this.map);
+                    
+                    // Create layers
+                    this.markersLayer = L.layerGroup().addTo(this.map);
+                    this.routeLayer = L.layerGroup().addTo(this.map);
+                    
+                    // Add click handler
+                    this.map.on('click', (e) => {
+                        this.log(`🎯 Clicked: ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`);
+                    });
+                    
+                    this.initialized = true;
+                    this.log('✅ Map initialized successfully!', 'success');
+                    
+                    // Auto-get location
+                    setTimeout(() => this.getCurrentLocation(), 1000);
+                    
+                } catch (error) {
+                    this.log(`❌ Map initialization failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async getCurrentLocation() {
+                if (!this.map) {
+                    this.log('❌ Map not initialized', 'error');
+                    return;
+                }
+                
+                try {
+                    this.log('📍 Getting current location...');
+                    
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 60000
+                        });
+                    });
+                    
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    this.currentLocation = { lat, lng };
+                    
+                    // Center map on location
+                    this.map.setView([lat, lng], 15);
+                    
+                    // Add location marker
+                    L.marker([lat, lng])
+                        .addTo(this.markersLayer)
+                        .bindPopup('📍 Your Location')
+                        .openPopup();
+                    
+                    this.log(`✅ Location found: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'success');
+                    
+                } catch (error) {
+                    this.log(`⚠️ Location error: ${error.message}`, 'warning');
+                    // Use Sheffield as fallback
+                    this.currentLocation = { lat: 53.3811, lng: -1.4701 };
+                    this.map.setView([53.3811, -1.4701], 13);
+                    this.log('📍 Using Sheffield as fallback location', 'warning');
+                }
+            }
+            
+            addTestMarker() {
+                if (!this.map) {
+                    this.log('❌ Map not initialized', 'error');
+                    return;
+                }
+                
+                const center = this.map.getCenter();
+                const randomLat = center.lat + (Math.random() - 0.5) * 0.01;
+                const randomLng = center.lng + (Math.random() - 0.5) * 0.01;
+                
+                L.marker([randomLat, randomLng])
+                    .addTo(this.markersLayer)
+                    .bindPopup(`🧪 Test marker at ${randomLat.toFixed(4)}, ${randomLng.toFixed(4)}`);
+                
+                this.log('📌 Test marker added', 'success');
+            }
+            
+            clearMap() {
+                try {
+                    if (this.markersLayer) {
+                        this.markersLayer.clearLayers();
+                    }
+                    if (this.routeLayer) {
+                        this.routeLayer.clearLayers();
+                    }
+                    this.log('🗑️ Map cleared', 'success');
+                } catch (error) {
+                    this.log(`❌ Clear error: ${error.message}`, 'error');
+                }
+            }
+            
+            testFeatures() {
+                if (!this.map) {
+                    this.log('❌ Map not initialized', 'error');
+                    return;
+                }
+                
+                this.log('🧪 Testing features...');
+                
+                // Test map properties
+                const tests = [
+                    { name: 'Map exists', result: !!this.map },
+                    { name: 'Map loaded', result: !!this.map._loaded },
+                    { name: 'Map container', result: !!this.map._container },
+                    { name: 'Markers layer', result: !!this.markersLayer },
+                    { name: 'Route layer', result: !!this.routeLayer },
+                    { name: 'Current location', result: !!this.currentLocation }
+                ];
+                
+                const passed = tests.filter(t => t.result).length;
+                const total = tests.length;
+                
+                this.log(`🧪 Tests: ${passed}/${total} passed`, passed === total ? 'success' : 'warning');
+                
+                tests.forEach(test => {
+                    console.log(`${test.result ? '✅' : '❌'} ${test.name}`);
+                });
+            }
+        }
+        
+        // Global app instance
+        let app = null;
+        
+        // Global functions for buttons
+        function initializeMap() {
+            if (!app) {
+                app = new MinimalVibeVoyage();
+            }
+            app.initializeMap();
+        }
+        
+        function getCurrentLocation() {
+            if (app) app.getCurrentLocation();
+        }
+        
+        function addTestMarker() {
+            if (app) app.addTestMarker();
+        }
+        
+        function clearMap() {
+            if (app) app.clearMap();
+        }
+        
+        function testFeatures() {
+            if (app) app.testFeatures();
+        }
+        
+        // Auto-initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Minimal VibeVoyage ready');
+            // Auto-initialize after a short delay
+            setTimeout(initializeMap, 500);
+        });
+    </script>
+</body>
+</html>

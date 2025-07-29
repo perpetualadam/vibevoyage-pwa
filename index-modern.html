@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>VibeVoyage PWA - Smart Navigation</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- App Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* Critical CSS for immediate rendering */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #ccc;
+        }
+        
+        .error-message {
+            background: #5a2d2d;
+            color: #ff6b6b;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading VibeVoyage...</div>
+        <div class="loading-text" id="loadingStatus">Initializing...</div>
+    </div>
+    
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message">
+        <h3>⚠️ Loading Error</h3>
+        <p id="errorText">Something went wrong. Please refresh the page.</p>
+        <button onclick="location.reload()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+            🔄 Refresh Page
+        </button>
+    </div>
+    
+    <!-- Main App Container -->
+    <div id="app" style="display: none;">
+        <!-- Your existing app HTML goes here -->
+        <div id="map"></div>
+        <!-- Add other UI elements as needed -->
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Modern script loader with error handling and cache busting
+        class ModernScriptLoader {
+            constructor() {
+                this.loadedScripts = new Set();
+                this.version = Date.now();
+            }
+            
+            updateStatus(message) {
+                const statusEl = document.getElementById('loadingStatus');
+                if (statusEl) statusEl.textContent = message;
+                console.log(`📱 ${message}`);
+            }
+            
+            showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                const errorTextEl = document.getElementById('errorText');
+                const loadingEl = document.getElementById('loading');
+                
+                if (errorTextEl) errorTextEl.textContent = message;
+                if (errorEl) errorEl.style.display = 'block';
+                if (loadingEl) loadingEl.style.display = 'none';
+                
+                console.error(`❌ ${message}`);
+            }
+            
+            async loadScript(src, options = {}) {
+                return new Promise((resolve, reject) => {
+                    // Add cache busting
+                    const cacheBustedSrc = `${src}?v=${this.version}&t=${Date.now()}&cb=${Math.random()}`;
+                    
+                    // Remove existing script if it exists
+                    const existingScript = document.querySelector(`script[data-original-src="${src}"]`);
+                    if (existingScript) {
+                        existingScript.remove();
+                    }
+                    
+                    const script = document.createElement('script');
+                    script.src = cacheBustedSrc;
+                    script.setAttribute('data-original-src', src);
+                    script.defer = options.defer !== false;
+                    
+                    script.onload = () => {
+                        this.loadedScripts.add(src);
+                        console.log(`✅ Loaded: ${src}`);
+                        resolve(script);
+                    };
+                    
+                    script.onerror = () => {
+                        console.error(`❌ Failed to load: ${src}`);
+                        reject(new Error(`Failed to load script: ${src}`));
+                    };
+                    
+                    document.head.appendChild(script);
+                });
+            }
+            
+            async loadAllScripts() {
+                try {
+                    this.updateStatus('Loading Leaflet...');
+                    await this.loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+                    
+                    this.updateStatus('Loading app modules...');
+                    // Load your app scripts here
+                    await this.loadScript('App-Fixed.js'); // Use the fixed version
+                    
+                    this.updateStatus('Initializing app...');
+                    
+                    // Initialize the app
+                    if (typeof initializeVibeVoyage === 'function') {
+                        await initializeVibeVoyage();
+                        this.hideLoading();
+                    } else if (typeof VibeVoyageApp !== 'undefined') {
+                        window.app = new VibeVoyageApp();
+                        this.hideLoading();
+                    } else {
+                        throw new Error('App initialization functions not found');
+                    }
+                    
+                } catch (error) {
+                    this.showError(`Failed to load app: ${error.message}`);
+                }
+            }
+            
+            hideLoading() {
+                const loadingEl = document.getElementById('loading');
+                const appEl = document.getElementById('app');
+                
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (appEl) appEl.style.display = 'block';
+                
+                console.log('✅ App loaded successfully!');
+            }
+        }
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            const loader = new ModernScriptLoader();
+            loader.loadAllScripts();
+        });
+        
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            const errorEl = document.getElementById('errorMessage');
+            if (errorEl && errorEl.style.display === 'none') {
+                const loader = new ModernScriptLoader();
+                loader.showError(`Script error: ${event.error?.message || 'Unknown error'}`);
+            }
+        });
+        
+        // Unhandled promise rejection handler
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+    </script>
+</body>
+</html>
