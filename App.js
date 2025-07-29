@@ -937,7 +937,19 @@ class VibeVoyageApp {
             // Use simple approach like minimal app
             console.log('🗺️ Creating map with simple configuration...');
 
-            this.map = L.map('map').setView([53.3811, -1.4701], 13);
+            // Use current location if available, otherwise use intelligent default
+            let mapCenter = [53.3811, -1.4701]; // Sheffield, UK default
+            let mapZoom = 13;
+
+            if (this.currentLocation && this.currentLocation.lat && this.currentLocation.lng) {
+                mapCenter = [this.currentLocation.lat, this.currentLocation.lng];
+                mapZoom = 15; // Closer zoom for current location
+                console.log('🗺️ Using current location as map center:', mapCenter);
+            } else {
+                console.log('🗺️ Using default map center (Sheffield, UK):', mapCenter);
+            }
+
+            this.map = L.map('map').setView(mapCenter, mapZoom);
 
             // Verify map was created successfully
             if (!this.map) {
@@ -1397,9 +1409,14 @@ class VibeVoyageApp {
                 this.backupMap.zoom = 15;
                 this.renderBackupMap();
             } else if (this.map) {
-                this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15);
+                // Center map on current location with smooth animation
+                this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15, {
+                    animate: true,
+                    duration: 1.0
+                });
                 // Add car marker for current location
                 this.addCarMarker(this.currentLocation.lat, this.currentLocation.lng);
+                console.log('🗺️ Map centered on current location:', this.currentLocation);
             } else {
                 console.warn('⚠️ Map not ready, location stored but not displayed');
             }
@@ -1415,18 +1432,39 @@ class VibeVoyageApp {
                 fromInput.classList.add('default-location');
 
                 // Make it easy to overwrite - select all text when focused
-                fromInput.addEventListener('focus', function() {
+                const handleFocus = function() {
                     if (this.value === 'Current Location') {
                         this.select();
                     }
-                }, { once: false });
+                };
 
                 // Clear default when user starts typing something else
-                fromInput.addEventListener('input', function() {
-                    if (this.classList.contains('default-location')) {
+                const handleInput = function() {
+                    if (this.value !== 'Current Location') {
+                        this.classList.remove('default-location');
+                    } else {
+                        this.classList.add('default-location');
+                    }
+                };
+
+                // Handle immediate overwrite on keydown
+                const handleKeydown = function(e) {
+                    if (this.value === 'Current Location' && e.key.length === 1 && !e.ctrlKey && !e.altKey) {
+                        // User is typing a character, clear the default text
+                        this.value = '';
                         this.classList.remove('default-location');
                     }
-                });
+                };
+
+                // Remove existing listeners to prevent duplicates
+                fromInput.removeEventListener('focus', handleFocus);
+                fromInput.removeEventListener('input', handleInput);
+                fromInput.removeEventListener('keydown', handleKeydown);
+
+                // Add new listeners
+                fromInput.addEventListener('focus', handleFocus);
+                fromInput.addEventListener('input', handleInput);
+                fromInput.addEventListener('keydown', handleKeydown);
             }
             if (statusElement) {
                 statusElement.textContent = 'Location found';
@@ -1568,13 +1606,28 @@ class VibeVoyageApp {
                     };
 
                     this.handleFromInputChange = function() {
-                        if (this.classList.contains('default-location')) {
+                        if (this.value !== 'Current Location' && !this.value.startsWith('Demo Location')) {
+                            this.classList.remove('default-location');
+                        } else {
+                            this.classList.add('default-location');
+                        }
+                    };
+
+                    this.handleFromInputKeydown = function(e) {
+                        if ((this.value === 'Current Location' || this.value.startsWith('Demo Location')) &&
+                            e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                            // User is typing a character, clear the default text
+                            this.value = '';
                             this.classList.remove('default-location');
                         }
                     };
 
+                    // Remove existing listeners
+                    fromInput.removeEventListener('keydown', this.handleFromInputKeydown);
+
                     fromInput.addEventListener('focus', this.handleFromInputFocus);
                     fromInput.addEventListener('input', this.handleFromInputChange);
+                    fromInput.addEventListener('keydown', this.handleFromInputKeydown);
 
                     console.log('📍 Set "Current Location" as default starting point');
                 }
@@ -2962,6 +3015,14 @@ class VibeVoyageApp {
 
 
     calculateDistance(lat1, lng1, lat2, lng2) {
+        console.log('🔧 calculateDistance called with:', { lat1, lng1, lat2, lng2 });
+        console.log('🔧 Parameter types:', {
+            lat1Type: typeof lat1,
+            lng1Type: typeof lng1,
+            lat2Type: typeof lat2,
+            lng2Type: typeof lng2
+        });
+
         // Validate inputs
         if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
             console.error('❌ Invalid coordinates for distance calculation:', { lat1, lng1, lat2, lng2 });
@@ -5780,10 +5841,26 @@ class VibeVoyageApp {
 
             // Calculate distance only if we have a valid current location
             let distance = 0;
+
+            console.log(`🔍 Checking coordinates for ${element.tags?.name || 'unnamed'}:`, {
+                currentLat: this.currentLocation?.lat,
+                currentLng: this.currentLocation?.lng,
+                elementLat: lat,
+                elementLng: lng,
+                elementRaw: element
+            });
+
             if (this.currentLocation &&
                 !isNaN(this.currentLocation.lat) &&
                 !isNaN(this.currentLocation.lng) &&
                 !isNaN(lat) && !isNaN(lng)) {
+
+                console.log(`🔧 About to call calculateDistance with:`, {
+                    currentLat: this.currentLocation.lat,
+                    currentLng: this.currentLocation.lng,
+                    elementLat: lat,
+                    elementLng: lng
+                });
 
                 distance = this.calculateDistance(
                     this.currentLocation.lat,
@@ -5792,12 +5869,16 @@ class VibeVoyageApp {
                     lng
                 );
 
-                console.log(`📏 Distance calculated for ${element.tags?.name || 'unnamed'}: ${distance}m`);
+                console.log(`📏 Distance result for ${element.tags?.name || 'unnamed'}: ${distance}m (type: ${typeof distance})`);
             } else {
                 console.warn('⚠️ Cannot calculate distance - invalid coordinates:', {
                     currentLocation: this.currentLocation,
                     elementLat: lat,
-                    elementLng: lng
+                    elementLng: lng,
+                    latIsNaN: isNaN(lat),
+                    lngIsNaN: isNaN(lng),
+                    currentLatIsNaN: isNaN(this.currentLocation?.lat),
+                    currentLngIsNaN: isNaN(this.currentLocation?.lng)
                 });
             }
 
