@@ -1470,17 +1470,18 @@ class VibeVoyageApp {
             // Update UI - set current location as default value that's easy to overwrite
             const fromInput = document.getElementById('fromInput');
             if (fromInput) {
-                // Set current location as the default value
+                // Set current location as placeholder-style default (Google Maps style)
                 fromInput.value = 'Current Location';
                 fromInput.placeholder = 'From: Address, company, postcode...';
 
                 // Add special styling to indicate it's the default
                 fromInput.classList.add('default-location');
 
-                // Make it easy to overwrite - select all text when focused
+                // Google Maps style - no selection needed, just start typing
                 const handleFocus = function() {
+                    // Don't select text, just let user start typing
                     if (this.value === 'Current Location') {
-                        this.select();
+                        // Keep the styling but don't select
                     }
                 };
 
@@ -1493,12 +1494,13 @@ class VibeVoyageApp {
                     }
                 };
 
-                // Handle immediate overwrite on keydown
+                // Google Maps style - immediately replace on typing
                 const handleKeydown = function(e) {
-                    if (this.value === 'Current Location' && e.key.length === 1 && !e.ctrlKey && !e.altKey) {
-                        // User is typing a character, clear the default text
-                        this.value = '';
+                    if (this.value === 'Current Location' && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                        // User is typing a character, replace the default text immediately
+                        this.value = e.key;
                         this.classList.remove('default-location');
+                        e.preventDefault(); // Prevent double character
                     }
                 };
 
@@ -2040,27 +2042,34 @@ class VibeVoyageApp {
 
         console.log(`🚶🚴🚗 Using transport mode: ${this.transportMode} (${profile})`);
 
-        // Reliable routing services - use selected transport mode
+        // Enhanced routing services for multiple diverse routes
         const routingServices = [
             {
-                name: `OSRM ${currentMode.name} Primary Route`,
-                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true${avoidanceParams}`,
-                timeout: 10000,
-                type: 'osrm'
-            },
-            {
-                name: `OSRM ${currentMode.name} with Alternatives`,
-                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${avoidanceParams}`,
-                timeout: 8000,
-                type: 'osrm'
-            },
-            {
                 name: `OSRM ${currentMode.name} Fastest Route`,
-                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=false${avoidanceParams}`,
-                timeout: 6000,
-                type: 'osrm'
+                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${avoidanceParams}`,
+                timeout: 10000,
+                type: 'osrm',
+                routeType: 'fastest'
+            },
+            {
+                name: `OSRM ${currentMode.name} Alternative Routes`,
+                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=false${avoidanceParams}`,
+                timeout: 8000,
+                type: 'osrm',
+                routeType: 'alternative'
             }
         ];
+
+        // Add driving-specific route variations for cars
+        if (profile === 'driving') {
+            routingServices.push({
+                name: `OSRM ${currentMode.name} Scenic Route`,
+                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true&exclude=motorway${avoidanceParams}`,
+                timeout: 8000,
+                type: 'osrm',
+                routeType: 'scenic'
+            });
+        }
 
         const routePromises = routingServices.map(service =>
             this.fetchWithTimeout(service.url, service.timeout)
@@ -2133,13 +2142,15 @@ class VibeVoyageApp {
             }
         }
 
-        // If we don't have enough routes, create variations for comparison
-        if (routes.length < 2) {
-            console.log('🔄 Creating route variations for comparison...');
+        // Ensure we have multiple route options (3-4 routes)
+        if (routes.length < 4) {
+            console.log(`🔄 Creating route variations for comparison... (currently have ${routes.length} routes)`);
             const baseRoute = routes[0];
             if (baseRoute) {
-                const variations = this.createRouteVariations(baseRoute);
+                const neededRoutes = 4 - routes.length;
+                const variations = this.createRouteVariations(baseRoute, neededRoutes);
                 routes.push(...variations);
+                console.log(`✅ Added ${variations.length} route variations, total: ${routes.length} routes`);
             }
         }
 
@@ -2158,50 +2169,61 @@ class VibeVoyageApp {
         return sortedRoutes;
     }
 
-    createRouteVariations(baseRoute) {
+    createRouteVariations(baseRoute, maxVariations = 3) {
         const variations = [];
 
         if (!baseRoute) return variations;
 
-        // Create a "scenic" variation (slightly longer route)
-        const scenicRoute = {
-            ...baseRoute,
-            distance: baseRoute.distance * 1.15, // 15% longer
-            duration: baseRoute.duration * 1.1,  // 10% slower
-            type: 'scenic',
-            routeIndex: 1,
-            color: '#45B7D1',
-            source: 'Generated Variation',
-            description: 'Scenic route with better views'
-        };
-        variations.push(scenicRoute);
+        console.log(`🔄 Creating ${maxVariations} route variations from base route`);
 
-        // Create an "eco" variation (optimized for fuel efficiency)
-        const ecoRoute = {
-            ...baseRoute,
-            distance: baseRoute.distance * 0.95, // 5% shorter
-            duration: baseRoute.duration * 1.05,  // 5% slower (lower speeds)
-            type: 'eco',
-            routeIndex: 2,
-            color: '#96CEB4',
-            source: 'Generated Variation',
-            description: 'Eco-friendly route for better fuel efficiency'
-        };
-        variations.push(ecoRoute);
+        const routeTypes = [
+            {
+                name: 'scenic',
+                distance: baseRoute.distance * 1.15, // 15% longer
+                duration: baseRoute.duration * 1.1,  // 10% slower
+                color: '#45B7D1',
+                description: 'Scenic route with better views'
+            },
+            {
+                name: 'eco',
+                distance: baseRoute.distance * 0.95, // 5% shorter
+                duration: baseRoute.duration * 1.05,  // 5% slower (lower speeds)
+                color: '#96CEB4',
+                description: 'Eco-friendly route for better fuel efficiency'
+            },
+            {
+                name: 'balanced',
+                distance: baseRoute.distance * 1.05, // 5% longer
+                duration: baseRoute.duration * 0.98,  // 2% faster
+                color: '#F7DC6F',
+                description: 'Balanced route considering time and distance'
+            },
+            {
+                name: 'shortest',
+                distance: baseRoute.distance * 0.88, // 12% shorter
+                duration: baseRoute.duration * 1.15,  // 15% slower (city streets)
+                color: '#FF9F43',
+                description: 'Shortest distance route'
+            }
+        ];
 
-        // Create a "balanced" variation
-        const balancedRoute = {
-            ...baseRoute,
-            distance: baseRoute.distance * 1.05, // 5% longer
-            duration: baseRoute.duration * 0.98,  // 2% faster
-            type: 'balanced',
-            routeIndex: 3,
-            color: '#F7DC6F',
-            source: 'Generated Variation',
-            description: 'Balanced route considering time and distance'
-        };
-        variations.push(balancedRoute);
+        // Create only the requested number of variations
+        for (let i = 0; i < Math.min(maxVariations, routeTypes.length); i++) {
+            const routeType = routeTypes[i];
+            const variation = {
+                ...baseRoute,
+                distance: routeType.distance,
+                duration: routeType.duration,
+                type: routeType.name,
+                routeIndex: i + 1,
+                color: routeType.color,
+                source: 'Generated Variation',
+                description: routeType.description
+            };
+            variations.push(variation);
+        }
 
+        console.log(`✅ Created ${variations.length} route variations: ${variations.map(r => r.type).join(', ')}`);
         return variations;
     }
 

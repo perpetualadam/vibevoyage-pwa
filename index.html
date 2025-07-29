@@ -328,7 +328,7 @@
     <script>
         // Force load App.js with current timestamp to bypass all caching
         const appScript = document.createElement('script');
-        appScript.src = 'App.js?v=1753822553776&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
+        appScript.src = 'App.js?v=1753823546591&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
         appScript.defer = true;
         document.head.appendChild(appScript);
         console.log('🔧 Loading App.js with timestamp:', appScript.src);
@@ -344,7 +344,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=1753822553776&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                script.src = 'App.js?v=1753823546591&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -2541,26 +2541,15 @@
             background: #0a1a2a;
         }
 
-        /* Default location input styling */
+        /* Default location input styling - Google Maps style */
         .search-input.default-location {
-            background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
-            border: 2px solid #00FF88;
-            color: #006644;
+            color: #999;
             font-style: italic;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .search-input.default-location::placeholder {
-            color: #008855;
-            opacity: 0.7;
         }
 
         .search-input.default-location:focus {
-            background: #ffffff;
             color: #333;
             font-style: normal;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
         }
 
         /* Transport Mode Selector */
@@ -3769,7 +3758,7 @@
 
                             // Try loading App.js again
                             const script = document.createElement('script');
-                            script.src = 'App.js?v=1753822553776&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                            script.src = 'App.js?v=1753823546591&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                             script.onload = () => {
                                 console.log('✅ App.js reloaded');
                                 setTimeout(() => {
