@@ -1,21 +1,15 @@
-// VibeVoyage Service Worker
-// Provides offline functionality and caching for PWA
+// VibeVoyage Service Worker - Optimized for PWA Builder
+// Fast registration with essential functionality
 
-const CACHE_NAME = 'vibevoyage-v1.0.2';
-const STATIC_CACHE = 'vibevoyage-static-v1.0.2';
-const DYNAMIC_CACHE = 'vibevoyage-dynamic-v1.0.2';
-const MAP_CACHE = 'vibevoyage-maps-v1.0.2';
-const OFFLINE_CACHE = 'vibevoyage-offline-v1.0.2';
+const CACHE_NAME = 'vibevoyage-v1.0.3';
+const STATIC_CACHE = 'vibevoyage-static-v1.0.3';
 
-// Static assets to cache immediately
+// Essential assets for PWA Builder compatibility
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './App.js',
   './manifest.json',
-  './icons/icon.svg',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+  './icons/icon.svg'
 ];
 
 // Offline fallback responses
