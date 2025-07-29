@@ -324,10 +324,7 @@ class VibeVoyageApp {
         console.log('🚶🚴🚗 Transport modes initialized:', Object.keys(this.transportModes));
         console.log('📱 Offline functionality initialized');
 
-        // Test notification system
-        setTimeout(() => {
-            this.showNotification('Welcome to VibeVoyage! 🚗', 'success');
-        }, 1000);
+
 
         // Note: Map initialization is handled by initializeAsync() - no need for duplicate calls
     }
@@ -1921,7 +1918,7 @@ class VibeVoyageApp {
         try {
             // Check if we're offline and handle accordingly
             if (this.isOffline) {
-                console.log('📵 Offline mode - using cached/generated routes');
+                console.log('⚠ Offline mode - using cached/generated routes');
                 const offlineRoute = await this.getOfflineRoute(
                     this.currentLocation,
                     this.destination,
@@ -1933,7 +1930,7 @@ class VibeVoyageApp {
                     this.availableRoutes = routes;
                     this.showRouteSelection(routes);
                     this.displayMultipleRoutes(routes);
-                    this.showNotification('📵 Using offline route - Limited functionality', 'warning');
+                    this.showNotification('⚠ Using offline route - Limited functionality', 'warning');
                     return;
                 } else {
                     throw new Error('No offline route available');
@@ -5841,11 +5838,11 @@ class VibeVoyageApp {
         try {
             // Check if we're offline
             if (this.isOffline) {
-                console.log(`📵 Offline mode - using cached ${type} data`);
+                console.log(`⚠ Offline mode - using cached ${type} data`);
                 this.queueOfflineOperation('poi_search', { type, location: coords });
                 const mockServices = this.getMockServices(type, coords);
                 this.displayNearbyServices(mockServices, type);
-                this.showNotification(`📵 Showing cached ${type} - Limited data available`, 'warning');
+                this.showNotification(`⚠ Showing cached ${type} - Limited data available`, 'warning');
                 return mockServices;
             }
 
@@ -7302,7 +7299,7 @@ class VibeVoyageApp {
         this.lastOnlineTime = Date.now();
 
         // Show offline notification
-        this.showNotification('📵 You\'re offline - Using cached data for navigation', 'warning');
+        this.showNotification('⚠ You\'re offline - Using cached data for navigation', 'warning');
 
         // Switch to offline mode UI
         this.updateOfflineUI(true);
@@ -7318,7 +7315,7 @@ class VibeVoyageApp {
         const offlineDuration = Date.now() - this.lastOnlineTime;
 
         // Show online notification
-        this.showNotification('📶 Back online - Syncing data...', 'success');
+        this.showNotification('✓ Back online - Syncing data...', 'success');
 
         // Switch back to online mode UI
         this.updateOfflineUI(false);
@@ -7334,11 +7331,11 @@ class VibeVoyageApp {
         const statusIndicator = document.getElementById('connectionStatus') || this.createConnectionStatusIndicator();
 
         if (isOffline) {
-            statusIndicator.innerHTML = '📵 Offline';
+            statusIndicator.innerHTML = '⚠ Offline';
             statusIndicator.className = 'connection-status offline';
             statusIndicator.title = 'You\'re offline - Using cached data';
         } else {
-            statusIndicator.innerHTML = '📶 Online';
+            statusIndicator.innerHTML = '✓ Online';
             statusIndicator.className = 'connection-status online';
             statusIndicator.title = 'Connected to internet';
         }

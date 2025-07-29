@@ -328,7 +328,7 @@
     <script>
         // Force load App.js with current timestamp to bypass all caching
         const appScript = document.createElement('script');
-        appScript.src = 'App.js?v=1753817100766&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
+        appScript.src = 'App.js?v=1753819328519&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
         appScript.defer = true;
         document.head.appendChild(appScript);
         console.log('🔧 Loading App.js with timestamp:', appScript.src);
@@ -344,7 +344,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=1753817100766&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                script.src = 'App.js?v=1753819328519&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -2649,6 +2649,7 @@
             background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
             color: #000;
             border: 1px solid #00FF88;
+            font-weight: bold;
         }
 
         .connection-status.offline {
@@ -2656,6 +2657,7 @@
             color: #fff;
             border: 1px solid #FF6B6B;
             animation: pulse 2s infinite;
+            font-weight: bold;
         }
 
         @keyframes pulse {
@@ -2702,7 +2704,6 @@
                 <button class="btn btn-secondary" onclick="toggleFavorites()" title="Favorite Locations">⭐</button>
                 <button class="btn btn-secondary" onclick="showGamificationStats()" title="Stats & Achievements">🏆</button>
                 <button class="btn btn-voice" onclick="toggleVoiceReporting()" title="Voice Hazard Reporting" id="voiceReportingBtn">🎙️</button>
-                <button class="btn btn-secondary" onclick="testNotifications()" title="Test Notifications" style="background: #FF6B6B;">🧪</button>
             </div>
         </header>
 
@@ -3288,18 +3289,7 @@
             }
         }
 
-        function testNotifications() {
-            console.log('🧪 testNotifications called');
-            if (window.app && window.app.showNotification) {
-                window.app.showNotification('🧪 Test notification - Success!', 'success');
-                setTimeout(() => window.app.showNotification('🧪 Test notification - Info!', 'info'), 1000);
-                setTimeout(() => window.app.showNotification('🧪 Test notification - Warning!', 'warning'), 2000);
-                setTimeout(() => window.app.showNotification('🧪 Test notification - Error!', 'error'), 3000);
-            } else {
-                console.error('❌ App not ready for notification test');
-                alert('App is still loading. Please wait a moment and try again.');
-            }
-        }
+
 
         function showLanguageSelector() {
             console.log('🌍 Language selector clicked');
@@ -3361,27 +3351,7 @@
             }
         }
 
-        // Test notification system directly
-        function testNotificationSystem() {
-            console.log('🧪 Testing notification system...');
-            const notification = document.getElementById('notification');
-            if (!notification) {
-                console.error('❌ Notification element not found!');
-                return;
-            }
 
-            console.log('✅ Notification element found');
-
-            // Test direct notification
-            notification.textContent = '🧪 Direct notification test!';
-            notification.className = 'notification success show';
-
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-
-            console.log('✅ Direct notification test completed');
-        }
 
         // Global functions that work with the main App.js
 
@@ -3767,20 +3737,11 @@
                     console.log('✅ Calling window.initializeVibeVoyage...');
                     window.initializeVibeVoyage();
 
-                    // Test notifications after app loads
+                    // Hide map loading indicator after app loads
                     setTimeout(() => {
-                        console.log('🧪 Testing notification system...');
-                        if (window.app && window.app.showNotification) {
-                            window.app.showNotification('🚗 Welcome to VibeVoyage! App loaded successfully.', 'success');
-
-                            // Hide map loading indicator
-                            const mapIndicator = document.getElementById('mapLoadingIndicator');
-                            if (mapIndicator) {
-                                mapIndicator.style.display = 'none';
-                            }
-                        } else {
-                            console.error('❌ App or showNotification not available after 3 seconds');
-                            console.log('window.app:', window.app);
+                        const mapIndicator = document.getElementById('mapLoadingIndicator');
+                        if (mapIndicator) {
+                            mapIndicator.style.display = 'none';
                         }
                     }, 3000);
 
@@ -3800,12 +3761,7 @@
                                 window.app = new VibeVoyageApp();
                                 console.log('✅ Manual initialization successful!');
 
-                                // Test notifications after manual init
-                                setTimeout(() => {
-                                    if (window.app && window.app.showNotification) {
-                                        window.app.showNotification('🚗 VibeVoyage initialized manually!', 'success');
-                                    }
-                                }, 2000);
+
 
                             } catch (error) {
                                 console.error('❌ Manual initialization failed:', error);
@@ -3817,7 +3773,7 @@
 
                             // Try loading App.js again
                             const script = document.createElement('script');
-                            script.src = 'App.js?v=1753817100766&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                            script.src = 'App.js?v=1753819328519&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                             script.onload = () => {
                                 console.log('✅ App.js reloaded');
                                 setTimeout(() => {
