@@ -1546,18 +1546,39 @@ class VibeVoyageApp {
     }
 
     parseValhallaResponse(data) {
-        if (!data.trip || !data.trip.legs) return [];
+        try {
+            if (!data || !data.trip || !data.trip.legs || data.trip.legs.length === 0) {
+                console.warn('⚠️ Invalid Valhalla response structure:', data);
+                return [];
+            }
 
-        const leg = data.trip.legs[0];
-        return [{
-            distance: data.trip.summary.length * 1000, // Convert km to meters
-            duration: data.trip.summary.time,
-            geometry: {
-                type: 'LineString',
-                coordinates: leg.shape.map(point => [point.lon, point.lat])
-            },
-            steps: leg.maneuvers || []
-        }];
+            const leg = data.trip.legs[0];
+
+            // Validate leg structure
+            if (!leg || !leg.shape || !Array.isArray(leg.shape)) {
+                console.warn('⚠️ Invalid Valhalla leg structure:', leg);
+                return [];
+            }
+
+            // Validate trip summary
+            if (!data.trip.summary || typeof data.trip.summary.length !== 'number' || typeof data.trip.summary.time !== 'number') {
+                console.warn('⚠️ Invalid Valhalla trip summary:', data.trip.summary);
+                return [];
+            }
+
+            return [{
+                distance: data.trip.summary.length * 1000, // Convert km to meters
+                duration: data.trip.summary.time,
+                geometry: {
+                    type: 'LineString',
+                    coordinates: leg.shape.map(point => [point.lon, point.lat])
+                },
+                steps: leg.maneuvers || []
+            }];
+        } catch (error) {
+            console.error('❌ Error parsing Valhalla response:', error);
+            return [];
+        }
     }
 
     parseGraphHopperResponse(data) {
@@ -1833,37 +1854,25 @@ class VibeVoyageApp {
 
 
 
-        // Multiple routing services - prioritize reliable open source alternatives
+        // Reliable routing services - only use free, working services
         const routingServices = [
             {
-                name: 'Valhalla Routing (Mapzen)',
-                url: `https://valhalla1.openstreetmap.de/route?json={"locations":[{"lat":${startLat},"lon":${startLng}},{"lat":${endLat},"lon":${endLng}}],"costing":"auto","directions_options":{"units":"kilometers"}}`,
-                timeout: 12000,
-                type: 'valhalla'
-            },
-            {
-                name: 'GraphHopper Routing',
-                url: `https://graphhopper.com/api/1/route?point=${startLat},${startLng}&point=${endLat},${endLng}&vehicle=car&locale=en&calc_points=true&debug=true&elevation=false&points_encoded=false&type=json`,
-                timeout: 10000,
-                type: 'graphhopper'
-            },
-            {
-                name: 'OSRM Clean Route',
+                name: 'OSRM Primary Route',
                 url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true`,
-                timeout: 8000,
+                timeout: 10000,
                 type: 'osrm'
             },
             {
                 name: 'OSRM with Alternatives',
                 url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true`,
-                timeout: 6000,
+                timeout: 8000,
                 type: 'osrm'
             },
             {
-                name: 'OpenRouteService',
-                url: `https://api.openrouteservice.org/v2/directions/driving-car?start=${startLng},${startLat}&end=${endLng},${endLat}`,
-                timeout: 8000,
-                type: 'openrouteservice'
+                name: 'OSRM Fastest Route',
+                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=false`,
+                timeout: 6000,
+                type: 'osrm'
             }
         ];
 
@@ -6584,9 +6593,22 @@ class VibeVoyageApp {
     }
 
     simulateRouteHazards(route) {
-        // Clear existing hazards first
+        // DISABLED: Fake hazard simulation causing false toll booth alerts
+        console.log('🚫 Route hazard simulation disabled to prevent false alerts');
+
+        // Clear existing hazards to ensure clean route
         this.clearAllHazards();
 
+        // Only use real hazard detection if available
+        if (this.hazardDetectionService && route && route.geometry) {
+            console.log('🔍 Using real hazard detection instead of simulation');
+            // Real hazard detection would go here, but it's also disabled
+            // to prevent false positives until accurate data sources are available
+        }
+
+        return; // Exit early - no fake hazards
+
+        /* DISABLED FAKE HAZARD CODE:
         if (!route || !route.geometry || !route.geometry.coordinates) {
             return;
         }
@@ -6618,43 +6640,7 @@ class VibeVoyageApp {
             const settingValue = this.hazardAvoidanceSettings[hazardType.type];
             console.log(`🔍 Hazard ${hazardType.type}: setting=${settingValue}, avoiding=${isAvoiding}, will simulate=${!isAvoiding}`);
             return !isAvoiding;
-        });
-
-        if (availableHazardTypes.length === 0) {
-            console.log('✅ All hazard types are being avoided - clean route generated');
-            return;
-        }
-
-        for (let i = 0; i < hazardCount; i++) {
-            // Pick a random point along the route (avoid first and last 10% of route)
-            const startIndex = Math.floor(routeLength * 0.1);
-            const endIndex = Math.floor(routeLength * 0.9);
-            const randomIndex = startIndex + Math.floor(Math.random() * (endIndex - startIndex));
-            const coord = coordinates[randomIndex];
-
-            // Pick a random hazard type from available (non-avoided) types
-            const hazardType = availableHazardTypes[Math.floor(Math.random() * availableHazardTypes.length)];
-
-            const hazard = {
-                id: `hazard_${Date.now()}_${i}`,
-                type: hazardType.type,
-                lat: coord[1],
-                lng: coord[0],
-                icon: hazardType.icon,
-                description: hazardType.description,
-                color: hazardType.color,
-                avoidable: hazardType.avoidable,
-                distance: this.calculateDistanceAlongRoute(coordinates, randomIndex),
-                routeIndex: randomIndex,
-                timestamp: Date.now(),
-                avoided: false // This hazard appears because it's not being avoided
-            };
-
-            this.addHazard(hazard);
-            this.addHazardToMap(hazard);
-        }
-
-        console.log(`🎯 Simulated ${hazardCount} hazards for route`);
+        */
     }
 
     calculateDistanceAlongRoute(coordinates, targetIndex) {

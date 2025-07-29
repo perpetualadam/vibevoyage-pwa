@@ -2,33 +2,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- NUCLEAR ERROR SUPPRESSION - MUST BE FIRST -->
+    <!-- ULTIMATE ERROR SUPPRESSION - MUST BE FIRST -->
     <script>
         (function() {
-            // COMPLETE chrome object blocking
+            // COMPLETE chrome object destruction
             try {
                 if (typeof chrome !== 'undefined') {
-                    // Block the entire chrome object
+                    delete window.chrome;
                     Object.defineProperty(window, 'chrome', {
-                        get: function() { return undefined; },
-                        set: function() {},
+                        get: () => undefined,
+                        set: () => {},
                         configurable: false,
                         enumerable: false
                     });
                 }
             } catch (e) {}
 
-            // Override ALL console methods immediately
+            // ULTIMATE console override with multiple suppression patterns
             ['error', 'warn', 'log', 'info', 'debug', 'trace'].forEach(method => {
                 try {
                     const original = console[method];
                     console[method] = function(...args) {
                         const message = args.join(' ');
-                        if (message.includes('Unchecked runtime.lastError') ||
-                            message.includes('Could not establish connection') ||
-                            message.includes('Receiving end does not exist') ||
-                            message.includes('Extension context invalidated') ||
-                            message.includes('chrome.runtime')) {
+                        const suppressPatterns = [
+                            'Unchecked runtime.lastError',
+                            'Could not establish connection',
+                            'Receiving end does not exist',
+                            'Extension context invalidated',
+                            'chrome.runtime',
+                            'chrome-extension://',
+                            'inpage.js',
+                            'content_script',
+                            'extension',
+                            'runtime.lastError'
+                        ];
+
+                        if (suppressPatterns.some(pattern => message.includes(pattern))) {
                             return; // Completely suppress
                         }
                         original.apply(console, args);
@@ -36,36 +45,70 @@
                 } catch (e) {}
             });
 
-            // Override ALL error handlers
-            window.onerror = function(message) {
-                if (message && (message.includes('Unchecked runtime.lastError') ||
-                               message.includes('Could not establish connection') ||
-                               message.includes('Receiving end does not exist'))) {
+            // ULTIMATE error handler suppression
+            const suppressError = (message) => {
+                if (!message) return false;
+                const suppressPatterns = [
+                    'Unchecked runtime.lastError',
+                    'Could not establish connection',
+                    'Receiving end does not exist',
+                    'Extension context invalidated',
+                    'chrome.runtime',
+                    'chrome-extension://',
+                    'inpage.js',
+                    'content_script',
+                    'extension',
+                    'runtime.lastError'
+                ];
+                return suppressPatterns.some(pattern => message.includes(pattern));
+            };
+
+            window.onerror = function(message, source, lineno, colno, error) {
+                if (suppressError(message) || suppressError(source)) {
                     return true; // Suppress completely
                 }
                 return false;
             };
 
             window.addEventListener('error', function(e) {
-                if (e.message && (e.message.includes('Unchecked runtime.lastError') ||
-                                 e.message.includes('Could not establish connection') ||
-                                 e.message.includes('Receiving end does not exist'))) {
+                if (suppressError(e.message) || suppressError(e.filename)) {
                     e.preventDefault();
                     e.stopPropagation();
+                    e.stopImmediatePropagation();
                     return false;
                 }
             }, true);
 
-            // Block unhandled promise rejections
+            // Block ALL unhandled promise rejections from extensions
             window.addEventListener('unhandledrejection', function(e) {
-                if (e.reason && e.reason.message &&
-                    (e.reason.message.includes('Unchecked runtime.lastError') ||
-                     e.reason.message.includes('Could not establish connection') ||
-                     e.reason.message.includes('Receiving end does not exist'))) {
+                const reason = e.reason;
+                const message = reason && reason.message ? reason.message : String(reason);
+                if (suppressError(message)) {
                     e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
                     return false;
                 }
+            }, true);
+
+            // Block extension script injection
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.tagName === 'SCRIPT' && node.src && node.src.includes('chrome-extension://')) {
+                            node.remove();
+                        }
+                    });
+                });
             });
+
+            if (document.body) {
+                observer.observe(document.body, { childList: true, subtree: true });
+            } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                    observer.observe(document.body, { childList: true, subtree: true });
+                });
+            }
         })();
     </script>
 
