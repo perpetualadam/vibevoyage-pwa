@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create PNG Icons for PWA Builder</title>
+</head>
+<body>
+    <h1>Creating PNG Icons for VibeVoyage</h1>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    
+    <script>
+        // Create 192x192 icon
+        const canvas192 = document.getElementById('canvas192');
+        const ctx192 = canvas192.getContext('2d');
+        
+        // Black background
+        ctx192.fillStyle = '#000000';
+        ctx192.fillRect(0, 0, 192, 192);
+        
+        // Green circle
+        ctx192.fillStyle = '#00FF88';
+        ctx192.beginPath();
+        ctx192.arc(96, 96, 80, 0, 2 * Math.PI);
+        ctx192.fill();
+        
+        // Navigation arrow
+        ctx192.fillStyle = '#FFFFFF';
+        ctx192.beginPath();
+        ctx192.moveTo(96, 40);
+        ctx192.lineTo(120, 80);
+        ctx192.lineTo(110, 80);
+        ctx192.lineTo(110, 120);
+        ctx192.lineTo(82, 120);
+        ctx192.lineTo(82, 80);
+        ctx192.lineTo(72, 80);
+        ctx192.closePath();
+        ctx192.fill();
+        
+        // Create 512x512 icon
+        const canvas512 = document.getElementById('canvas512');
+        const ctx512 = canvas512.getContext('2d');
+        
+        // Black background
+        ctx512.fillStyle = '#000000';
+        ctx512.fillRect(0, 0, 512, 512);
+        
+        // Green circle
+        ctx512.fillStyle = '#00FF88';
+        ctx512.beginPath();
+        ctx512.arc(256, 256, 200, 0, 2 * Math.PI);
+        ctx512.fill();
+        
+        // Navigation arrow
+        ctx512.fillStyle = '#FFFFFF';
+        ctx512.beginPath();
+        ctx512.moveTo(256, 100);
+        ctx512.lineTo(320, 200);
+        ctx512.lineTo(280, 200);
+        ctx512.lineTo(280, 320);
+        ctx512.lineTo(232, 320);
+        ctx512.lineTo(232, 200);
+        ctx512.lineTo(192, 200);
+        ctx512.closePath();
+        ctx512.fill();
+        
+        // Download function
+        function downloadIcon(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Add download buttons
+        setTimeout(() => {
+            const btn192 = document.createElement('button');
+            btn192.textContent = 'Download 192x192 PNG';
+            btn192.onclick = () => downloadIcon(canvas192, 'icon-192x192.png');
+            document.body.appendChild(btn192);
+            
+            const btn512 = document.createElement('button');
+            btn512.textContent = 'Download 512x512 PNG';
+            btn512.onclick = () => downloadIcon(canvas512, 'icon-512x512.png');
+            document.body.appendChild(btn512);
+            
+            console.log('Icons created! Click buttons to download.');
+        }, 100);
+    </script>
+</body>
+</html>

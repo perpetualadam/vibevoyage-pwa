@@ -9,7 +9,7 @@ const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon.svg'
+  './icon.svg'
 ];
 
 // Offline fallback responses
