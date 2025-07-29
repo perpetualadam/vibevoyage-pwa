@@ -7361,18 +7361,22 @@ class VibeVoyageApp {
         indicator.style.position = 'fixed';
         indicator.style.top = '60px';   // Below the header (header height ~50px)
         indicator.style.left = '15px';  // Left side to avoid notifications on right
-        indicator.style.padding = '8px 12px';
-        indicator.style.borderRadius = '15px';
-        indicator.style.fontSize = '13px';
+        indicator.style.padding = '6px 10px';
+        indicator.style.borderRadius = '12px';
+        indicator.style.fontSize = '12px';
         indicator.style.fontWeight = 'bold';
         indicator.style.zIndex = '99999';
         indicator.style.transition = 'all 0.3s ease';
-        indicator.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3)';
-        indicator.style.display = 'block';
+        indicator.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+        indicator.style.display = 'inline-block';  // Prevent stretching
         indicator.style.visibility = 'visible';
         indicator.style.pointerEvents = 'none';
         indicator.style.userSelect = 'none';
         indicator.style.fontFamily = 'Arial, sans-serif';
+        indicator.style.width = 'auto';           // Auto width, don't stretch
+        indicator.style.maxWidth = '100px';       // Maximum width constraint
+        indicator.style.whiteSpace = 'nowrap';    // Keep text on one line
+        indicator.style.textAlign = 'center';     // Center the text
 
         document.body.appendChild(indicator);
         console.log('✅ Connection status indicator created and added to page at top-right');
