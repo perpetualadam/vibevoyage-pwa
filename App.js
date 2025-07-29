@@ -5675,11 +5675,27 @@ class VibeVoyageApp {
     // ===== PARKING & FUEL STATION FINDER =====
 
     async findNearbyServices(type, location = null) {
+        // If no location provided, try to get current location first
+        if (!location && !this.currentLocation) {
+            console.log('📍 No location available, trying to get current location...');
+            this.showNotification('📍 Getting your location...', 'info');
+
+            try {
+                await this.getCurrentLocation();
+            } catch (error) {
+                console.error('Failed to get current location:', error);
+                this.showNotification('❌ Location required for nearby search', 'error');
+                return [];
+            }
+        }
+
         const coords = location || this.destination || this.currentLocation;
-        if (!coords) {
-            this.showNotification('❌ No location available for search', 'error');
+        if (!coords || !coords.lat || !coords.lng) {
+            this.showNotification('❌ No valid location available for search', 'error');
             return [];
         }
+
+        console.log(`🔍 Searching for nearby ${type} at:`, coords);
 
         try {
             // Use Overpass API to find nearby services
@@ -5689,12 +5705,16 @@ class VibeVoyageApp {
         } catch (error) {
             console.error(`Error finding ${type}:`, error);
             // Fallback to mock data
-            return this.getMockServices(type, coords);
+            const mockServices = this.getMockServices(type, coords);
+            this.displayNearbyServices(mockServices, type);
+            return mockServices;
         }
     }
 
     async searchOverpassAPI(type, coords) {
-        const radius = 2000; // 2km radius
+        const radius = 5000; // 5km radius for better results
+        console.log(`🔍 Searching for ${type} within ${radius}m of:`, coords);
+
         const queries = {
             parking: `[out:json][timeout:25];
                 (
@@ -5718,6 +5738,8 @@ class VibeVoyageApp {
                 (
                   node["amenity"="hospital"](around:${radius},${coords.lat},${coords.lng});
                   node["amenity"="clinic"](around:${radius},${coords.lat},${coords.lng});
+                  node["healthcare"="hospital"](around:${radius},${coords.lat},${coords.lng});
+                  node["healthcare"="clinic"](around:${radius},${coords.lat},${coords.lng});
                 );
                 out center;`
         };
@@ -5725,39 +5747,61 @@ class VibeVoyageApp {
         const query = queries[type];
         if (!query) throw new Error(`Unknown service type: ${type}`);
 
+        console.log(`📡 Sending Overpass query for ${type}:`, query);
+
         const response = await fetch('https://overpass-api.de/api/interpreter', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `data=${encodeURIComponent(query)}`
         });
 
-        if (!response.ok) throw new Error('Overpass API request failed');
+        if (!response.ok) {
+            console.error(`❌ Overpass API request failed: ${response.status} ${response.statusText}`);
+            throw new Error('Overpass API request failed');
+        }
 
         const data = await response.json();
-        return this.parseOverpassResults(data.elements, type);
+        console.log(`📊 Overpass API returned ${data.elements?.length || 0} results for ${type}`);
+
+        return this.parseOverpassResults(data.elements || [], type);
     }
 
     parseOverpassResults(elements, type) {
+        console.log(`📊 Parsing ${elements.length} ${type} results with currentLocation:`, this.currentLocation);
+
         return elements.map(element => {
             const lat = element.lat || element.center?.lat;
             const lng = element.lon || element.center?.lon;
 
-            if (!lat || !lng) return null;
+            if (!lat || !lng) {
+                console.warn('⚠️ Element missing coordinates:', element);
+                return null;
+            }
 
             // Calculate distance only if we have a valid current location
             let distance = 0;
             if (this.currentLocation &&
                 !isNaN(this.currentLocation.lat) &&
-                !isNaN(this.currentLocation.lng)) {
+                !isNaN(this.currentLocation.lng) &&
+                !isNaN(lat) && !isNaN(lng)) {
+
                 distance = this.calculateDistance(
                     this.currentLocation.lat,
                     this.currentLocation.lng,
                     lat,
                     lng
                 );
+
+                console.log(`📏 Distance calculated for ${element.tags?.name || 'unnamed'}: ${distance}m`);
+            } else {
+                console.warn('⚠️ Cannot calculate distance - invalid coordinates:', {
+                    currentLocation: this.currentLocation,
+                    elementLat: lat,
+                    elementLng: lng
+                });
             }
 
-            return {
+            const service = {
                 id: element.id,
                 name: element.tags?.name || `${type.charAt(0).toUpperCase() + type.slice(1)} Station`,
                 type: type,
@@ -5771,6 +5815,8 @@ class VibeVoyageApp {
                 amenity: element.tags?.amenity,
                 distance: distance
             };
+
+            return service;
         }).filter(Boolean).sort((a, b) => a.distance - b.distance);
     }
 
