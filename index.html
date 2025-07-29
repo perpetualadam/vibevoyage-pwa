@@ -1,39 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- IMMEDIATE NUCLEAR ERROR SUPPRESSION - MUST BE FIRST -->
+    <!-- NUCLEAR ERROR SUPPRESSION - MUST BE FIRST -->
     <script>
         (function() {
-            // Block chrome.runtime immediately before anything else
-            if (typeof chrome !== 'undefined' && chrome.runtime) {
-                try {
-                    Object.defineProperty(chrome.runtime, 'lastError', {
+            // COMPLETE chrome object blocking
+            try {
+                if (typeof chrome !== 'undefined') {
+                    // Block the entire chrome object
+                    Object.defineProperty(window, 'chrome', {
                         get: function() { return undefined; },
                         set: function() {},
-                        configurable: false
+                        configurable: false,
+                        enumerable: false
                     });
-                    chrome.runtime.sendMessage = function() { return Promise.resolve(); };
-                    chrome.runtime.connect = function() { return { postMessage: () => {}, disconnect: () => {}, onMessage: { addListener: () => {} }, onDisconnect: { addListener: () => {} } }; };
-                } catch (e) {}
-            }
-
-            // Override console.error immediately
-            const originalError = console.error;
-            console.error = function(...args) {
-                const message = args.join(' ');
-                if (message.includes('Unchecked runtime.lastError') || message.includes('Could not establish connection') || message.includes('Receiving end does not exist')) {
-                    return;
                 }
-                originalError.apply(console, args);
-            };
+            } catch (e) {}
 
-            // Override window.onerror immediately
+            // Override ALL console methods immediately
+            ['error', 'warn', 'log', 'info', 'debug', 'trace'].forEach(method => {
+                try {
+                    const original = console[method];
+                    console[method] = function(...args) {
+                        const message = args.join(' ');
+                        if (message.includes('Unchecked runtime.lastError') ||
+                            message.includes('Could not establish connection') ||
+                            message.includes('Receiving end does not exist') ||
+                            message.includes('Extension context invalidated') ||
+                            message.includes('chrome.runtime')) {
+                            return; // Completely suppress
+                        }
+                        original.apply(console, args);
+                    };
+                } catch (e) {}
+            });
+
+            // Override ALL error handlers
             window.onerror = function(message) {
-                if (message && (message.includes('Unchecked runtime.lastError') || message.includes('Could not establish connection') || message.includes('Receiving end does not exist'))) {
-                    return true;
+                if (message && (message.includes('Unchecked runtime.lastError') ||
+                               message.includes('Could not establish connection') ||
+                               message.includes('Receiving end does not exist'))) {
+                    return true; // Suppress completely
                 }
                 return false;
             };
+
+            window.addEventListener('error', function(e) {
+                if (e.message && (e.message.includes('Unchecked runtime.lastError') ||
+                                 e.message.includes('Could not establish connection') ||
+                                 e.message.includes('Receiving end does not exist'))) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            }, true);
+
+            // Block unhandled promise rejections
+            window.addEventListener('unhandledrejection', function(e) {
+                if (e.reason && e.reason.message &&
+                    (e.reason.message.includes('Unchecked runtime.lastError') ||
+                     e.reason.message.includes('Could not establish connection') ||
+                     e.reason.message.includes('Receiving end does not exist'))) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
         })();
     </script>
 

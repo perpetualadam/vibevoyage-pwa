@@ -2021,81 +2021,47 @@ class VibeVoyageApp {
     }
 
     async calculateSingleRoute() {
-        // Fallback to single route calculation with hazard avoidance
-        const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
-        const end = `${this.destination.lng},${this.destination.lat}`;
-
-        // Apply hazard avoidance to single route as well
-        const exclusions = this.buildRouteExclusions();
-        const excludeParams = this.buildOSRMExcludeParams(exclusions);
-        console.log('🚨 Single route hazard avoidance applied:', excludeParams.primary);
+        // Use the same multi-service approach as calculateMultipleRoutes
+        console.log('🔄 Fallback: Using multi-service approach for single route...');
 
         try {
-            // Aggressively clean the exclude parameter to prevent :1 suffixes
-            let cleanParam = '';
-            if (excludeParams.primary && excludeParams.primary.trim()) {
-                cleanParam = excludeParams.primary
-                    .replace(/:[0-9]+/g, '')      // Remove :1, :2, etc.
-                    .replace(/[0-9]+$/g, '')      // Remove trailing numbers
-                    .replace(/,+/g, ',')          // Clean multiple commas
-                    .replace(/^,|,$/g, '')        // Remove leading/trailing commas
-                    .replace(/[^a-zA-Z,&=]/g, ''); // Keep only letters, commas, &, =
-            }
+            // Use the same multi-service routing as the main function
+            const routes = await this.calculateMultipleRoutes();
 
-            // Build the final URL with NUCLEAR cleaning
-            let url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&voice_instructions=true${cleanParam}`;
+            if (routes && routes.length > 0) {
+                console.log(`✅ Single route fallback succeeded: ${routes.length} routes found`);
 
-            // NUCLEAR OPTION: Multiple passes to eliminate ALL :1 patterns
-            url = url.replace(/:[0-9]+/g, '');           // First pass
-            url = url.replace(/:[0-9]+/g, '');           // Second pass
-            url = url.replace(/[0-9]+(?=&|$)/g, '');     // Remove trailing numbers
-            url = url.replace(/:1/g, '');                // Specific :1 removal
-            url = url.replace(/1(?=&|$)/g, '');          // Remove standalone 1s
-            url = url.replace(/exclude=[^&]*:1/g, 'exclude='); // Remove :1 from exclude params
-            url = url.replace(/exclude=,/g, 'exclude='); // Clean up empty excludes
-            url = url.replace(/exclude=&/g, '');         // Remove empty exclude params
-            url = url.replace(/exclude=$/g, '');         // Remove trailing empty exclude
+                // Store all routes
+                this.availableRoutes = routes;
 
-            console.log('🔧 Single route NUCLEAR clean URL:', url);
+                // Select the first (best) route
+                this.selectRoute(0);
 
-            const response = await fetch(url);
+                // Update UI
+                this.updateRouteDisplay();
+                this.showRouteOptions();
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.routes && data.routes.length > 0) {
-                    const route = data.routes[0];
-                    await this.selectRoute(route, 0);
-                    return;
-                }
+                return;
             }
         } catch (error) {
-            console.error('Single route calculation failed:', error);
+            console.error('❌ Multi-service fallback failed:', error);
         }
 
-        // Final fallback to straight line
-        this.showNotification('Using direct route (routing service unavailable)', 'warning');
+        // Final fallback: Create demo route
+        console.warn('⚠️ All routing services failed, creating demo route...');
+        const start = `${this.currentLocation.lng},${this.currentLocation.lat}`;
+        const end = `${this.destination.lng},${this.destination.lat}`;
+        const demoRoute = this.createDemoRoute(start, end);
 
-        const routeCoords = [
-            [this.currentLocation.lat, this.currentLocation.lng],
-            [this.destination.lat, this.destination.lng]
-        ];
-
-        if (this.routeLine) {
-            this.map.removeLayer(this.routeLine);
-        }
-
-        if (this.map) {
-            this.routeLine = L.polyline(routeCoords, {
-                color: '#FFA500',
-                weight: 5,
-                opacity: 0.8,
-                dashArray: '10, 10'
-            }).addTo(this.map);
+        if (demoRoute) {
+            this.availableRoutes = [demoRoute];
+            this.selectRoute(0);
+            this.updateRouteDisplay();
+            console.log('✅ Demo route created as final fallback');
         } else {
-            console.error('❌ Cannot add route line: map is null');
+            console.error('❌ Failed to create demo route');
         }
 
-        this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
     }
 
     showRouteSelection(routes) {
