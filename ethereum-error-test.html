@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum Error Suppression Test</title>
+    
+    <!-- NUCLEAR OPTION: COMPLETE ERROR SUPPRESSION -->
+    <script>
+        // IMMEDIATELY override console.error to suppress ethereum errors
+        (function() {
+            const originalError = console.error;
+            console.error = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('ethereum') || 
+                    message.includes('Cannot redefine property') ||
+                    message.includes('inpage.js')) {
+                    console.log('🔇 SUPPRESSED ERROR:', message);
+                    return; // Completely suppress
+                }
+                return originalError.apply(console, args);
+            };
+            
+            // Override window.onerror IMMEDIATELY
+            window.onerror = function(message, source, lineno, colno, error) {
+                if (message && (
+                    message.includes('ethereum') ||
+                    message.includes('Cannot redefine property') ||
+                    source && source.includes('inpage.js')
+                )) {
+                    console.log('🔇 SUPPRESSED WINDOW ERROR:', message);
+                    return true; // Suppress completely
+                }
+                return false;
+            };
+            
+            console.log('🔇 Nuclear error suppression activated');
+        })();
+    </script>
+</head>
+<body>
+    <h1>Ethereum Error Suppression Test</h1>
+    <div id="results"></div>
+    <button onclick="simulateEthereumError()">Simulate Ethereum Error</button>
+    <button onclick="testErrorSuppression()">Test Error Suppression</button>
+
+    <script>
+        function logResult(message, isError = false) {
+            console.log(message);
+            const div = document.getElementById('results');
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.style.color = isError ? 'red' : 'green';
+            div.appendChild(p);
+        }
+        
+        function simulateEthereumError() {
+            logResult('🧪 Simulating ethereum property error...');
+            
+            try {
+                // First define ethereum property as non-configurable
+                Object.defineProperty(window, 'ethereum', {
+                    value: { test: 'first' },
+                    configurable: false,
+                    writable: false
+                });
+                
+                logResult('✅ First ethereum property defined');
+                
+                // Try to redefine it (this should cause the error)
+                Object.defineProperty(window, 'ethereum', {
+                    value: { test: 'second' },
+                    configurable: false,
+                    writable: false
+                });
+                
+                logResult('❌ This should not appear - redefinition should have failed', true);
+                
+            } catch (error) {
+                logResult('🔇 Caught ethereum error: ' + error.message);
+                console.error('Cannot redefine property: ethereum'); // This should be suppressed
+            }
+        }
+        
+        function testErrorSuppression() {
+            logResult('🧪 Testing error suppression...');
+            
+            // These should be suppressed
+            console.error('Cannot redefine property: ethereum');
+            console.error('inpage.js error test');
+            console.error('ethereum property conflict');
+            
+            // This should NOT be suppressed
+            console.error('Normal error that should appear');
+            
+            logResult('✅ Error suppression test completed - check console');
+        }
+        
+        // Test if ethereum property exists from wallet
+        if (typeof window.ethereum !== 'undefined') {
+            logResult('✅ Ethereum property exists (wallet extension detected)');
+        } else {
+            logResult('ℹ️ No ethereum property (no wallet extension)');
+        }
+        
+        logResult('🎉 Ethereum error suppression test page loaded');
+    </script>
+</body>
+</html>
