@@ -1,5 +1,25 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Enhanced Traffic Camera and Road Obstacle Detection Service
+// Browser-compatible service for web applications
+
+// Browser-compatible storage helper
+const BrowserStorage = {
+  async getItem(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.warn('localStorage not available:', error);
+      return null;
+    }
+  },
+
+  async setItem(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.warn('localStorage not available:', error);
+    }
+  }
+};
 
 class RoadObstacleService {
   constructor() {
@@ -64,7 +84,7 @@ class RoadObstacleService {
   async loadObstacleDatabase() {
     try {
       // Load from local storage first
-      const stored = await AsyncStorage.getItem('roadObstacleDatabase');
+      const stored = await BrowserStorage.getItem('roadObstacleDatabase');
       if (stored) {
         const data = JSON.parse(stored);
         if (Date.now() - data.timestamp < this.cacheDuration) {
@@ -110,7 +130,7 @@ class RoadObstacleService {
       });
 
       // Cache to storage
-      await AsyncStorage.setItem('roadObstacleDatabase', JSON.stringify({
+      await BrowserStorage.setItem('roadObstacleDatabase', JSON.stringify({
         obstacles: uniqueObstacles,
         timestamp: Date.now(),
       }));
@@ -1037,13 +1057,13 @@ class RoadObstacleService {
   // Settings management
   async updateSettings(newSettings) {
     this.avoidanceSettings = { ...this.avoidanceSettings, ...newSettings };
-    await AsyncStorage.setItem('roadObstacleSettings', JSON.stringify(this.avoidanceSettings));
+    await BrowserStorage.setItem('roadObstacleSettings', JSON.stringify(this.avoidanceSettings));
     this.notifyListeners('settingsUpdated', { settings: this.avoidanceSettings });
   }
 
   async loadSettings() {
     try {
-      const stored = await AsyncStorage.getItem('roadObstacleSettings');
+      const stored = await BrowserStorage.getItem('roadObstacleSettings');
       if (stored) {
         this.avoidanceSettings = { ...this.avoidanceSettings, ...JSON.parse(stored) };
       }
@@ -1054,7 +1074,7 @@ class RoadObstacleService {
 
   async loadUserReportedObstacles() {
     try {
-      const stored = await AsyncStorage.getItem('userReportedObstacles');
+      const stored = await BrowserStorage.getItem('userReportedObstacles');
       if (stored) {
         this.userReportedObstacles = JSON.parse(stored);
       }
@@ -1065,7 +1085,7 @@ class RoadObstacleService {
 
   async saveUserReportedObstacles() {
     try {
-      await AsyncStorage.setItem('userReportedObstacles', JSON.stringify(this.userReportedObstacles));
+      await BrowserStorage.setItem('userReportedObstacles', JSON.stringify(this.userReportedObstacles));
     } catch (error) {
       console.error('Error saving user reported obstacles:', error);
     }
@@ -1138,11 +1158,17 @@ class RoadObstacleService {
   }
 }
 
-// Browser-compatible global export
+// Create instance and expose globally for browser compatibility
 if (typeof window !== 'undefined') {
+    // Create a single instance
+    const trafficCameraServiceInstance = new RoadObstacleService();
+
+    // Expose both class and instance globally
     window.TrafficCameraService = RoadObstacleService;
     window.RoadObstacleService = RoadObstacleService;
-    console.log('✅ TrafficCameraService and RoadObstacleService available globally');
+    window.trafficCameraService = trafficCameraServiceInstance;
+
+    console.log('✅ TrafficCameraService class and instance available globally');
 } else {
     // Node.js environment
     if (typeof module !== 'undefined' && module.exports) {
