@@ -328,7 +328,7 @@
     <script>
         // Force load App.js with current timestamp to bypass all caching
         const appScript = document.createElement('script');
-        appScript.src = 'App.js?v=1753806157601&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
+        appScript.src = 'App.js?v=1753817100766&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
         appScript.defer = true;
         document.head.appendChild(appScript);
         console.log('🔧 Loading App.js with timestamp:', appScript.src);
@@ -344,7 +344,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=1753806157601&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                script.src = 'App.js?v=1753817100766&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -2630,6 +2630,59 @@
             background: linear-gradient(135deg, #96CEB4 0%, #85B8A3 100%);
             border-color: #96CEB4;
         }
+
+        /* Connection Status Indicator */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10000;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .connection-status.online {
+            background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
+            color: #000;
+            border: 1px solid #00FF88;
+        }
+
+        .connection-status.offline {
+            background: linear-gradient(135deg, #FF6B6B 0%, #E55555 100%);
+            color: #fff;
+            border: 1px solid #FF6B6B;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* Offline Mode Styling */
+        .offline-mode .search-input {
+            border-color: #FF6B6B;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .offline-mode .transport-mode-btn {
+            opacity: 0.7;
+        }
+
+        .offline-mode .navigate-btn {
+            background: linear-gradient(135deg, #FF6B6B 0%, #E55555 100%);
+        }
+
+        /* Offline notification styling */
+        .notification.offline {
+            background: linear-gradient(135deg, #FF6B6B 0%, #E55555 100%);
+            border-left-color: #FF6B6B;
+        }
     </style>
 </head>
 <body>
@@ -3764,7 +3817,7 @@
 
                             // Try loading App.js again
                             const script = document.createElement('script');
-                            script.src = 'App.js?v=1753806157601&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                            script.src = 'App.js?v=1753817100766&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                             script.onload = () => {
                                 console.log('✅ App.js reloaded');
                                 setTimeout(() => {

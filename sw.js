@@ -1,10 +1,11 @@
 // VibeVoyage Service Worker
 // Provides offline functionality and caching for PWA
 
-const CACHE_NAME = 'vibevoyage-v1.0.1';
-const STATIC_CACHE = 'vibevoyage-static-v1.0.1';
-const DYNAMIC_CACHE = 'vibevoyage-dynamic-v1.0.1';
-const MAP_CACHE = 'vibevoyage-maps-v1.0.1';
+const CACHE_NAME = 'vibevoyage-v1.0.2';
+const STATIC_CACHE = 'vibevoyage-static-v1.0.2';
+const DYNAMIC_CACHE = 'vibevoyage-dynamic-v1.0.2';
+const MAP_CACHE = 'vibevoyage-maps-v1.0.2';
+const OFFLINE_CACHE = 'vibevoyage-offline-v1.0.2';
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
@@ -16,6 +17,25 @@ const STATIC_ASSETS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
+
+// Offline fallback responses
+const OFFLINE_FALLBACKS = {
+  route: {
+    error: 'Offline - route calculation unavailable',
+    message: 'Using cached route data or basic navigation',
+    fallback: 'offline_route'
+  },
+  poi: {
+    error: 'Offline - POI search unavailable',
+    message: 'Using cached POI data',
+    fallback: 'cached_pois'
+  },
+  geocoding: {
+    error: 'Offline - address search unavailable',
+    message: 'Using cached location data',
+    fallback: 'cached_locations'
+  }
+};
 
 // Map tile servers to cache
 const MAP_SERVERS = [
@@ -61,9 +81,10 @@ self.addEventListener('activate', (event) => {
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE && 
-                cacheName !== DYNAMIC_CACHE && 
-                cacheName !== MAP_CACHE) {
+            if (cacheName !== STATIC_CACHE &&
+                cacheName !== DYNAMIC_CACHE &&
+                cacheName !== MAP_CACHE &&
+                cacheName !== OFFLINE_CACHE) {
               console.log('VibeVoyage SW: Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -129,39 +150,93 @@ async function handleMapTileRequest(request) {
 // Handle API requests with network-first strategy
 async function handleAPIRequest(request) {
   const cache = await caches.open(DYNAMIC_CACHE);
-  
+  const offlineCache = await caches.open(OFFLINE_CACHE);
+
   try {
     // Try network first for fresh data
     const networkResponse = await fetch(request);
-    
+
     if (networkResponse.ok && request.method === 'GET') {
       // Only cache GET requests (POST requests can't be cached)
       cache.put(request, networkResponse.clone());
+
+      // Also cache in offline cache for better offline experience
+      offlineCache.put(request, networkResponse.clone());
     }
-    
+
     return networkResponse;
   } catch (error) {
     console.log('VibeVoyage SW: API request failed, trying cache:', error);
-    
-    // Fallback to cache
-    const cachedResponse = await cache.match(request);
+
+    // Try dynamic cache first
+    let cachedResponse = await cache.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
-    
-    // Return offline response
+
+    // Try offline cache
+    cachedResponse = await offlineCache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    // Return enhanced offline response based on request type
+    const offlineResponse = getOfflineResponse(request);
     return new Response(
-      JSON.stringify({ 
-        error: 'Offline - API unavailable',
-        offline: true,
-        timestamp: Date.now()
-      }),
-      { 
+      JSON.stringify(offlineResponse),
+      {
         status: 503,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Offline-Response': 'true'
+        }
       }
     );
   }
+}
+
+// Generate appropriate offline response based on request
+function getOfflineResponse(request) {
+  const url = new URL(request.url);
+
+  // Routing API requests
+  if (url.pathname.includes('/route') || url.hostname.includes('router.project-osrm.org')) {
+    return {
+      ...OFFLINE_FALLBACKS.route,
+      offline: true,
+      timestamp: Date.now(),
+      requestUrl: request.url
+    };
+  }
+
+  // POI/Overpass API requests
+  if (url.hostname.includes('overpass-api.de') || url.pathname.includes('/poi')) {
+    return {
+      ...OFFLINE_FALLBACKS.poi,
+      offline: true,
+      timestamp: Date.now(),
+      requestUrl: request.url
+    };
+  }
+
+  // Geocoding requests
+  if (url.pathname.includes('/geocode') || url.pathname.includes('/search')) {
+    return {
+      ...OFFLINE_FALLBACKS.geocoding,
+      offline: true,
+      timestamp: Date.now(),
+      requestUrl: request.url
+    };
+  }
+
+  // Generic offline response
+  return {
+    error: 'Offline - Service unavailable',
+    message: 'The requested service is not available offline',
+    offline: true,
+    timestamp: Date.now(),
+    requestUrl: request.url
+  };
 }
 
 // Handle static assets with cache-first strategy

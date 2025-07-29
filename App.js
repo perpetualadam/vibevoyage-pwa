@@ -300,9 +300,29 @@ class VibeVoyageApp {
             }
         };
 
+        // Offline functionality
+        this.isOffline = false;
+        this.offlineData = new Map();
+        this.offlineQueue = [];
+        this.lastOnlineTime = Date.now();
+        this.offlineRoutes = new Map();
+        this.offlineSettings = {
+            enableOfflineMode: true,
+            autoSyncWhenOnline: true,
+            maxCacheSize: 100 * 1024 * 1024, // 100MB
+            cacheExpiryTime: 7 * 24 * 60 * 60 * 1000, // 7 days
+        };
+
+        // Initialize offline detection
+        this.initOfflineDetection();
+
+        // Initialize IndexedDB for offline storage
+        this.initOfflineStorage();
+
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
         console.log('🚶🚴🚗 Transport modes initialized:', Object.keys(this.transportModes));
+        console.log('📱 Offline functionality initialized');
 
         // Test notification system
         setTimeout(() => {
@@ -1899,6 +1919,27 @@ class VibeVoyageApp {
         this.clearAllHazards();
 
         try {
+            // Check if we're offline and handle accordingly
+            if (this.isOffline) {
+                console.log('📵 Offline mode - using cached/generated routes');
+                const offlineRoute = await this.getOfflineRoute(
+                    this.currentLocation,
+                    this.destination,
+                    this.transportMode
+                );
+
+                if (offlineRoute) {
+                    const routes = [offlineRoute];
+                    this.availableRoutes = routes;
+                    this.showRouteSelection(routes);
+                    this.displayMultipleRoutes(routes);
+                    this.showNotification('📵 Using offline route - Limited functionality', 'warning');
+                    return;
+                } else {
+                    throw new Error('No offline route available');
+                }
+            }
+
             // Calculate multiple routes with different preferences
             const routes = await this.calculateMultipleRoutes();
 
@@ -5798,12 +5839,32 @@ class VibeVoyageApp {
         console.log(`🔍 Searching for nearby ${type} at:`, coords);
 
         try {
+            // Check if we're offline
+            if (this.isOffline) {
+                console.log(`📵 Offline mode - using cached ${type} data`);
+                this.queueOfflineOperation('poi_search', { type, location: coords });
+                const mockServices = this.getMockServices(type, coords);
+                this.displayNearbyServices(mockServices, type);
+                this.showNotification(`📵 Showing cached ${type} - Limited data available`, 'warning');
+                return mockServices;
+            }
+
             // Use Overpass API to find nearby services
             const services = await this.searchOverpassAPI(type, coords);
+
+            // Cache the results for offline use
+            this.cacheServiceResults(type, coords, services);
+
             this.displayNearbyServices(services, type);
             return services;
         } catch (error) {
             console.error(`Error finding ${type}:`, error);
+
+            // If online but API failed, queue for retry and use cached data
+            if (!this.isOffline) {
+                this.queueOfflineOperation('poi_search', { type, location: coords });
+            }
+
             // Fallback to mock data
             const mockServices = this.getMockServices(type, coords);
             this.displayNearbyServices(mockServices, type);
@@ -7168,6 +7229,369 @@ class VibeVoyageApp {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
         return R * c; // Distance in meters
+    }
+
+    // ===== OFFLINE FUNCTIONALITY =====
+
+    initOfflineDetection() {
+        // Listen for online/offline events
+        window.addEventListener('online', () => {
+            console.log('📶 Connection restored - going online');
+            this.handleOnlineEvent();
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('📵 Connection lost - going offline');
+            this.handleOfflineEvent();
+        });
+
+        // Check initial connection status
+        this.isOffline = !navigator.onLine;
+        if (this.isOffline) {
+            this.handleOfflineEvent();
+        }
+
+        console.log('📱 Offline detection initialized, currently:', navigator.onLine ? 'online' : 'offline');
+    }
+
+    async initOfflineStorage() {
+        try {
+            // Initialize IndexedDB for offline data storage
+            const request = indexedDB.open('VibeVoyageOffline', 2);
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+
+                // Create object stores for different data types
+                if (!db.objectStoreNames.contains('routes')) {
+                    const routeStore = db.createObjectStore('routes', { keyPath: 'id' });
+                    routeStore.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+
+                if (!db.objectStoreNames.contains('locations')) {
+                    const locationStore = db.createObjectStore('locations', { keyPath: 'id' });
+                    locationStore.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+
+                if (!db.objectStoreNames.contains('pois')) {
+                    const poiStore = db.createObjectStore('pois', { keyPath: 'id' });
+                    poiStore.createIndex('type', 'type', { unique: false });
+                }
+
+                if (!db.objectStoreNames.contains('settings')) {
+                    db.createObjectStore('settings', { keyPath: 'key' });
+                }
+            };
+
+            request.onsuccess = (event) => {
+                this.offlineDB = event.target.result;
+                console.log('📱 Offline storage initialized successfully');
+            };
+
+            request.onerror = (event) => {
+                console.error('❌ Failed to initialize offline storage:', event.target.error);
+            };
+
+        } catch (error) {
+            console.error('❌ Error initializing offline storage:', error);
+        }
+    }
+
+    handleOfflineEvent() {
+        this.isOffline = true;
+        this.lastOnlineTime = Date.now();
+
+        // Show offline notification
+        this.showNotification('📵 You\'re offline - Using cached data for navigation', 'warning');
+
+        // Switch to offline mode UI
+        this.updateOfflineUI(true);
+
+        // Cache current location and route data
+        this.cacheCurrentData();
+
+        console.log('📵 Offline mode activated');
+    }
+
+    handleOnlineEvent() {
+        this.isOffline = false;
+        const offlineDuration = Date.now() - this.lastOnlineTime;
+
+        // Show online notification
+        this.showNotification('📶 Back online - Syncing data...', 'success');
+
+        // Switch back to online mode UI
+        this.updateOfflineUI(false);
+
+        // Sync offline data
+        this.syncOfflineData();
+
+        console.log(`📶 Online mode restored after ${Math.round(offlineDuration / 1000)}s offline`);
+    }
+
+    updateOfflineUI(isOffline) {
+        // Update UI to show offline status
+        const statusIndicator = document.getElementById('connectionStatus') || this.createConnectionStatusIndicator();
+
+        if (isOffline) {
+            statusIndicator.innerHTML = '📵 Offline';
+            statusIndicator.className = 'connection-status offline';
+            statusIndicator.title = 'You\'re offline - Using cached data';
+        } else {
+            statusIndicator.innerHTML = '📶 Online';
+            statusIndicator.className = 'connection-status online';
+            statusIndicator.title = 'Connected to internet';
+        }
+    }
+
+    createConnectionStatusIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'connectionStatus';
+        indicator.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10000;
+            transition: all 0.3s ease;
+        `;
+
+        document.body.appendChild(indicator);
+        return indicator;
+    }
+
+    async cacheCurrentData() {
+        if (!this.offlineDB) return;
+
+        try {
+            const transaction = this.offlineDB.transaction(['routes', 'locations'], 'readwrite');
+
+            // Cache current route if available
+            if (this.routeData) {
+                const routeStore = transaction.objectStore('routes');
+                await routeStore.put({
+                    id: 'current_route',
+                    data: this.routeData,
+                    timestamp: Date.now(),
+                    transportMode: this.transportMode
+                });
+            }
+
+            // Cache current location
+            if (this.currentLocation) {
+                const locationStore = transaction.objectStore('locations');
+                await locationStore.put({
+                    id: 'current_location',
+                    data: this.currentLocation,
+                    timestamp: Date.now()
+                });
+            }
+
+            console.log('📱 Current data cached for offline use');
+        } catch (error) {
+            console.error('❌ Error caching current data:', error);
+        }
+    }
+
+    async syncOfflineData() {
+        if (!this.offlineDB || this.offlineQueue.length === 0) return;
+
+        console.log(`📱 Syncing ${this.offlineQueue.length} offline operations...`);
+
+        const failedOperations = [];
+
+        for (const operation of this.offlineQueue) {
+            try {
+                await this.executeOfflineOperation(operation);
+                console.log(`✅ Synced offline operation: ${operation.type}`);
+            } catch (error) {
+                console.error(`❌ Failed to sync operation ${operation.type}:`, error);
+                failedOperations.push(operation);
+            }
+        }
+
+        // Keep failed operations for retry
+        this.offlineQueue = failedOperations;
+
+        if (failedOperations.length === 0) {
+            this.showNotification('✅ All offline data synced successfully', 'success');
+        } else {
+            this.showNotification(`⚠️ ${failedOperations.length} operations failed to sync`, 'warning');
+        }
+    }
+
+    async executeOfflineOperation(operation) {
+        switch (operation.type) {
+            case 'route_request':
+                // Re-calculate route with fresh data
+                if (operation.data.from && operation.data.to) {
+                    await this.calculateRoute();
+                }
+                break;
+
+            case 'location_search':
+                // Re-search location with fresh data
+                if (operation.data.query) {
+                    await this.searchLocation(operation.data.query);
+                }
+                break;
+
+            case 'poi_search':
+                // Re-search POIs with fresh data
+                if (operation.data.type && operation.data.location) {
+                    await this.findNearbyServices(operation.data.type, operation.data.location);
+                }
+                break;
+
+            default:
+                console.warn('Unknown offline operation type:', operation.type);
+        }
+    }
+
+    queueOfflineOperation(type, data) {
+        const operation = {
+            id: Date.now() + Math.random(),
+            type,
+            data,
+            timestamp: Date.now(),
+            retryCount: 0
+        };
+
+        this.offlineQueue.push(operation);
+        console.log(`📱 Queued offline operation: ${type}`);
+    }
+
+    async getOfflineRoute(from, to, transportMode = 'driving') {
+        if (!this.offlineDB) return null;
+
+        try {
+            const transaction = this.offlineDB.transaction(['routes'], 'readonly');
+            const routeStore = transaction.objectStore('routes');
+
+            // Try to find a cached route
+            const cachedRoute = await routeStore.get('current_route');
+
+            if (cachedRoute && cachedRoute.data) {
+                console.log('📱 Using cached route for offline navigation');
+                return cachedRoute.data;
+            }
+
+            // Generate basic offline route
+            return this.generateOfflineRoute(from, to, transportMode);
+
+        } catch (error) {
+            console.error('❌ Error getting offline route:', error);
+            return this.generateOfflineRoute(from, to, transportMode);
+        }
+    }
+
+    generateOfflineRoute(from, to, transportMode) {
+        // Generate a basic straight-line route for offline use
+        const distance = this.calculateDistance(from.lat, from.lng, to.lat, to.lng);
+        const currentMode = this.transportModes[transportMode];
+        const duration = Math.round((distance / 1000) / currentMode.speedKmh * 3600);
+
+        // Create simple route coordinates (straight line with some waypoints)
+        const coordinates = this.generateStraightLineRoute(from, to);
+
+        return {
+            distance: distance,
+            duration: duration,
+            geometry: {
+                type: 'LineString',
+                coordinates: coordinates
+            },
+            steps: [{
+                instruction: `Head ${this.getDirection(from, to)} toward destination`,
+                distance: distance,
+                duration: duration
+            }],
+            offline: true,
+            transportMode: transportMode
+        };
+    }
+
+    generateStraightLineRoute(from, to, numPoints = 10) {
+        const coordinates = [];
+
+        for (let i = 0; i <= numPoints; i++) {
+            const ratio = i / numPoints;
+            const lat = from.lat + (to.lat - from.lat) * ratio;
+            const lng = from.lng + (to.lng - from.lng) * ratio;
+            coordinates.push([lng, lat]);
+        }
+
+        return coordinates;
+    }
+
+    getDirection(from, to) {
+        const deltaLat = to.lat - from.lat;
+        const deltaLng = to.lng - from.lng;
+
+        const angle = Math.atan2(deltaLng, deltaLat) * 180 / Math.PI;
+
+        if (angle >= -22.5 && angle < 22.5) return 'north';
+        if (angle >= 22.5 && angle < 67.5) return 'northeast';
+        if (angle >= 67.5 && angle < 112.5) return 'east';
+        if (angle >= 112.5 && angle < 157.5) return 'southeast';
+        if (angle >= 157.5 || angle < -157.5) return 'south';
+        if (angle >= -157.5 && angle < -112.5) return 'southwest';
+        if (angle >= -112.5 && angle < -67.5) return 'west';
+        if (angle >= -67.5 && angle < -22.5) return 'northwest';
+
+        return 'toward';
+    }
+
+    async cacheServiceResults(type, coords, services) {
+        if (!this.offlineDB) return;
+
+        try {
+            const transaction = this.offlineDB.transaction(['pois'], 'readwrite');
+            const poiStore = transaction.objectStore('pois');
+
+            const cacheKey = `${type}_${coords.lat.toFixed(4)}_${coords.lng.toFixed(4)}`;
+
+            await poiStore.put({
+                id: cacheKey,
+                type: type,
+                location: coords,
+                services: services,
+                timestamp: Date.now()
+            });
+
+            console.log(`📱 Cached ${services.length} ${type} services for offline use`);
+        } catch (error) {
+            console.error('❌ Error caching service results:', error);
+        }
+    }
+
+    async getCachedServiceResults(type, coords) {
+        if (!this.offlineDB) return null;
+
+        try {
+            const transaction = this.offlineDB.transaction(['pois'], 'readonly');
+            const poiStore = transaction.objectStore('pois');
+
+            const cacheKey = `${type}_${coords.lat.toFixed(4)}_${coords.lng.toFixed(4)}`;
+            const cached = await poiStore.get(cacheKey);
+
+            if (cached && cached.services) {
+                // Check if cache is still valid (within 24 hours)
+                const cacheAge = Date.now() - cached.timestamp;
+                if (cacheAge < 24 * 60 * 60 * 1000) {
+                    console.log(`📱 Using cached ${type} services (${cached.services.length} results)`);
+                    return cached.services;
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('❌ Error getting cached service results:', error);
+            return null;
+        }
     }
 
     // ===== MAP DISPLAY FIXES =====
@@ -10194,6 +10618,32 @@ function selectTransportMode(mode) {
     }
 
     console.log(`✅ Transport mode changed to: ${mode} (${modeConfig.profile})`);
+}
+
+// ===== OFFLINE FUNCTIONALITY =====
+
+// Initialize offline detection and management
+function initOfflineDetection() {
+    if (!window.app) return;
+
+    // Listen for online/offline events
+    window.addEventListener('online', () => {
+        console.log('📶 Connection restored - going online');
+        window.app.handleOnlineEvent();
+    });
+
+    window.addEventListener('offline', () => {
+        console.log('📵 Connection lost - going offline');
+        window.app.handleOfflineEvent();
+    });
+
+    // Check initial connection status
+    window.app.isOffline = !navigator.onLine;
+    if (window.app.isOffline) {
+        window.app.handleOfflineEvent();
+    }
+
+    console.log('📱 Offline detection initialized, currently:', navigator.onLine ? 'online' : 'offline');
 }
 
 
