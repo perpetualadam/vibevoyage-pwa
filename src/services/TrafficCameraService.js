@@ -1138,4 +1138,14 @@ class RoadObstacleService {
   }
 }
 
-export default new RoadObstacleService();
+// Browser-compatible global export
+if (typeof window !== 'undefined') {
+    window.TrafficCameraService = RoadObstacleService;
+    window.RoadObstacleService = RoadObstacleService;
+    console.log('✅ TrafficCameraService and RoadObstacleService available globally');
+} else {
+    // Node.js environment
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = RoadObstacleService;
+    }
+}
