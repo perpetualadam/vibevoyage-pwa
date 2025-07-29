@@ -1,8 +1,11 @@
 // VibeVoyage Service Worker - Optimized for PWA Builder
 // Fast registration with essential functionality
 
-const CACHE_NAME = 'vibevoyage-v1.0.3';
-const STATIC_CACHE = 'vibevoyage-static-v1.0.3';
+const CACHE_NAME = 'vibevoyage-v1.0.4';
+const STATIC_CACHE = 'vibevoyage-static-v1.0.4';
+const DYNAMIC_CACHE = 'vibevoyage-dynamic-v1.0.4';
+const MAP_CACHE = 'vibevoyage-maps-v1.0.4';
+const OFFLINE_CACHE = 'vibevoyage-offline-v1.0.4';
 
 // Essential assets for PWA Builder compatibility
 const STATIC_ASSETS = [
