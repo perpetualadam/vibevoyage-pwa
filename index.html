@@ -5,6 +5,36 @@
     <!-- ULTIMATE ERROR SUPPRESSION - MUST BE FIRST -->
     <script>
         (function() {
+            // PREVENT ETHEREUM PROPERTY CONFLICTS (MetaMask/Wallet Extensions)
+            try {
+                // If ethereum property already exists, make it configurable
+                if (typeof window.ethereum !== 'undefined') {
+                    const existingEthereum = window.ethereum;
+                    delete window.ethereum;
+                    Object.defineProperty(window, 'ethereum', {
+                        value: existingEthereum,
+                        writable: true,
+                        configurable: true,
+                        enumerable: true
+                    });
+                }
+
+                // Prevent future ethereum property conflicts
+                const originalDefineProperty = Object.defineProperty;
+                Object.defineProperty = function(obj, prop, descriptor) {
+                    if (obj === window && prop === 'ethereum') {
+                        // Allow ethereum property to be redefined
+                        if (window.ethereum) {
+                            descriptor.configurable = true;
+                            descriptor.writable = true;
+                        }
+                    }
+                    return originalDefineProperty.call(this, obj, prop, descriptor);
+                };
+            } catch (e) {
+                console.log('Ethereum property conflict prevention failed:', e);
+            }
+
             // COMPLETE chrome object destruction
             try {
                 if (typeof chrome !== 'undefined') {
@@ -34,7 +64,12 @@
                             'inpage.js',
                             'content_script',
                             'extension',
-                            'runtime.lastError'
+                            'runtime.lastError',
+                            'Cannot redefine property: ethereum',
+                            'ethereum',
+                            'MetaMask',
+                            'wallet',
+                            'defineProperty'
                         ];
 
                         if (suppressPatterns.some(pattern => message.includes(pattern))) {
@@ -58,7 +93,13 @@
                     'inpage.js',
                     'content_script',
                     'extension',
-                    'runtime.lastError'
+                    'runtime.lastError',
+                    'Cannot redefine property: ethereum',
+                    'ethereum',
+                    'MetaMask',
+                    'wallet',
+                    'defineProperty',
+                    'TypeError: Cannot redefine property'
                 ];
                 return suppressPatterns.some(pattern => message.includes(pattern));
             };
@@ -167,7 +208,7 @@
     <script>
         // Force load App.js with current timestamp to bypass all caching
         const appScript = document.createElement('script');
-        appScript.src = 'App.js?v=1753798582470&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
+        appScript.src = 'App.js?v=1753798844789&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
         appScript.defer = true;
         document.head.appendChild(appScript);
         console.log('🔧 Loading App.js with timestamp:', appScript.src);
@@ -183,7 +224,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=1753798582470&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                script.src = 'App.js?v=1753798844789&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -3514,7 +3555,7 @@
 
                             // Try loading App.js again
                             const script = document.createElement('script');
-                            script.src = 'App.js?v=1753798582470&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                            script.src = 'App.js?v=1753798844789&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                             script.onload = () => {
                                 console.log('✅ App.js reloaded');
                                 setTimeout(() => {
