@@ -2206,14 +2206,13 @@ class VibeVoyageApp {
         option.className = `route-option ${route.type}`;
         option.onclick = () => this.selectRouteOption(index);
 
-        const distance = (route.distance / 1000).toFixed(1);
         const duration = Math.round(route.duration / 60);
         const hours = Math.floor(duration / 60);
         const minutes = duration % 60;
         const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
         // Calculate additional stats
-        const avgSpeed = Math.round((route.distance / 1000) / (route.duration / 3600));
+        const avgSpeedKmh = Math.round((route.distance / 1000) / (route.duration / 3600));
         const fuelCost = this.estimateFuelCost(route.distance);
 
         option.innerHTML = `
@@ -2233,7 +2232,7 @@ class VibeVoyageApp {
                     </div>
                     <div class="route-stat">
                         <span class="route-stat-icon">⚡</span>
-                        <span class="route-stat-value">${this.formatSpeed(avgSpeed)}</span>
+                        <span class="route-stat-value">${this.formatSpeed(avgSpeedKmh)}</span>
                     </div>
                     <div class="route-stat">
                         <span class="route-stat-icon">⛽</span>
@@ -3906,7 +3905,6 @@ class VibeVoyageApp {
         if (!panel || !routeInfo) return;
 
         // Update route information
-        const distance = (route.distance / 1000).toFixed(1);
         const duration = Math.round(route.duration / 60);
         const hours = Math.floor(duration / 60);
         const minutes = duration % 60;
@@ -5984,7 +5982,8 @@ class VibeVoyageApp {
     }
 
     createRouteComparisonCard(route, index) {
-        const distance = (route.distance / 1000).toFixed(1);
+        // Use formatDistance to respect user's unit preferences
+        const distanceFormatted = this.formatDistance(route.distance);
         const duration = Math.round(route.duration / 60);
         const hours = Math.floor(duration / 60);
         const minutes = duration % 60;
@@ -6027,7 +6026,7 @@ class VibeVoyageApp {
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span>📏 Distance:</span>
-                        <span style="font-weight: bold;">${distance} km</span>
+                        <span style="font-weight: bold;">${distanceFormatted}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span>💰 Est. Cost:</span>
@@ -6072,7 +6071,7 @@ class VibeVoyageApp {
                 </div>
                 <div style="text-align: center;">
                     <div style="color: #4ECDC4;">📏 Shortest</div>
-                    <div>${(shortest.distance / 1000).toFixed(1)}km</div>
+                    <div>${this.formatDistance(shortest.distance)}</div>
                 </div>
                 <div style="text-align: center;">
                     <div style="color: #96CEB4;">💰 Cheapest</div>
