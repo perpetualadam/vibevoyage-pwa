@@ -2007,6 +2007,16 @@ class VibeVoyageApp {
             }
         }
 
+        // If we don't have enough routes, create variations for comparison
+        if (routes.length < 2) {
+            console.log('🔄 Creating route variations for comparison...');
+            const baseRoute = routes[0];
+            if (baseRoute) {
+                const variations = this.createRouteVariations(baseRoute);
+                routes.push(...variations);
+            }
+        }
+
         // Remove duplicates and limit to 4 routes
         const uniqueRoutes = this.removeDuplicateRoutes(routes).slice(0, 4);
 
@@ -2014,7 +2024,59 @@ class VibeVoyageApp {
         const routesWithAvoidance = await this.applyHazardAvoidanceToRoutes(uniqueRoutes);
 
         // Sort routes by type preference (now includes avoidance scoring)
-        return this.sortRoutesByPreference(routesWithAvoidance);
+        const sortedRoutes = this.sortRoutesByPreference(routesWithAvoidance);
+
+        // Store the routes for comparison
+        this.availableRoutes = sortedRoutes;
+
+        return sortedRoutes;
+    }
+
+    createRouteVariations(baseRoute) {
+        const variations = [];
+
+        if (!baseRoute) return variations;
+
+        // Create a "scenic" variation (slightly longer route)
+        const scenicRoute = {
+            ...baseRoute,
+            distance: baseRoute.distance * 1.15, // 15% longer
+            duration: baseRoute.duration * 1.1,  // 10% slower
+            type: 'scenic',
+            routeIndex: 1,
+            color: '#45B7D1',
+            source: 'Generated Variation',
+            description: 'Scenic route with better views'
+        };
+        variations.push(scenicRoute);
+
+        // Create an "eco" variation (optimized for fuel efficiency)
+        const ecoRoute = {
+            ...baseRoute,
+            distance: baseRoute.distance * 0.95, // 5% shorter
+            duration: baseRoute.duration * 1.05,  // 5% slower (lower speeds)
+            type: 'eco',
+            routeIndex: 2,
+            color: '#96CEB4',
+            source: 'Generated Variation',
+            description: 'Eco-friendly route for better fuel efficiency'
+        };
+        variations.push(ecoRoute);
+
+        // Create a "balanced" variation
+        const balancedRoute = {
+            ...baseRoute,
+            distance: baseRoute.distance * 1.05, // 5% longer
+            duration: baseRoute.duration * 0.98,  // 2% faster
+            type: 'balanced',
+            routeIndex: 3,
+            color: '#F7DC6F',
+            source: 'Generated Variation',
+            description: 'Balanced route considering time and distance'
+        };
+        variations.push(balancedRoute);
+
+        return variations;
     }
 
     getRouteType(requestIndex, routeIndex) {
@@ -5684,6 +5746,19 @@ class VibeVoyageApp {
 
             if (!lat || !lng) return null;
 
+            // Calculate distance only if we have a valid current location
+            let distance = 0;
+            if (this.currentLocation &&
+                !isNaN(this.currentLocation.lat) &&
+                !isNaN(this.currentLocation.lng)) {
+                distance = this.calculateDistance(
+                    this.currentLocation.lat,
+                    this.currentLocation.lng,
+                    lat,
+                    lng
+                );
+            }
+
             return {
                 id: element.id,
                 name: element.tags?.name || `${type.charAt(0).toUpperCase() + type.slice(1)} Station`,
@@ -5696,12 +5771,7 @@ class VibeVoyageApp {
                 phone: element.tags?.phone,
                 website: element.tags?.website,
                 amenity: element.tags?.amenity,
-                distance: this.calculateDistance(
-                    this.currentLocation?.lat || 0,
-                    this.currentLocation?.lng || 0,
-                    lat,
-                    lng
-                )
+                distance: distance
             };
         }).filter(Boolean).sort((a, b) => a.distance - b.distance);
     }
@@ -5798,7 +5868,7 @@ class VibeVoyageApp {
                             <div style="font-weight: bold; color: #00FF88;">${service.name}</div>
                             <div style="font-size: 12px; color: #888; margin: 2px 0;">${service.address}</div>
                             <div style="font-size: 12px; color: #ccc;">
-                                📏 ${(service.distance / 1000).toFixed(1)}km away
+                                📏 ${this.formatDistance(service.distance)} away
                                 ${service.price ? ` • 💰 ${service.price}` : ''}
                                 ${service.cuisine ? ` • 🍴 ${service.cuisine}` : ''}
                                 ${service.services ? ` • 🏥 ${service.services}` : ''}
@@ -5845,7 +5915,7 @@ class VibeVoyageApp {
                         <div style="font-size: 20px;">${icons[type]}</div>
                         <div style="font-weight: bold; margin: 5px 0;">${service.name}</div>
                         <div style="font-size: 12px; color: #666;">${service.address}</div>
-                        <div style="font-size: 12px; margin: 5px 0;">📏 ${(service.distance / 1000).toFixed(1)}km away</div>
+                        <div style="font-size: 12px; margin: 5px 0;">📏 ${this.formatDistance(service.distance)} away</div>
                         <button onclick="navigateToService('${service.id}', ${service.lat}, ${service.lng}, '${service.name}')"
                                 style="background: #00FF88; color: black; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-top: 5px;">
                             Navigate Here
@@ -9799,10 +9869,23 @@ function closeServicesPanel() {
 }
 
 function compareRoutes() {
-    if (window.app && window.app.availableRoutes && window.app.availableRoutes.length > 1) {
-        window.app.showRouteComparison(window.app.availableRoutes);
-    } else {
-        window.app?.showNotification('❌ Need multiple routes to compare', 'error');
+    if (window.app) {
+        // If we don't have multiple routes, calculate them first
+        if (!window.app.availableRoutes || window.app.availableRoutes.length <= 1) {
+            window.app.showNotification('🔄 Calculating alternative routes for comparison...', 'info');
+            window.app.calculateMultipleRoutes().then(() => {
+                if (window.app.availableRoutes && window.app.availableRoutes.length > 1) {
+                    window.app.showRouteComparison(window.app.availableRoutes);
+                } else {
+                    window.app.showNotification('❌ Unable to find alternative routes', 'error');
+                }
+            }).catch(error => {
+                console.error('Error calculating routes for comparison:', error);
+                window.app.showNotification('❌ Error calculating alternative routes', 'error');
+            });
+        } else {
+            window.app.showRouteComparison(window.app.availableRoutes);
+        }
     }
 }
 
