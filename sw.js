@@ -470,4 +470,18 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
+// Handle skip waiting message for faster PWA Builder registration
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('VibeVoyage SW: Skip waiting requested');
+    self.skipWaiting();
+  }
+});
+
+// Immediate activation for PWA Builder compatibility
+self.addEventListener('activate', (event) => {
+  console.log('VibeVoyage SW: Activated');
+  event.waitUntil(self.clients.claim());
+});
+
 console.log('VibeVoyage Service Worker loaded successfully');

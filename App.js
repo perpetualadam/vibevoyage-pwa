@@ -9831,13 +9831,24 @@ class VibeVoyageApp {
 
     initServiceWorker() {
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
+            // Register service worker with faster timeout for PWA Builder
+            navigator.serviceWorker.register('./sw.js', {
+                scope: './',
+                updateViaCache: 'none'
+            })
                 .then(registration => {
-                    console.log('SW registered:', registration);
+                    console.log('✅ SW registered successfully:', registration.scope);
+
+                    // Force immediate activation for PWA Builder
+                    if (registration.waiting) {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
                 })
                 .catch(error => {
-                    console.log('SW registration failed:', error);
+                    console.error('❌ SW registration failed:', error);
                 });
+        } else {
+            console.warn('⚠️ Service Worker not supported');
         }
     }
 }
