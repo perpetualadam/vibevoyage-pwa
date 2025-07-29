@@ -5208,6 +5208,12 @@ class VibeVoyageApp {
         }
 
         this.saveFavoriteLocations();
+
+        // Queue for background sync if offline
+        if (this.isOffline) {
+            this.queueUserAction('add_favorite', favorite);
+        }
+
         this.showNotification('⭐ Added to favorites!', 'success');
         return true;
     }
@@ -7507,6 +7513,92 @@ class VibeVoyageApp {
 
         this.offlineQueue.push(operation);
         console.log(`📱 Queued offline operation: ${type}`);
+
+        // Store in cache for background sync
+        this.storeOperationForBackgroundSync(operation);
+
+        // Register background sync for this operation type
+        this.registerSpecificBackgroundSync(type);
+    }
+
+    // Register background sync for specific operation types
+    async registerSpecificBackgroundSync(operationType) {
+        if (this.serviceWorkerRegistration && 'sync' in window.ServiceWorkerRegistration.prototype) {
+            try {
+                const syncTag = `background-sync-${operationType}`;
+                await this.serviceWorkerRegistration.sync.register(syncTag);
+                console.log(`✅ Background sync registered for: ${operationType}`);
+            } catch (error) {
+                console.error(`❌ Failed to register background sync for ${operationType}:`, error);
+            }
+        }
+    }
+
+    // Store operation in cache for background sync
+    async storeOperationForBackgroundSync(operation) {
+        try {
+            if ('caches' in window) {
+                const cache = await caches.open('vibevoyage-offline-v1.0.4');
+                const existingData = await cache.match('pending-operations');
+                let operations = [];
+
+                if (existingData) {
+                    operations = await existingData.json();
+                }
+
+                operations.push(operation);
+
+                const response = new Response(JSON.stringify(operations));
+                await cache.put('pending-operations', response);
+
+                console.log('✅ Operation stored for background sync:', operation.type);
+            }
+        } catch (error) {
+            console.error('❌ Failed to store operation for sync:', error);
+        }
+    }
+
+    // Queue user actions for background sync
+    queueUserAction(action, data) {
+        const userAction = {
+            id: Date.now() + Math.random(),
+            action: action,
+            data: data,
+            timestamp: new Date().toISOString(),
+            synced: false
+        };
+
+        // Store in cache for background sync
+        this.storeUserActionForSync(userAction);
+
+        // Register background sync
+        this.registerSpecificBackgroundSync('user-actions');
+
+        console.log('📝 Queued user action for background sync:', action);
+    }
+
+    // Store user action in cache for background sync
+    async storeUserActionForSync(userAction) {
+        try {
+            if ('caches' in window) {
+                const cache = await caches.open('vibevoyage-offline-v1.0.4');
+                const existingData = await cache.match('pending-user-actions');
+                let actions = [];
+
+                if (existingData) {
+                    actions = await existingData.json();
+                }
+
+                actions.push(userAction);
+
+                const response = new Response(JSON.stringify(actions));
+                await cache.put('pending-user-actions', response);
+
+                console.log('✅ User action stored for background sync');
+            }
+        } catch (error) {
+            console.error('❌ Failed to store user action for sync:', error);
+        }
     }
 
     async getOfflineRoute(from, to, transportMode = 'driving') {
@@ -9877,11 +9969,14 @@ class VibeVoyageApp {
     async triggerBackgroundSync() {
         if (this.serviceWorkerRegistration && 'sync' in window.ServiceWorkerRegistration.prototype) {
             try {
-                // Register background sync for different types of data
+                // Register comprehensive background sync for all data types
+                await this.serviceWorkerRegistration.sync.register('background-sync');
                 await this.serviceWorkerRegistration.sync.register('background-sync-routes');
                 await this.serviceWorkerRegistration.sync.register('background-sync-hazards');
                 await this.serviceWorkerRegistration.sync.register('background-sync-locations');
-                console.log('✅ Background sync registered for all data types');
+                await this.serviceWorkerRegistration.sync.register('background-sync-user-actions');
+                await this.serviceWorkerRegistration.sync.register('background-sync-favorites');
+                console.log('✅ Comprehensive background sync registered for all data types');
             } catch (error) {
                 console.error('❌ Background sync registration failed:', error);
             }

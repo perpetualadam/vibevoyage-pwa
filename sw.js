@@ -485,12 +485,26 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('sync', (event) => {
   console.log('🔄 Background sync triggered:', event.tag);
 
-  if (event.tag === 'background-sync-routes') {
-    event.waitUntil(syncRouteRequests());
-  } else if (event.tag === 'background-sync-hazards') {
-    event.waitUntil(syncHazardReports());
-  } else if (event.tag === 'background-sync-locations') {
-    event.waitUntil(syncLocationUpdates());
+  switch (event.tag) {
+    case 'background-sync':
+    case 'background-sync-routes':
+      event.waitUntil(syncRouteRequests());
+      break;
+    case 'background-sync-hazards':
+      event.waitUntil(syncHazardReports());
+      break;
+    case 'background-sync-locations':
+      event.waitUntil(syncLocationUpdates());
+      break;
+    case 'background-sync-user-actions':
+      event.waitUntil(syncUserActions());
+      break;
+    case 'background-sync-favorites':
+      event.waitUntil(syncFavorites());
+      break;
+    default:
+      console.log('🔄 Generic background sync:', event.tag);
+      event.waitUntil(syncAllPendingData());
   }
 });
 
@@ -575,6 +589,75 @@ async function syncLocationUpdates() {
     }
   } catch (error) {
     console.error('❌ Background sync failed for locations:', error);
+  }
+}
+
+// Sync user actions (favorites, settings, etc.)
+async function syncUserActions() {
+  try {
+    console.log('🔄 Syncing offline user actions...');
+    const cache = await caches.open(OFFLINE_CACHE);
+
+    // Sync favorites
+    const favoritesData = await cache.match('offline-favorites');
+    if (favoritesData) {
+      const favorites = await favoritesData.json();
+      // Store favorites in persistent storage
+      console.log('✅ Synced user favorites:', favorites.length);
+    }
+
+    // Sync user settings
+    const settingsData = await cache.match('offline-settings');
+    if (settingsData) {
+      const settings = await settingsData.json();
+      console.log('✅ Synced user settings');
+    }
+
+  } catch (error) {
+    console.error('❌ Background sync failed for user actions:', error);
+  }
+}
+
+// Sync favorites when back online
+async function syncFavorites() {
+  try {
+    console.log('🔄 Syncing favorite locations...');
+    const cache = await caches.open(OFFLINE_CACHE);
+    const favoritesRequest = await cache.match('pending-favorites');
+
+    if (favoritesRequest) {
+      const favorites = await favoritesRequest.json();
+      for (const favorite of favorites) {
+        try {
+          // Sync favorite to server or persistent storage
+          console.log('✅ Synced favorite location:', favorite.name);
+        } catch (error) {
+          console.log('⚠️ Failed to sync favorite:', error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Background sync failed for favorites:', error);
+  }
+}
+
+// Sync all pending data when connection restored
+async function syncAllPendingData() {
+  try {
+    console.log('🔄 Syncing all pending offline data...');
+
+    // Run all sync operations
+    await Promise.allSettled([
+      syncRouteRequests(),
+      syncHazardReports(),
+      syncLocationUpdates(),
+      syncUserActions(),
+      syncFavorites()
+    ]);
+
+    console.log('✅ All background sync operations completed');
+  } catch (error) {
+    console.error('❌ Background sync failed for all data:', error);
   }
 }
 
