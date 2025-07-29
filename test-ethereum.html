@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum Property Test</title>
+    
+    <!-- Same ethereum conflict prevention as main app -->
+    <script>
+        (function() {
+            // AGGRESSIVE ETHEREUM PROPERTY CONFLICT PREVENTION
+            try {
+                // Override Object.defineProperty IMMEDIATELY before any extensions load
+                const originalDefineProperty = Object.defineProperty;
+                const originalDefineProperties = Object.defineProperties;
+                
+                // Track ethereum property attempts
+                let ethereumAttempts = 0;
+                
+                // Override defineProperty
+                Object.defineProperty = function(obj, prop, descriptor) {
+                    if (obj === window && prop === 'ethereum') {
+                        ethereumAttempts++;
+                        console.log(`🔧 Ethereum property definition attempt #${ethereumAttempts} - allowing with configurable: true`);
+                        
+                        // Force it to be configurable and writable
+                        descriptor = {
+                            ...descriptor,
+                            configurable: true,
+                            writable: true
+                        };
+                    }
+                    
+                    try {
+                        return originalDefineProperty.call(this, obj, prop, descriptor);
+                    } catch (error) {
+                        if (prop === 'ethereum' && error.message.includes('Cannot redefine property')) {
+                            console.log('🔧 Ethereum redefinition blocked - deleting and retrying');
+                            try {
+                                delete obj[prop];
+                                return originalDefineProperty.call(this, obj, prop, descriptor);
+                            } catch (retryError) {
+                                console.log('🔧 Ethereum retry failed - silently ignoring');
+                                return; // Silently fail
+                            }
+                        }
+                        throw error;
+                    }
+                };
+                
+                // Override defineProperties for multiple property definitions
+                Object.defineProperties = function(obj, properties) {
+                    if (obj === window && properties.ethereum) {
+                        console.log('🔧 Ethereum in defineProperties - making configurable');
+                        properties.ethereum = {
+                            ...properties.ethereum,
+                            configurable: true,
+                            writable: true
+                        };
+                    }
+                    
+                    try {
+                        return originalDefineProperties.call(this, obj, properties);
+                    } catch (error) {
+                        if (properties.ethereum && error.message.includes('Cannot redefine property')) {
+                            console.log('🔧 Ethereum defineProperties blocked - deleting and retrying');
+                            try {
+                                delete obj.ethereum;
+                                return originalDefineProperties.call(this, obj, properties);
+                            } catch (retryError) {
+                                console.log('🔧 Ethereum defineProperties retry failed - silently ignoring');
+                                return; // Silently fail
+                            }
+                        }
+                        throw error;
+                    }
+                };
+                
+                console.log('✅ Ethereum property conflict prevention installed');
+            } catch (e) {
+                console.log('❌ Ethereum property conflict prevention failed:', e);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <h1>Ethereum Property Conflict Test</h1>
+    <div id="results"></div>
+
+    <script>
+        function logResult(message, isError = false) {
+            console.log(message);
+            const div = document.getElementById('results');
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.style.color = isError ? 'red' : 'green';
+            div.appendChild(p);
+        }
+        
+        logResult('🧪 Testing ethereum property handling...');
+        
+        // Test 1: Check if ethereum exists
+        if (typeof window.ethereum !== 'undefined') {
+            logResult('✅ Ethereum property exists (from wallet extension)');
+            logResult('✅ Type: ' + typeof window.ethereum);
+        } else {
+            logResult('ℹ️ No ethereum property found (no wallet extension)');
+        }
+        
+        // Test 2: Try to define ethereum property
+        try {
+            Object.defineProperty(window, 'ethereum', {
+                value: { test: 'test-value' },
+                configurable: true,
+                writable: true
+            });
+            logResult('✅ Successfully defined ethereum property');
+        } catch (error) {
+            logResult('❌ Failed to define ethereum property: ' + error.message, true);
+        }
+        
+        // Test 3: Try to redefine ethereum property
+        try {
+            Object.defineProperty(window, 'ethereum', {
+                value: { test: 'new-test-value' },
+                configurable: true,
+                writable: true
+            });
+            logResult('✅ Successfully redefined ethereum property');
+        } catch (error) {
+            logResult('❌ Failed to redefine ethereum property: ' + error.message, true);
+        }
+        
+        // Test 4: Check final state
+        if (window.ethereum) {
+            logResult('✅ Final ethereum property value: ' + JSON.stringify(window.ethereum));
+        }
+        
+        logResult('🎉 Ethereum property test completed!');
+    </script>
+</body>
+</html>
