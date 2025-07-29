@@ -271,8 +271,38 @@ class VibeVoyageApp {
         // Reset hazards counter on app start
         this.resetHazardsCounter();
 
+        // Transport mode settings
+        this.transportMode = 'driving'; // Default mode
+        this.transportModes = {
+            driving: {
+                profile: 'driving',
+                icon: '🚗',
+                name: 'Drive',
+                description: 'Fastest routes via roads',
+                speedKmh: 50,
+                color: '#4ECDC4'
+            },
+            cycling: {
+                profile: 'cycling',
+                icon: '🚴',
+                name: 'Cycle',
+                description: 'Safe routes via cycle paths and quiet roads',
+                speedKmh: 15,
+                color: '#45B7D1'
+            },
+            walking: {
+                profile: 'foot',
+                icon: '🚶',
+                name: 'Walk',
+                description: 'Direct routes via footpaths and pedestrian areas',
+                speedKmh: 5,
+                color: '#96CEB4'
+            }
+        };
+
         console.log('✅ VibeVoyage PWA Ready! v2025.16 - Pure JavaScript Implementation');
         console.log('📏 Current units structure:', this.units);
+        console.log('🚶🚴🚗 Transport modes initialized:', Object.keys(this.transportModes));
 
         // Test notification system
         setTimeout(() => {
@@ -1967,23 +1997,29 @@ class VibeVoyageApp {
         // Get avoidance parameters based on user settings
         const avoidanceParams = this.buildAvoidanceParameters();
 
-        // Reliable routing services - only use free, working services
+        // Get current transport mode profile
+        const currentMode = this.transportModes[this.transportMode];
+        const profile = currentMode.profile;
+
+        console.log(`🚶🚴🚗 Using transport mode: ${this.transportMode} (${profile})`);
+
+        // Reliable routing services - use selected transport mode
         const routingServices = [
             {
-                name: 'OSRM Primary Route',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true${avoidanceParams}`,
+                name: `OSRM ${currentMode.name} Primary Route`,
+                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true${avoidanceParams}`,
                 timeout: 10000,
                 type: 'osrm'
             },
             {
-                name: 'OSRM with Alternatives',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${avoidanceParams}`,
+                name: `OSRM ${currentMode.name} with Alternatives`,
+                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=true${avoidanceParams}`,
                 timeout: 8000,
                 type: 'osrm'
             },
             {
-                name: 'OSRM Fastest Route',
-                url: `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=false${avoidanceParams}`,
+                name: `OSRM ${currentMode.name} Fastest Route`,
+                url: `https://router.project-osrm.org/route/v1/${profile}/${start};${end}?overview=full&geometries=geojson&steps=true&alternatives=false${avoidanceParams}`,
                 timeout: 6000,
                 type: 'osrm'
             }
@@ -4980,7 +5016,10 @@ class VibeVoyageApp {
                 distance = 15200; // 15.2 km default distance
             }
 
-            const duration = Math.round((distance / 1000) / 50 * 3600); // Convert to km, then calculate duration (50 km/h average)
+            // Use appropriate speed for transport mode
+            const currentMode = this.transportModes[this.transportMode];
+            const averageSpeed = currentMode.speedKmh;
+            const duration = Math.round((distance / 1000) / averageSpeed * 3600); // Convert to km, then calculate duration
 
             console.log('🛣️ Creating demo route:', {
                 startLat, startLng, endLat, endLng,
@@ -10107,6 +10146,54 @@ function toggleHazardSettings() {
     } else {
         console.error('❌ App not ready yet - toggleHazardSettings');
     }
+}
+
+// Transport Mode Selection
+function selectTransportMode(mode) {
+    console.log(`🚶🚴🚗 Selecting transport mode: ${mode}`);
+
+    if (!window.app || !window.app.transportModes[mode]) {
+        console.error('❌ Invalid transport mode or app not ready:', mode);
+        return;
+    }
+
+    // Update app transport mode
+    window.app.transportMode = mode;
+    const modeConfig = window.app.transportModes[mode];
+
+    // Update UI - remove active class from all buttons
+    document.querySelectorAll('.transport-mode-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Add active class to selected button
+    const selectedBtn = document.querySelector(`[data-mode="${mode}"]`);
+    if (selectedBtn) {
+        selectedBtn.classList.add('active');
+    }
+
+    // Update navigate button
+    const navigateBtn = document.getElementById('navigateBtn');
+    const navigateBtnIcon = document.getElementById('navigateBtnIcon');
+    const navigateBtnText = document.getElementById('navigateBtnText');
+
+    if (navigateBtnIcon && navigateBtnText) {
+        navigateBtnIcon.textContent = modeConfig.icon;
+        navigateBtnText.textContent = `Start ${modeConfig.name === 'Drive' ? 'Navigation' : modeConfig.name + 'ing'}`;
+    }
+
+    // Show notification
+    window.app.showNotification(`${modeConfig.icon} ${modeConfig.name} mode selected - ${modeConfig.description}`, 'info');
+
+    // If there's an existing route, recalculate with new mode
+    if (window.app.currentLocation && window.app.destination) {
+        console.log('🔄 Recalculating route with new transport mode...');
+        window.app.calculateRoute().catch(error => {
+            console.error('Error recalculating route:', error);
+        });
+    }
+
+    console.log(`✅ Transport mode changed to: ${mode} (${modeConfig.profile})`);
 }
 
 

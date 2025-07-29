@@ -328,7 +328,7 @@
     <script>
         // Force load App.js with current timestamp to bypass all caching
         const appScript = document.createElement('script');
-        appScript.src = 'App.js?v=1753805408907&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
+        appScript.src = 'App.js?v=1753806157601&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload&cachebuster=v3';
         appScript.defer = true;
         document.head.appendChild(appScript);
         console.log('🔧 Loading App.js with timestamp:', appScript.src);
@@ -344,7 +344,7 @@
             if (typeof initializeVibeVoyage === 'undefined') {
                 console.warn('⚠️ initializeVibeVoyage not found, loading App.js again');
                 const script = document.createElement('script');
-                script.src = 'App.js?v=1753805408907&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                script.src = 'App.js?v=1753806157601&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                 script.onload = () => {
                     console.log('✅ App.js loaded successfully');
                     if (typeof initializeVibeVoyage === 'function') {
@@ -2562,6 +2562,74 @@
             font-style: normal;
             box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
         }
+
+        /* Transport Mode Selector */
+        .transport-mode-selector {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .transport-modes {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .transport-mode-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ccc;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        .transport-mode-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .transport-mode-btn.active {
+            background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
+            border-color: #00FF88;
+            color: #000;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .transport-mode-btn.active:hover {
+            background: linear-gradient(135deg, #00FF88 0%, #00DD77 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        /* Mode-specific styling */
+        .transport-mode-btn[data-mode="driving"].active {
+            background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
+            border-color: #4ECDC4;
+        }
+
+        .transport-mode-btn[data-mode="cycling"].active {
+            background: linear-gradient(135deg, #45B7D1 0%, #3A9BC1 100%);
+            border-color: #45B7D1;
+        }
+
+        .transport-mode-btn[data-mode="walking"].active {
+            background: linear-gradient(135deg, #96CEB4 0%, #85B8A3 100%);
+            border-color: #96CEB4;
+        }
     </style>
 </head>
 <body>
@@ -2644,8 +2712,29 @@
                     </div>
                 </div>
 
+                <!-- Transport Mode Selector -->
+                <div class="transport-mode-selector" style="margin: 15px 0;">
+                    <div style="text-align: center; margin-bottom: 8px; color: #ccc; font-size: 12px; font-weight: 500;">
+                        Choose Transport Mode
+                    </div>
+                    <div class="transport-modes" style="display: flex; gap: 8px; justify-content: center;">
+                        <button class="transport-mode-btn active" data-mode="driving" onclick="selectTransportMode('driving')"
+                                title="Driving - Fastest routes via roads">
+                            🚗 Drive
+                        </button>
+                        <button class="transport-mode-btn" data-mode="cycling" onclick="selectTransportMode('cycling')"
+                                title="Cycling - Safe routes via cycle paths and quiet roads">
+                            🚴 Cycle
+                        </button>
+                        <button class="transport-mode-btn" data-mode="walking" onclick="selectTransportMode('walking')"
+                                title="Walking - Direct routes via footpaths and pedestrian areas">
+                            🚶 Walk
+                        </button>
+                    </div>
+                </div>
+
                 <button class="navigate-btn mobile-navigate-btn" id="navigateBtn" onclick="startNavigation()" disabled>
-                    🚗 Start Navigation
+                    <span id="navigateBtnIcon">🚗</span> <span id="navigateBtnText">Start Navigation</span>
                 </button>
 
                 <!-- Weather and ETA Display -->
@@ -3675,7 +3764,7 @@
 
                             // Try loading App.js again
                             const script = document.createElement('script');
-                            script.src = 'App.js?v=1753805408907&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
+                            script.src = 'App.js?v=1753806157601&t=' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true' + Date.now() + '&fixed=true&nocache=true&force=reload';
                             script.onload = () => {
                                 console.log('✅ App.js reloaded');
                                 setTimeout(() => {
