@@ -1758,108 +1758,13 @@ class VibeVoyageApp {
         console.log('🔍 Current location:', this.currentLocation);
         console.log('🔍 Destination:', this.destination);
 
-        // Clean any remaining :1 suffixes from all parameters (multiple passes)
-        Object.keys(excludeParams).forEach(key => {
-            if (excludeParams[key]) {
-                let cleaned = excludeParams[key];
-                // Multiple cleaning passes to catch all variations
-                cleaned = cleaned.replace(/:1/g, '');
-                cleaned = cleaned.replace(/:\d+/g, ''); // Remove any :number suffixes
-                cleaned = cleaned.replace(/,+/g, ','); // Fix multiple commas
-                cleaned = cleaned.replace(/^,|,$/g, ''); // Remove leading/trailing commas
 
-                if (cleaned !== excludeParams[key]) {
-                    console.log(`🧹 Cleaned ${key}: "${excludeParams[key]}" → "${cleaned}"`);
-                    excludeParams[key] = cleaned;
-                }
-            }
-        });
 
-        console.log('🚨 OSRM exclude parameters (after cleaning):', excludeParams);
 
-        // Final aggressive cleaning right before URL construction
-        Object.keys(excludeParams).forEach(key => {
-            if (excludeParams[key]) {
-                // Remove all :number patterns and clean up
-                let cleaned = excludeParams[key];
-                cleaned = cleaned.replace(/:[0-9]+/g, ''); // Remove :1, :2, etc.
-                cleaned = cleaned.replace(/,+/g, ','); // Fix multiple commas
-                cleaned = cleaned.replace(/^,|,$/g, ''); // Remove leading/trailing commas
-                cleaned = cleaned.replace(/&exclude=,/g, '&exclude='); // Fix empty exclude
-                cleaned = cleaned.replace(/&exclude=$/g, ''); // Remove empty exclude at end
 
-                if (cleaned !== excludeParams[key]) {
-                    console.log(`🧹 Final cleaning ${key}: "${excludeParams[key]}" → "${cleaned}"`);
-                    excludeParams[key] = cleaned;
-                }
-            }
-        });
 
-        console.log('🚨 OSRM exclude parameters (final):', excludeParams);
 
-        // Show user notification about active hazard avoidance
-        const activeHazards = this.getActiveHazardTypes();
-        if (activeHazards.length > 0) {
-            this.showNotification(`🚨 Avoiding: ${activeHazards.join(', ')}`, 'info');
-        }
 
-        // Helper function to clean URL parameters aggressively
-        const cleanUrlParam = (param) => {
-            if (!param) return '';
-            let cleaned = param;
-
-            // Remove all :number patterns (including :1, :2, etc.) - multiple passes
-            cleaned = cleaned.replace(/:[0-9]+/g, '');
-            cleaned = cleaned.replace(/:[0-9]+/g, ''); // Second pass
-
-            // Remove any trailing numbers that might be appended
-            cleaned = cleaned.replace(/[0-9]+$/g, '');
-
-            // Clean up multiple commas and trailing/leading commas
-            cleaned = cleaned.replace(/,+/g, ',').replace(/^,|,$/g, '');
-
-            // Remove any remaining problematic characters except letters, commas, &, =
-            cleaned = cleaned.replace(/[^a-zA-Z,&=]/g, '');
-
-            // Final pass to remove any remaining :1 patterns
-            cleaned = cleaned.replace(/:1/g, '');
-            cleaned = cleaned.replace(/1$/g, ''); // Remove trailing 1
-
-            console.log(`🧹 URL param cleaning: "${param}" → "${cleaned}"`);
-            return cleaned;
-        };
-
-        // Build URLs with aggressive cleaning to prevent :1 suffixes
-        const buildCleanUrl = (baseUrl, excludeParam) => {
-            let url = baseUrl;
-            if (excludeParam && excludeParam.trim()) {
-                // Aggressively clean the exclude parameter
-                let cleanParam = excludeParam
-                    .replace(/:[0-9]+/g, '')  // Remove :1, :2, etc.
-                    .replace(/[0-9]+$/g, '')  // Remove trailing numbers
-                    .replace(/,+/g, ',')      // Clean multiple commas
-                    .replace(/^,|,$/g, '')    // Remove leading/trailing commas
-                    .replace(/[^a-zA-Z,&=]/g, ''); // Keep only letters, commas, &, =
-
-                if (cleanParam && cleanParam !== '&exclude=') {
-                    url += cleanParam;
-                }
-            }
-
-            // NUCLEAR OPTION: Multiple passes to eliminate ALL :1 patterns
-            url = url.replace(/:[0-9]+/g, '');           // First pass
-            url = url.replace(/:[0-9]+/g, '');           // Second pass
-            url = url.replace(/[0-9]+(?=&|$)/g, '');     // Remove trailing numbers
-            url = url.replace(/:1/g, '');                // Specific :1 removal
-            url = url.replace(/1(?=&|$)/g, '');          // Remove standalone 1s
-            url = url.replace(/exclude=[^&]*:1/g, 'exclude='); // Remove :1 from exclude params
-            url = url.replace(/exclude=,/g, 'exclude='); // Clean up empty excludes
-            url = url.replace(/exclude=&/g, '');         // Remove empty exclude params
-            url = url.replace(/exclude=$/g, '');         // Remove trailing empty exclude
-
-            console.log(`🔧 Built NUCLEAR clean URL: ${url}`);
-            return url;
-        };
 
         // Multiple routing services - prioritize reliable open source alternatives
         const routingServices = [
@@ -2028,7 +1933,7 @@ class VibeVoyageApp {
                 this.availableRoutes = routes;
 
                 // Select the first (best) route
-                this.selectRoute(0);
+                this.selectRoute(routes[0], 0);
 
                 // Update UI
                 this.showRouteSelection(routes);
@@ -2048,7 +1953,7 @@ class VibeVoyageApp {
 
         if (demoRoute) {
             this.availableRoutes = [demoRoute];
-            this.selectRoute(0);
+            this.selectRoute(demoRoute, 0);
             this.showRouteSelection([demoRoute]);
             this.displayMultipleRoutes([demoRoute]);
             console.log('✅ Demo route created as final fallback');
