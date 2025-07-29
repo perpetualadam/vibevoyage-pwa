@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrafficCameraService Test</title>
+</head>
+<body>
+    <h1>TrafficCameraService Loading Test</h1>
+    <div id="results"></div>
+
+    <script>
+        console.log('🧪 Starting TrafficCameraService test...');
+        
+        function logResult(message, isError = false) {
+            console.log(message);
+            const div = document.getElementById('results');
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.style.color = isError ? 'red' : 'green';
+            div.appendChild(p);
+        }
+        
+        // Test 1: Load TrafficCameraService
+        logResult('📋 Test 1: Loading TrafficCameraService...');
+    </script>
+
+    <!-- Load the service -->
+    <script src="src/services/TrafficCameraService.js?v=2025.22&nocache=true&force=reload"></script>
+
+    <script>
+        // Test 2: Check if service is available
+        setTimeout(() => {
+            logResult('📋 Test 2: Checking if TrafficCameraService is available...');
+            
+            if (typeof window.TrafficCameraService !== 'undefined') {
+                logResult('✅ TrafficCameraService is available!');
+                logResult('✅ Type: ' + typeof window.TrafficCameraService);
+                
+                // Test 3: Try to create instance
+                try {
+                    const instance = new window.TrafficCameraService();
+                    logResult('✅ Successfully created TrafficCameraService instance!');
+                    
+                    // Test 4: Check if instance has expected methods
+                    if (typeof instance.updateSettings === 'function') {
+                        logResult('✅ updateSettings method is available!');
+                    } else {
+                        logResult('❌ updateSettings method is missing!', true);
+                    }
+                    
+                } catch (error) {
+                    logResult('❌ Error creating instance: ' + error.message, true);
+                }
+                
+            } else {
+                logResult('❌ TrafficCameraService is NOT available!', true);
+                logResult('❌ window.TrafficCameraService type: ' + typeof window.TrafficCameraService, true);
+            }
+            
+            // Test 5: Check RoadObstacleService alias
+            if (typeof window.RoadObstacleService !== 'undefined') {
+                logResult('✅ RoadObstacleService alias is available!');
+            } else {
+                logResult('❌ RoadObstacleService alias is NOT available!', true);
+            }
+            
+        }, 500);
+    </script>
+
+    <!-- Load the alias -->
+    <script src="src/services/RoadObstacleService.js?v=2025.22&nocache=true&force=reload"></script>
+
+    <script>
+        setTimeout(() => {
+            logResult('📋 Final Test: Checking alias after RoadObstacleService load...');
+            
+            if (typeof window.RoadObstacleService !== 'undefined') {
+                logResult('✅ RoadObstacleService alias is now available!');
+            } else {
+                logResult('❌ RoadObstacleService alias is still NOT available!', true);
+            }
+            
+        }, 1000);
+    </script>
+</body>
+</html>

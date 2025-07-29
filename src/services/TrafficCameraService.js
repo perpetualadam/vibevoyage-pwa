@@ -1,6 +1,8 @@
 // Enhanced Traffic Camera and Road Obstacle Detection Service
 // Browser-compatible service for web applications
 
+console.log('🔄 TrafficCameraService.js loading...');
+
 // Browser-compatible storage helper
 const BrowserStorage = {
   async getItem(key) {
@@ -20,6 +22,8 @@ const BrowserStorage = {
     }
   }
 };
+
+console.log('🔄 Defining RoadObstacleService class...');
 
 class RoadObstacleService {
   constructor() {
@@ -1158,20 +1162,30 @@ class RoadObstacleService {
   }
 }
 
-// Create instance and expose globally for browser compatibility
-if (typeof window !== 'undefined') {
-    // Create a single instance
+// Immediately expose to global scope - no conditions
+try {
+    // Create instance immediately
     const trafficCameraServiceInstance = new RoadObstacleService();
 
-    // Expose both class and instance globally
+    // Force global exposure
     window.TrafficCameraService = RoadObstacleService;
     window.RoadObstacleService = RoadObstacleService;
     window.trafficCameraService = trafficCameraServiceInstance;
 
     console.log('✅ TrafficCameraService class and instance available globally');
-} else {
-    // Node.js environment
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = RoadObstacleService;
-    }
+    console.log('✅ TrafficCameraService type:', typeof window.TrafficCameraService);
+    console.log('✅ Instance created:', !!window.trafficCameraService);
+} catch (error) {
+    console.error('❌ Error creating TrafficCameraService:', error);
+
+    // Fallback - create minimal service
+    window.TrafficCameraService = class MinimalTrafficCameraService {
+        constructor() {
+            this.settings = {};
+        }
+        updateSettings(settings) {
+            this.settings = settings;
+        }
+    };
+    console.log('⚠️ Created fallback TrafficCameraService');
 }
