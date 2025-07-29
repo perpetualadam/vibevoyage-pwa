@@ -856,8 +856,12 @@ class VibeVoyageApp {
 
             // Initialize Leaflet map with enhanced mobile options
             console.log('🗺️ Creating new Leaflet map instance...');
+
+            // Get intelligent default location
+            const defaultLoc = await this.getDefaultLocation();
+
             this.map = L.map('map', {
-                center: [40.7128, -74.0060], // Default to NYC
+                center: [defaultLoc.lat, defaultLoc.lng], // Use intelligent default
                 zoom: 13,
                 zoomControl: false,
                 attributionControl: false,
@@ -1399,30 +1403,88 @@ class VibeVoyageApp {
             }
             this.showNotification(notificationMessage, 'info');
 
-            // Set a default location (NYC) for demo purposes
-            this.currentLocation = { lat: 40.7128, lng: -74.0060 };
+            // Set an intelligent default location
+            const defaultLoc = await this.getDefaultLocation();
+            this.currentLocation = { lat: defaultLoc.lat, lng: defaultLoc.lng };
             if (this.map) {
                 this.map.setView([this.currentLocation.lat, this.currentLocation.lng], 13);
                 L.marker([this.currentLocation.lat, this.currentLocation.lng])
                     .addTo(this.map)
-                    .bindPopup('📍 Demo Location (NYC)')
+                    .bindPopup(`📍 Demo Location (${defaultLoc.name || 'Default'})`)
                     .openPopup();
             }
             // Update input with demo location as default value
             const fromInput = document.getElementById('fromInput');
             if (fromInput) {
-                fromInput.value = 'Demo Location (NYC)';
+                const defaultLoc = await this.getDefaultLocation();
+                const locationName = defaultLoc.name ? `Demo Location (${defaultLoc.name})` : 'Demo Location';
+                fromInput.value = locationName;
                 fromInput.placeholder = 'From: Address, company, postcode...';
                 fromInput.classList.add('default-location');
 
                 // Make it easy to overwrite
                 fromInput.addEventListener('focus', function() {
-                    if (this.value === 'Demo Location (NYC)') {
+                    if (this.value.startsWith('Demo Location')) {
                         this.select();
                     }
                 }, { once: false });
             }
         }
+    }
+
+    async getDefaultLocation() {
+        console.log('🔍 Getting default location (trying current location first)...');
+
+        try {
+            // If we already have a current location, use it
+            if (this.currentLocation && this.currentLocation.lat && this.currentLocation.lng) {
+                console.log('✅ Using existing current location as default:', this.currentLocation);
+                return this.currentLocation;
+            }
+
+            // Try to get current location first
+            await this.getCurrentLocation();
+            if (this.currentLocation && this.currentLocation.lat && this.currentLocation.lng) {
+                console.log('✅ Using fresh current location as default:', this.currentLocation);
+                return this.currentLocation;
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not get current location for default, using intelligent fallback');
+        }
+
+        // Try to detect user's country/region for better default
+        try {
+            const response = await fetch('https://ipapi.co/json/', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(3000)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const countryDefaults = {
+                    'GB': { lat: 53.4084, lng: -2.9916, name: 'Manchester, UK' }, // UK center
+                    'US': { lat: 39.8283, lng: -98.5795, name: 'Kansas, USA' }, // US center
+                    'CA': { lat: 56.1304, lng: -106.3468, name: 'Saskatchewan, Canada' }, // Canada center
+                    'AU': { lat: -25.2744, lng: 133.7751, name: 'Alice Springs, Australia' }, // Australia center
+                    'DE': { lat: 51.1657, lng: 10.4515, name: 'Germany' }, // Germany center
+                    'FR': { lat: 46.2276, lng: 2.2137, name: 'France' }, // France center
+                };
+
+                const defaultLoc = countryDefaults[data.country_code] ||
+                                 { lat: 51.5074, lng: -0.1278, name: 'London, UK' }; // Global fallback
+
+                console.log(`🌍 Using country-based default for ${data.country}: ${defaultLoc.name}`);
+                return defaultLoc;
+            }
+        } catch (ipError) {
+            console.warn('⚠️ Could not detect country, using global default');
+        }
+
+        // Final fallback to London
+        const globalDefault = { lat: 51.5074, lng: -0.1278, name: 'London, UK' };
+        console.log('🌍 Using global default location:', globalDefault.name);
+        return globalDefault;
     }
 
     setDefaultFromLocation() {
@@ -1432,7 +1494,7 @@ class VibeVoyageApp {
             // Always set current location as default, even if input has content
             if (this.currentLocation) {
                 // Only set if it's not already set or if it's empty
-                if (!fromInput.value.trim() || fromInput.value === 'Current Location' || fromInput.value === 'Demo Location (NYC)') {
+                if (!fromInput.value.trim() || fromInput.value === 'Current Location' || fromInput.value.startsWith('Demo Location')) {
                     fromInput.value = 'Current Location';
                     fromInput.classList.add('default-location');
 
@@ -1442,7 +1504,7 @@ class VibeVoyageApp {
 
                     // Add event listeners for easy overwriting
                     this.handleFromInputFocus = function() {
-                        if (this.value === 'Current Location' || this.value === 'Demo Location (NYC)') {
+                        if (this.value === 'Current Location' || this.value.startsWith('Demo Location')) {
                             this.select();
                         }
                     };
@@ -1719,17 +1781,22 @@ class VibeVoyageApp {
                 destination: this.destination
             });
 
-            // Use default coordinates if current ones are invalid
-            const defaultCurrent = { lat: 53.3811, lng: -1.4701 }; // Sheffield
-            const defaultDestination = { lat: 53.5528, lng: -1.4797 }; // Barnsley
+            // Use intelligent default coordinates if current ones are invalid
+            const defaultLoc = await this.getDefaultLocation();
+            const defaultCurrent = { lat: defaultLoc.lat, lng: defaultLoc.lng };
+            // Create a nearby destination (roughly 10km away)
+            const defaultDestination = {
+                lat: defaultLoc.lat + 0.09, // ~10km north
+                lng: defaultLoc.lng + 0.09  // ~10km east
+            };
 
             if (isNaN(this.currentLocation.lat) || isNaN(this.currentLocation.lng)) {
-                console.log('🔄 Using default current location:', defaultCurrent);
+                console.log('🔄 Using intelligent default current location:', defaultCurrent);
                 this.currentLocation = defaultCurrent;
             }
 
             if (isNaN(this.destination.lat) || isNaN(this.destination.lng)) {
-                console.log('🔄 Using default destination:', defaultDestination);
+                console.log('🔄 Using intelligent default destination:', defaultDestination);
                 this.destination = defaultDestination;
             }
         }
@@ -4433,14 +4500,15 @@ class VibeVoyageApp {
             this.map.fitBounds(bounds, { padding: [20, 20] });
             this.showNotification('🎯 Map centered on route', 'info');
         }
-        // Default to a general location (London)
+        // Default to intelligent location
         else {
-            console.log('🌍 Centering on default location');
-            this.map.setView([51.5074, -0.1278], 10, {
+            console.log('🌍 Centering on intelligent default location');
+            const defaultLoc = await this.getDefaultLocation();
+            this.map.setView([defaultLoc.lat, defaultLoc.lng], 10, {
                 animate: true,
                 duration: 0.5
             });
-            this.showNotification('🎯 Map recentered', 'info');
+            this.showNotification(`🎯 Map centered on ${defaultLoc.name || 'default location'}`, 'info');
         }
     }
 
@@ -4637,10 +4705,11 @@ class VibeVoyageApp {
             // Validate coordinates
             if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
                 console.error('❌ Invalid coordinates for demo route:', { start, end, startLat, startLng, endLat, endLng });
-                // Use default coordinates (Sheffield to Barnsley)
-                const defaultStartLat = 53.3811, defaultStartLng = -1.4701;
-                const defaultEndLat = 53.5528, defaultEndLng = -1.4797;
-                console.log('🔄 Using default coordinates:', { defaultStartLat, defaultStartLng, defaultEndLat, defaultEndLng });
+                // Use intelligent default coordinates
+                const defaultLoc = await this.getDefaultLocation();
+                const defaultStartLat = defaultLoc.lat, defaultStartLng = defaultLoc.lng;
+                const defaultEndLat = defaultLoc.lat + 0.09, defaultEndLng = defaultLoc.lng + 0.09; // ~10km away
+                console.log('🔄 Using intelligent default coordinates:', { defaultStartLat, defaultStartLng, defaultEndLat, defaultEndLng });
                 return this.createDemoRoute(`${defaultStartLng},${defaultStartLat}`, `${defaultEndLng},${defaultEndLat}`);
             }
 
@@ -7157,14 +7226,15 @@ class VibeVoyageApp {
             this.map.fitBounds(bounds, { padding: [20, 20] });
             this.showNotification('🎯 Map centered on route', 'info');
         }
-        // Default to a general location (London)
+        // Default to intelligent location
         else {
-            console.log('🌍 Centering on default location');
-            this.map.setView([51.5074, -0.1278], 10, {
+            console.log('🌍 Centering on intelligent default location');
+            const defaultLoc = await this.getDefaultLocation();
+            this.map.setView([defaultLoc.lat, defaultLoc.lng], 10, {
                 animate: true,
                 duration: 0.5
             });
-            this.showNotification('🎯 Map recentered', 'info');
+            this.showNotification(`🎯 Map centered on ${defaultLoc.name || 'default location'}`, 'info');
         }
     }
 
