@@ -184,8 +184,7 @@ class VibeVoyageApp {
         // Setup event listeners
         this.setupEventListeners();
 
-        // Check online status
-        this.updateConnectionStatus();
+        // Online status is now handled by initOfflineDetection()
 
         // Initialize async components after constructor
         this.initializeAsync();
@@ -7242,8 +7241,12 @@ class VibeVoyageApp {
             this.handleOfflineEvent();
         });
 
-        // Check initial connection status
+        // Check initial connection status and show indicator
         this.isOffline = !navigator.onLine;
+
+        // Always create and show the connection status indicator
+        this.updateOfflineUI(this.isOffline);
+
         if (this.isOffline) {
             this.handleOfflineEvent();
         }
@@ -7327,6 +7330,8 @@ class VibeVoyageApp {
     }
 
     updateOfflineUI(isOffline) {
+        console.log(`📱 Updating offline UI, isOffline: ${isOffline}`);
+
         // Update UI to show offline status
         const statusIndicator = document.getElementById('connectionStatus') || this.createConnectionStatusIndicator();
 
@@ -7334,29 +7339,42 @@ class VibeVoyageApp {
             statusIndicator.innerHTML = '⚠ Offline';
             statusIndicator.className = 'connection-status offline';
             statusIndicator.title = 'You\'re offline - Using cached data';
+            console.log('📱 Set indicator to: ⚠ Offline');
         } else {
             statusIndicator.innerHTML = '✓ Online';
             statusIndicator.className = 'connection-status online';
             statusIndicator.title = 'Connected to internet';
+            console.log('📱 Set indicator to: ✓ Online');
         }
+
+        console.log('📱 Indicator position:', statusIndicator.style.position, statusIndicator.style.top, statusIndicator.style.right);
+        console.log('📱 Indicator content:', statusIndicator.innerHTML);
     }
 
     createConnectionStatusIndicator() {
+        console.log('📱 Creating connection status indicator...');
         const indicator = document.createElement('div');
         indicator.id = 'connectionStatus';
-        indicator.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 10000;
-            transition: all 0.3s ease;
-        `;
+
+        // Use individual style properties to avoid CSS conflicts
+        indicator.style.position = 'fixed';
+        indicator.style.top = '15px';
+        indicator.style.right = '15px';
+        indicator.style.padding = '8px 12px';
+        indicator.style.borderRadius = '15px';
+        indicator.style.fontSize = '13px';
+        indicator.style.fontWeight = 'bold';
+        indicator.style.zIndex = '99999';
+        indicator.style.transition = 'all 0.3s ease';
+        indicator.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3)';
+        indicator.style.display = 'block';
+        indicator.style.visibility = 'visible';
+        indicator.style.pointerEvents = 'none';
+        indicator.style.userSelect = 'none';
+        indicator.style.fontFamily = 'Arial, sans-serif';
 
         document.body.appendChild(indicator);
+        console.log('✅ Connection status indicator created and added to page at top-right');
         return indicator;
     }
 
@@ -9211,9 +9229,7 @@ class VibeVoyageApp {
             }
         });
 
-        // Online/offline status
-        window.addEventListener('online', () => this.updateConnectionStatus());
-        window.addEventListener('offline', () => this.updateConnectionStatus());
+        // Online/offline status is now handled by initOfflineDetection()
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -9223,16 +9239,7 @@ class VibeVoyageApp {
         });
     }
     
-    updateConnectionStatus() {
-        const statusElement = document.getElementById('connectionStatus');
-        if (navigator.onLine) {
-            statusElement.textContent = 'Online';
-            statusElement.className = 'status-online';
-        } else {
-            statusElement.textContent = 'Offline';
-            statusElement.className = 'status-offline';
-        }
-    }
+
     
     showNotification(message, type = 'info') {
         console.log(`📢 Notification: ${message} (${type})`);
